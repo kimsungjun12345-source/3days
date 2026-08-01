@@ -632,6 +632,80 @@ function runPendingAnim() {
   }
 }
 
+/* ── 기록 지키기 ──────────────────────
+ * 이 앱의 자산은 쌓인 기록인데 브라우저 저장소는 지워질 수 있다.
+ * 서버가 생기기 전까지는 파일로 꺼내 두는 것이 유일한 안전장치다.
+ */
+
+function exportData() {
+  const payload = JSON.stringify({ app: "jaksim3", exportedAt: new Date().toISOString(), ...state }, null, 2);
+  const blob = new Blob([payload], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  // 파일명에 한글을 쓰면 브라우저가 통째로 무시하고 확장자 없는 'download'로
+  // 저장해 버린다 — 나중에 다시 가져올 수 없게 되므로 ASCII로 둔다
+  a.download = `jaksimsamil-${todayStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  haptic(10);
+  toast("stone", "기록을 파일로 저장했어요");
+}
+
+/* 남의 손을 탄 파일도 앱을 깨뜨리지 않게 필요한 모양으로 다듬는다 */
+function normalizeGoal(raw, index) {
+  const checks = Array.isArray(raw.checks) ? raw.checks.filter((d) => typeof d === "string").slice(-3) : [];
+  const history = Array.isArray(raw.history)
+    ? [...new Set(raw.history.filter((d) => typeof d === "string"))].sort()
+    : [...checks];
+  const num = (v) => (Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0);
+  return {
+    id: typeof raw.id === "string" && raw.id ? raw.id : `imported-${index}-${Math.random().toString(36).slice(2, 6)}`,
+    title: String(raw.title).slice(0, 30),
+    icon: ICONS[raw.icon] ? raw.icon : goalIcon(raw),
+    createdAt: typeof raw.createdAt === "string" ? raw.createdAt : new Date().toISOString(),
+    checks,
+    history,
+    lastCheckDate: typeof raw.lastCheckDate === "string" ? raw.lastCheckDate : checks[checks.length - 1] || null,
+    totalDays: num(raw.totalDays) || history.length,
+    completedCycles: num(raw.completedCycles),
+    restarts: num(raw.restarts),
+  };
+}
+
+function importData(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    let goals;
+    try {
+      const data = JSON.parse(String(reader.result));
+      if (!data || !Array.isArray(data.goals)) throw new Error("shape");
+      goals = data.goals
+        .filter((g) => g && typeof g.title === "string" && g.title.trim())
+        .map(normalizeGoal);
+    } catch (e) {
+      alert("이 파일은 작심삼일 기록이 아닌 것 같아요.");
+      return;
+    }
+    if (!goals.length) {
+      alert("파일에서 불러올 작심을 찾지 못했어요.");
+      return;
+    }
+    const now = state.goals.length;
+    const warn = now ? `\n\n지금 앱에 있는 작심 ${now}개는 이 기록으로 대체됩니다.` : "";
+    if (!confirm(`작심 ${goals.length}개를 불러올까요?${warn}`)) return;
+    state = { goals };
+    save();
+    render();
+    haptic(12);
+    toast("stone", `작심 ${goals.length}개를 불러왔어요`);
+  };
+  reader.onerror = () => alert("파일을 읽지 못했어요.");
+  reader.readAsText(file);
+}
+
 /* ── 기록 화면 ─────────────────────── */
 
 const WEEKS = 12;
@@ -896,6 +970,14 @@ function setupModal() {
     addGoal(title, selectedIcon);
     $("input-title").value = "";
     closeModal();
+  });
+
+  $("btn-export").addEventListener("click", exportData);
+  $("btn-import").addEventListener("click", () => $("file-import").click());
+  $("file-import").addEventListener("change", (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    if (file) importData(file);
+    ev.target.value = ""; // 같은 파일을 다시 골라도 동작하도록
   });
 
   $("detail-close").addEventListener("click", closeDetail);

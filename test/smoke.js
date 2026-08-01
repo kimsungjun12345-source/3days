@@ -1,5 +1,7 @@
 const { chromium } = require("playwright-core");
 const path = require("path");
+const fs = require("fs");
+const os = require("os");
 
 const APP = "file://" + path.resolve(__dirname, "..", "index.html");
 
@@ -13,7 +15,7 @@ function dstr(offset) {
   const browser = await chromium.launch({
     executablePath: "/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell",
   });
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, acceptDownloads: true });
   const errors = [];
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
   page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("Failed to load resource")) errors.push("console: " + m.text()); });
@@ -213,6 +215,43 @@ function dstr(offset) {
   await page.reload();
   await page.waitForTimeout(200);
   assert(before > 0 && (await slots()) === 0, "the garden clears once today is done");
+
+  // 15. 기록 내보내기 / 가져오기 — 저장소가 지워져도 되살릴 수 있어야 한다
+  await page.evaluate((d1) => {
+    localStorage.setItem("jaksim3.v1", JSON.stringify({ goals: [
+      { id: "x1", title: "아침에 물 한 잔", icon: "water", createdAt: "", checks: [d1], history: [d1],
+        lastCheckDate: d1, totalDays: 14, completedCycles: 4, restarts: 2 },
+      { id: "x2", title: "10분 걷기", icon: "run", createdAt: "", checks: [], history: [],
+        lastCheckDate: null, totalDays: 6, completedCycles: 2, restarts: 1 }]}));
+  }, dstr(-1));
+  await page.reload();
+
+  const [download] = await Promise.all([page.waitForEvent("download"), page.click("#btn-export")]);
+  const backupPath = path.join(os.tmpdir(), "jaksim-backup-test.json");
+  await download.saveAs(backupPath);
+  assert(/^[\x20-\x7e]+\.json$/.test(download.suggestedFilename()),
+    "backup filename survives the browser (ascii + .json), got: " + download.suggestedFilename());
+  const backup = JSON.parse(fs.readFileSync(backupPath, "utf8"));
+  assert(backup.goals.length === 2, "export contains every goal");
+  assert(backup.goals[0].history.length === 1, "export keeps the day history");
+
+  // 저장소를 통째로 날린 뒤 되살리기
+  await page.evaluate(() => localStorage.removeItem("jaksim3.v1"));
+  await page.reload();
+  assert((await page.locator(".goal-card").count()) === 0, "wiped storage really is empty");
+
+  await page.setInputFiles("#file-import", backupPath);
+  await page.waitForTimeout(600);
+  assert((await page.locator(".goal-card").count()) === 2, "import brings the goals back");
+  assert((await page.locator("#stat-cycles").textContent()) === "6", "import restores stones");
+  assert((await page.locator("#stat-restarts").textContent()) === "3", "import restores restarts");
+
+  // 엉뚱한 파일은 기존 기록을 건드리지 않는다
+  const junkPath = path.join(os.tmpdir(), "jaksim-junk-test.json");
+  fs.writeFileSync(junkPath, JSON.stringify({ hello: "world" }));
+  await page.setInputFiles("#file-import", junkPath);
+  await page.waitForTimeout(400);
+  assert((await page.locator(".goal-card").count()) === 2, "a wrong file never wipes existing records");
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 

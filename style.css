@@ -379,6 +379,34 @@ body {
   font-weight: 700;
 }
 
+/* ── 기록 내보내기 / 가져오기 ────────── */
+.data-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 26px;
+  font-size: 0.78rem;
+  color: #c6bfb4;
+}
+
+.data-actions button {
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--gray);
+  cursor: pointer;
+  padding: 6px 4px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line);
+}
+
+.data-actions button:active {
+  color: var(--ink);
+}
+
 /* ── 푸터 ─────────────────────────── */
 .footer {
   margin-top: 40px;
