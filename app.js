@@ -129,7 +129,7 @@ function checkToday(goal, opts = {}) {
     completed,
     silent: !!opts.silent,
   };
-  if (completed && !reduceMotion) heroStoneHeld = true;
+  if (completed && !reduceMotion) heldGoalId = goal.id;
 
   save();
   render();
@@ -163,7 +163,7 @@ function restart(goal) {
     save();
     render();
   }
-  toast("💪", `다시 쌓기 ${goal.restarts}번째. 이게 진짜 실력이에요`);
+  toast("run", `다시 쌓기 ${goal.restarts}번째. 이게 진짜 실력이에요`);
 }
 
 function removeGoal(goal) {
@@ -182,6 +182,112 @@ function removeGoal(goal) {
  * viewBox는 쌓인 높이에 맞춰 계산하므로 돌이 늘어도 잘리지 않는다.
  */
 const MAX_STONES = 5;
+
+const STONE_GRADIENT = `<radialGradient id="stone" cx="38%" cy="26%" r="85%">
+    <stop offset="0%" stop-color="#cdc6b8"/>
+    <stop offset="62%" stop-color="#a89f8e"/>
+    <stop offset="100%" stop-color="#8d8371"/>
+  </radialGradient>`;
+
+/* ── 돌탑 정원 ────────────────────────
+ * 작심 하나가 탑 하나. 홈에는 그 탑들이 원근을 두고 함께 서 있다.
+ * 앞쪽 탑은 크고 진하게, 뒤쪽 탑은 작고 흐리게 — 뒤로 갈수록 공기에
+ * 잠기는 것처럼 보이게 해서 정원처럼 읽히게 한다.
+ */
+
+/* 바닥 중심을 원점으로 위로 쌓는 돌 무더기 */
+function stoneStack(stones, building, max = MAX_STONES) {
+  const shown = Math.min(stones, max);
+  let y = -4;
+  let rx = 40;
+  let ry = 13.5;
+  let top = 0;
+  const parts = [`<ellipse cx="0" cy="0" rx="46" ry="6" fill="rgba(90,80,60,0.09)"/>`];
+
+  for (let i = 0; i < shown; i++) {
+    y -= ry * 1.5;
+    const tilt = i % 2 === 0 ? -1.6 : 1.7;
+    const cx = i % 2 === 0 ? -1.5 : 1.5;
+    parts.push(
+      `<ellipse cx="${cx}" cy="${y}" rx="${rx}" ry="${ry}" fill="url(#stone)" transform="rotate(${tilt} ${cx} ${y})"/>`
+    );
+    top = Math.min(top, y - ry);
+    y -= ry * 0.4;
+    rx *= 0.85;
+    ry *= 0.93;
+  }
+
+  if (building) {
+    const by = y - ry * 1.3;
+    const brx = Math.max(rx * 0.92, 15);
+    const bry = Math.max(ry * 0.88, 6);
+    parts.push(
+      `<ellipse class="building-stone" cx="0" cy="${by}" rx="${brx}" ry="${bry}"
+        fill="rgba(232,93,61,0.10)" stroke="#e85d3d" stroke-width="1.6" stroke-dasharray="4.5 3.5"/>`
+    );
+    top = Math.min(top, by - bry);
+  }
+
+  return { markup: parts.join("\n"), top };
+}
+
+/* 탑이 설 자리 — 앞에서 뒤로, 좌우로 흩어지게 미리 잡아 둔 구도 */
+const GARDEN_SPOTS = [
+  { x: 0.5, depth: 0 },
+  { x: 0.21, depth: 0.52 },
+  { x: 0.79, depth: 0.44 },
+  { x: 0.36, depth: 0.88 },
+  { x: 0.65, depth: 0.98 },
+  { x: 0.12, depth: 0.78 },
+];
+
+const GARDEN_MAX = GARDEN_SPOTS.length;
+
+function gardenSVG(goals) {
+  const W = 340;
+  const H = 152;
+  const groundY = 132;
+
+  // 큰 탑이 앞에 오도록 — 가장 많이 쌓은 작심이 정원의 주인공이 된다
+  const towers = goals
+    .map((g) => ({ goal: g, stones: stoneCount(g) }))
+    .sort((a, b) => b.stones - a.stones)
+    .slice(0, GARDEN_MAX);
+
+  // 뒤에 있는 탑부터 그려야 앞 탑이 위에 겹친다
+  const drawOrder = towers.map((t, i) => ({ ...t, spot: GARDEN_SPOTS[i] }));
+  drawOrder.sort((a, b) => b.spot.depth - a.spot.depth);
+
+  const groups = drawOrder.map(({ goal, stones, spot }) => {
+    const held = heldGoalId === goal.id;
+    const st = goalStatus(goal);
+    // 점선 자리는 '오늘 아직 남은 일'일 때만 — 오늘 할 걸 다 하면 정원이 말끔해진다
+    const waiting = (st === "fresh" || st === "active") && !checkedToday(goal);
+    const building = held || waiting;
+    const drawn = held ? Math.max(0, stones - 1) : stones;
+    const { markup } = stoneStack(drawn, building, 4);
+
+    const scale = (1 - 0.44 * spot.depth) * 0.62;
+    const x = spot.x * W;
+    const y = groundY - spot.depth * 26;
+    const opacity = (1 - 0.42 * spot.depth).toFixed(2);
+
+    // 안쪽 g를 한 겹 더 두는 이유: 바깥 g의 transform(위치·크기)을
+    // CSS 애니메이션이 덮어쓰지 않도록 흔들림은 안쪽에서만 준다
+    return `<g class="tower" data-goal-id="${goal.id}"
+      transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${scale.toFixed(3)})"
+      opacity="${opacity}"><g class="tower-inner">${markup}</g></g>`;
+  });
+
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    <defs>${STONE_GRADIENT}</defs>
+    ${groups.join("\n")}
+  </svg>`;
+}
+
+function stoneCount(goal) {
+  return goal.completedCycles + (goal.checks.length >= 3 ? 1 : 0);
+}
 
 function cairnSVG(stones, building, ghost = 0, max = MAX_STONES) {
   const shown = Math.min(stones, max);
@@ -230,13 +336,7 @@ function cairnSVG(stones, building, ghost = 0, max = MAX_STONES) {
 
   const top = minY - 7;
   return `<svg viewBox="0 ${top} 120 ${groundY + 10 - top}" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <radialGradient id="stone" cx="38%" cy="26%" r="85%">
-        <stop offset="0%" stop-color="#cdc6b8"/>
-        <stop offset="62%" stop-color="#a89f8e"/>
-        <stop offset="100%" stop-color="#8d8371"/>
-      </radialGradient>
-    </defs>
+    <defs>${STONE_GRADIENT}</defs>
     ${parts.join("\n")}
   </svg>`;
 }
@@ -261,19 +361,6 @@ function renderStats() {
     goals.reduce((s, g) => s + g.completedCycles, 0) +
     goals.filter((g) => g.checks.length >= 3).length;
   const restarts = goals.reduce((s, g) => s + g.restarts, 0);
-  let building = goals.some((g) => {
-    const st = goalStatus(g);
-    return st === "fresh" || st === "active";
-  });
-
-  // 돌이 날아가는 동안 탑은 아직 자라지 않은 상태로 두고, 빈 점선 자리를 남겨둔다.
-  // 돌이 착지하는 순간 그 자리에 진짜 돌이 채워지며 탑이 한 칸 자란다.
-  let drawnStones = cycles;
-  if (heroStoneHeld) {
-    drawnStones = Math.max(0, cycles - 1);
-    building = true;
-  }
-
   const hasGoals = goals.length > 0;
   $("stats").hidden = !hasGoals;
   $("section-head").hidden = !hasGoals;
@@ -284,7 +371,7 @@ function renderStats() {
   $("stat-total-days").textContent = totalDays;
   $("stat-cycles").textContent = cycles;
   $("stat-restarts").textContent = restarts;
-  $("hero-cairn").innerHTML = cairnSVG(drawnStones, building);
+  $("hero-garden").innerHTML = gardenSVG(goals);
 
   const emptyCairn = document.querySelector(".empty-cairn");
   if (emptyCairn && !hasGoals) emptyCairn.innerHTML = cairnSVG(0, true, 2);
@@ -493,8 +580,8 @@ function toast(iconKey, text) {
 /* 렌더 직후 실행할 애니메이션 예약 */
 let pendingAnim = null;
 let newGoalId = null;
-/* 돌이 공중에 떠 있는 동안 true — 그동안 히어로 돌탑은 자라지 않고 기다린다 */
-let heroStoneHeld = false;
+/* 돌이 공중에 떠 있는 동안 그 작심의 id — 해당 탑만 자라지 않고 기다린다 */
+let heldGoalId = null;
 /* 축하 화면이 보고 있는 목표 */
 let cheerGoalId = null;
 
@@ -514,7 +601,7 @@ function runPendingAnim() {
   if (job.completed) {
     haptic([12, 60, 24]);
     const goal = state.goals.find((g) => g.id === job.goalId);
-    flyStoneToTower(dot, () => {
+    flyStoneToTower(dot, job.goalId, () => {
       // 돌이 얹힌 뒤에 축하 화면 — 탑이 자라는 걸 먼저 보게 한다
       if (goal) setTimeout(() => showCheer(goal), 420);
     });
@@ -623,9 +710,10 @@ function cheerWord(stones, restarts, isFirst) {
 }
 
 function showCheer(goal) {
-  const stones = totalStones();
-  const restarts = state.goals.reduce((s, g) => s + g.restarts, 0);
-  const days = totalDaysWithTower();
+  // 축하는 이 작심의 탑 이야기 — 정원 전체가 아니라 방금 자란 탑을 보여 준다
+  const stones = stoneCount(goal);
+  const restarts = goal.restarts;
+  const days = goal.totalDays;
 
   // 축하 화면에서는 탑을 더 높이 보여 준다
   $("cheer-cairn").innerHTML = cairnSVG(stones, false, 0, 9);
@@ -653,13 +741,12 @@ function closeCheer() {
   cheerGoalId = null;
 }
 
-/* 완주한 돌이 카드에서 히어로 돌탑으로 날아가 얹힌다 */
-function flyStoneToTower(fromEl, onLanded) {
-  const hero = $("hero-cairn");
-  const cairnSvg = hero && hero.querySelector("svg");
-  // 착지점 = 탑 꼭대기에 비어 있는 점선 자리
-  const slot = cairnSvg && cairnSvg.querySelector(".building-stone");
-  if (!fromEl || !hero || !slot || reduceMotion) {
+/* 완주한 돌이 카드에서 그 작심의 탑으로 날아가 얹힌다 */
+function flyStoneToTower(fromEl, goalId, onLanded) {
+  // 착지점 = 그 작심의 탑 꼭대기에 비어 있는 점선 자리
+  const tower = document.querySelector(`#hero-garden .tower[data-goal-id="${goalId}"]`);
+  const slot = tower && tower.querySelector(".building-stone");
+  if (!fromEl || !slot || reduceMotion) {
     landStone();
     if (onLanded) onLanded();
     return;
@@ -699,22 +786,25 @@ function flyStoneToTower(fromEl, onLanded) {
   };
 }
 
-/* 돌이 닿는 순간: 점선 자리가 진짜 돌로 바뀌고, 탑이 한 번 눌렸다 편다 */
+/* 돌이 닿는 순간: 점선 자리가 진짜 돌로 바뀌고, 그 탑이 한 번 눌렸다 편다 */
 function landStone(x, y) {
-  heroStoneHeld = false;
+  const grown = heldGoalId;
+  heldGoalId = null;
   renderStats();
-  bumpTower();
+  bumpTower(grown);
   if (x != null) stoneDust(x, y);
   haptic(18);
 }
 
-/* 돌이 얹힐 때 탑 전체가 한 번 눌렸다 펴진다 */
-function bumpTower() {
-  const hero = $("hero-cairn");
-  if (!hero) return;
-  hero.classList.remove("bump");
-  void hero.offsetWidth;
-  hero.classList.add("bump");
+/* 돌이 얹힌 탑만 눌렸다 펴진다 — 정원의 나머지는 가만히 있는다 */
+function bumpTower(goalId) {
+  const tower = goalId
+    ? document.querySelector(`#hero-garden .tower[data-goal-id="${goalId}"]`)
+    : $("hero-garden");
+  if (!tower) return;
+  tower.classList.remove("bump");
+  void tower.getBoundingClientRect();
+  tower.classList.add("bump");
 }
 
 /* 착지 지점에서 흙먼지가 짧게 퍼진다 */

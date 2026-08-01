@@ -173,6 +173,46 @@ function dstr(offset) {
   await page.reload();
   assert((await page.locator("#stat-total-days").textContent()) === "1", "three goals checked today still count as one day");
 
+  // 14. 돌탑 정원 — 작심마다 탑 하나, 자기 탑만 자란다
+  await page.evaluate(([d2, d1]) => {
+    localStorage.setItem("jaksim3.v1", JSON.stringify({ goals: [
+      { id: "A", title: "아침에 물 한 잔", icon: "water", createdAt: "", checks: [], history: [],
+        lastCheckDate: null, totalDays: 9, completedCycles: 3, restarts: 0 },
+      { id: "B", title: "책 10쪽 읽기", icon: "book", createdAt: "", checks: [d2, d1], history: [d2, d1],
+        lastCheckDate: d1, totalDays: 5, completedCycles: 1, restarts: 1 }]}));
+  }, [dstr(-2), dstr(-1)]);
+  await page.reload();
+  await page.waitForTimeout(200);
+
+  const stonesIn = (id) => page.evaluate((i) => {
+    const t = document.querySelector('#hero-garden .tower[data-goal-id="' + i + '"]');
+    return t ? t.querySelectorAll("ellipse:not(.building-stone)").length - 1 : -1;
+  }, id);
+
+  assert((await page.locator("#hero-garden .tower").count()) === 2, "every goal gets its own tower in the garden");
+  assert((await stonesIn("A")) === 3 && (await stonesIn("B")) === 1, "each tower shows that goal's own stones");
+
+  const bookCard = page.locator(".goal-card").filter({ hasText: "책 10쪽" });
+  await bookCard.locator(".btn-primary").click();
+  await page.waitForTimeout(1500);
+  assert((await stonesIn("B")) === 2, "finishing three days grows that goal's tower");
+  assert((await stonesIn("A")) === 3, "the other towers in the garden are left untouched");
+  assert((await page.locator("#cheer-title").textContent()).includes("두 번째"), "celebration counts stones per goal");
+  await page.click("#cheer-close");
+  await page.waitForTimeout(300);
+
+  // 오늘 할 일을 다 끝내면 정원에서 점선 자리가 사라진다
+  const slots = () => page.locator("#hero-garden .building-stone").count();
+  const before = await slots();
+  await page.evaluate((d0) => {
+    const s = JSON.parse(localStorage.getItem("jaksim3.v1"));
+    s.goals.forEach((g) => { g.checks = [d0]; g.lastCheckDate = d0; });
+    localStorage.setItem("jaksim3.v1", JSON.stringify(s));
+  }, dstr(0));
+  await page.reload();
+  await page.waitForTimeout(200);
+  assert(before > 0 && (await slots()) === 0, "the garden clears once today is done");
+
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 
   await page.screenshot({ path: __dirname + "/screenshot.png", fullPage: true });

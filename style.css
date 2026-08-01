@@ -62,45 +62,47 @@ body {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  gap: 18px;
+  overflow: hidden;
   box-shadow: 0 1px 4px rgba(40, 35, 25, 0.04);
 }
 
-.hero-cairn {
-  flex-shrink: 0;
-  width: 72px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
+/* 작심마다 탑 하나 — 앞뒤로 늘어선 나의 정원 */
+.garden {
+  /* 뒤쪽 탑이 놓인 바닥이 은은하게 밝아 보이도록 */
+  background: radial-gradient(120% 80% at 50% 108%, #faf8f4 0%, transparent 62%);
 }
 
-.hero-cairn svg {
+.garden svg {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 92px;
+}
+
+.hero-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 18px 16px;
 }
 
 .hero-label {
   font-size: 0.8rem;
   font-weight: 500;
   color: var(--gray);
+  margin-right: 6px;
 }
 
 .hero-big {
-  font-size: 1.8rem;
+  font-size: 1.35rem;
   font-weight: 800;
   letter-spacing: -0.01em;
-  line-height: 1.25;
 }
 
 .hero-sub {
-  margin-top: 2px;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   color: var(--gray);
+  text-align: right;
 }
 
 .hero-sub b {
@@ -559,16 +561,17 @@ body {
   z-index: 40;
 }
 
-/* 돌이 얹히는 순간 탑이 한 번 눌린다 */
-.hero-cairn.bump {
+/* 돌이 얹힌 탑만 한 번 눌렸다 편다.
+   위치·크기를 담은 바깥 g의 transform을 덮어쓰지 않도록 안쪽 g에만 건다 */
+.tower.bump .tower-inner {
   animation: tower-bump 0.5s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
 @keyframes tower-bump {
-  0% { transform: translateY(0) scaleY(1); }
-  28% { transform: translateY(2px) scaleY(0.93); }
-  60% { transform: translateY(-1px) scaleY(1.03); }
-  100% { transform: translateY(0) scaleY(1); }
+  0% { transform: translateY(0); }
+  26% { transform: translateY(2.5px); }
+  62% { transform: translateY(-1.5px); }
+  100% { transform: translateY(0); }
 }
 
 /* 착지 먼지 */
