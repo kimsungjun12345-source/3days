@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#faf6f0" />
+  <meta name="description" content="작심삼일 — 딱 3일만 약속하는 자기계발 앱. 포기해도 괜찮아요, 다시 작심하면 되니까." />
+  <title>작심삼일 — 3일씩, 평생</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>" />
+</head>
+<body>
+  <div class="app">
+
+    <header class="header">
+      <h1 class="logo">작심<span class="logo-accent">삼일</span></h1>
+      <p class="tagline">딱 3일만 약속해요. 포기해도 괜찮아요 — 그때 또 작심하면 되니까.</p>
+    </header>
+
+    <section class="stats" id="stats" hidden>
+      <div class="stat">
+        <span class="stat-value" id="stat-total-days">0</span>
+        <span class="stat-label">쌓인 날들</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value" id="stat-cycles">0</span>
+        <span class="stat-label">완주한 작심</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value" id="stat-restarts">0</span>
+        <span class="stat-label">다시 일어난 횟수</span>
+      </div>
+    </section>
+
+    <p class="stats-note" id="stats-note" hidden></p>
+
+    <main id="goal-list" class="goal-list"></main>
+
+    <section class="empty" id="empty" hidden>
+      <div class="empty-emoji">🌱</div>
+      <h2>작심삼일, 그거 좋은 거예요</h2>
+      <p>
+        3일 만에 포기하는 게 아니라, <strong>3일씩 해내는 거예요.</strong><br />
+        3일이 모이면 6일이 되고, 9일이 되고,<br />
+        어느새 평생이 됩니다.
+      </p>
+      <p class="empty-cta">첫 번째 작심을 만들어 볼까요?</p>
+    </section>
+
+    <button class="fab" id="btn-add" aria-label="새 작심 만들기">＋ 새 작심</button>
+
+    <!-- 새 작심 모달 -->
+    <div class="modal-backdrop" id="modal" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <h2 id="modal-title">새 작심 🔥</h2>
+        <p class="modal-sub">거창할 필요 없어요. 딱 3일만 해볼 것 하나.</p>
+        <form id="form-add">
+          <div class="emoji-row" id="emoji-row"></div>
+          <input
+            type="text"
+            id="input-title"
+            maxlength="30"
+            placeholder="예: 아침에 물 한 잔 마시기"
+            autocomplete="off"
+            required
+          />
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" id="btn-cancel">다음에</button>
+            <button type="submit" class="btn btn-primary">3일 약속하기</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <p>「작심삼일도 여러 번 하면 평생이 된다」</p>
+    </footer>
+  </div>
+
+  <div id="confetti" class="confetti-layer" aria-hidden="true"></div>
+  <script src="app.js"></script>
+</body>
+</html>
