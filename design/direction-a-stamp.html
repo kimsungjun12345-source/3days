@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>방향 A — 온기와 도장</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;900&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Noto Sans KR", sans-serif;
+    background:
+      repeating-linear-gradient(0deg, rgba(197, 160, 118, 0.04) 0 1px, transparent 1px 3px),
+      #f7f1e6;
+    color: #3a2f24;
+    line-height: 1.6;
+  }
+  .app { max-width: 420px; margin: 0 auto; padding: 40px 22px 110px; }
+
+  .header { text-align: center; margin-bottom: 30px; }
+  .logo {
+    font-family: "Noto Serif KR", serif;
+    font-weight: 900;
+    font-size: 2.5rem;
+    letter-spacing: 0.12em;
+  }
+  .logo em { font-style: normal; color: #b3402e; }
+  .tagline {
+    font-family: "Noto Serif KR", serif;
+    margin-top: 8px;
+    font-size: 0.95rem;
+    color: #8a7660;
+    word-break: keep-all;
+  }
+
+  .ledger {
+    display: flex;
+    justify-content: space-between;
+    background: #fffdf7;
+    border: 1px solid #e5d9c4;
+    border-radius: 6px;
+    padding: 18px 20px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 10px rgba(122, 96, 60, 0.08);
+  }
+  .ledger .item { text-align: center; flex: 1; }
+  .ledger .num {
+    font-family: "Noto Serif KR", serif;
+    font-weight: 900;
+    font-size: 1.7rem;
+    color: #b3402e;
+    display: block;
+    line-height: 1.2;
+  }
+  .ledger .lab { font-size: 0.74rem; color: #8a7660; }
+  .ledger .item + .item { border-left: 1px dashed #e5d9c4; }
+  .ledger-note {
+    text-align: center;
+    font-family: "Noto Serif KR", serif;
+    font-size: 0.86rem;
+    color: #8a7660;
+    margin-bottom: 26px;
+  }
+
+  .card {
+    position: relative;
+    background: #fffdf7;
+    border: 1px solid #e5d9c4;
+    border-radius: 6px;
+    padding: 24px 22px 22px;
+    margin-bottom: 18px;
+    box-shadow: 0 2px 10px rgba(122, 96, 60, 0.08);
+  }
+  .card::before {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    border: 1px dashed #e0d2b8;
+    border-radius: 4px;
+    pointer-events: none;
+  }
+  .card-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 18px; }
+  .card-title {
+    font-family: "Noto Serif KR", serif;
+    font-weight: 600;
+    font-size: 1.12rem;
+  }
+  .card-emoji { font-size: 1.1rem; }
+
+  .stamps { display: flex; justify-content: center; gap: 20px; margin: 22px 0 6px; }
+  .stamp {
+    width: 74px; height: 74px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    color: #b7a68c;
+    border: 1.5px dashed #d8c9ac;
+    background: transparent;
+  }
+  .stamp.done {
+    border: none;
+    background: radial-gradient(circle at 35% 30%, #cf5340, #a83424 70%);
+    color: #fff7ee;
+    transform: rotate(-7deg);
+    box-shadow: inset 0 0 0 3px rgba(255, 247, 238, 0.25), 0 2px 6px rgba(168, 52, 36, 0.35);
+  }
+  .stamp.done .big {
+    font-family: "Noto Serif KR", serif;
+    font-weight: 900;
+    font-size: 1.5rem;
+    line-height: 1.1;
+  }
+  .stamp.today { border: 1.5px solid #b3402e; color: #b3402e; }
+  .stamp .big { font-weight: 700; font-size: 1.15rem; line-height: 1.2; }
+
+  .card-msg {
+    text-align: center;
+    font-family: "Noto Serif KR", serif;
+    font-size: 0.9rem;
+    color: #8a7660;
+    margin-bottom: 16px;
+    word-break: keep-all;
+  }
+  .btn {
+    position: relative;
+    display: block; width: 100%;
+    padding: 15px;
+    border: none; border-radius: 6px;
+    font-family: "Noto Serif KR", serif;
+    font-weight: 600; font-size: 1.02rem;
+    cursor: pointer;
+  }
+  .btn-ink { background: #3a2f24; color: #f7f1e6; }
+  .btn-seal { background: #b3402e; color: #fff7ee; }
+  .card-record {
+    position: relative;
+    text-align: center; font-size: 0.76rem; color: #b7a68c; margin-top: 12px;
+  }
+
+  .footer {
+    margin-top: 44px; text-align: center;
+    font-family: "Noto Serif KR", serif;
+    font-size: 0.85rem; color: #b7a68c;
+  }
+  .fab {
+    position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
+    background: #3a2f24; color: #f7f1e6;
+    font-family: "Noto Serif KR", serif; font-weight: 600; font-size: 1rem;
+    border: none; border-radius: 999px; padding: 15px 30px;
+    box-shadow: 0 8px 22px rgba(58, 47, 36, 0.35);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <h1 class="logo">작심<em>삼일</em></h1>
+    <p class="tagline">삼 일씩 담담하게, 무너지면 다시 한 번</p>
+  </header>
+
+  <section class="ledger">
+    <div class="item"><span class="num">13</span><span class="lab">쌓인 날</span></div>
+    <div class="item"><span class="num">4</span><span class="lab">완주한 작심</span></div>
+    <div class="item"><span class="num">2</span><span class="lab">다시 일어남</span></div>
+  </section>
+  <p class="ledger-note">작심삼일 네 번, 벌써 열이틀입니다</p>
+
+  <article class="card">
+    <div class="card-head">
+      <span class="card-emoji">💧</span>
+      <h2 class="card-title">아침에 물 한 잔 마시기</h2>
+    </div>
+    <div class="stamps">
+      <div class="stamp done"><span class="big">일</span><span>첫째 날</span></div>
+      <div class="stamp today"><span class="big">이</span><span>둘째 날</span></div>
+      <div class="stamp"><span class="big">삼</span><span>셋째 날</span></div>
+    </div>
+    <p class="card-msg">둘째 날입니다. 오늘도 도장 하나 찍을까요?</p>
+    <button class="btn btn-ink">오늘의 도장 찍기</button>
+    <p class="card-record">누적 13일 · 완주 4회 · 다시 일어남 2회</p>
+  </article>
+
+  <article class="card">
+    <div class="card-head">
+      <span class="card-emoji">📚</span>
+      <h2 class="card-title">30분 책 읽기</h2>
+    </div>
+    <div class="stamps">
+      <div class="stamp done"><span class="big">일</span><span>첫째 날</span></div>
+      <div class="stamp"><span class="big">이</span><span>둘째 날</span></div>
+      <div class="stamp"><span class="big">삼</span><span>셋째 날</span></div>
+    </div>
+    <p class="card-msg">쉬어 간 것도 과정입니다.<br />쌓아 온 아홉 날은 그대로 있어요.</p>
+    <button class="btn btn-seal">오늘부터 다시, 작심</button>
+    <p class="card-record">누적 9일 · 완주 3회 · 다시 일어남 1회</p>
+  </article>
+
+  <p class="footer">「작심삼일도 여러 번 하면 평생이 된다」</p>
+</div>
+<button class="fab">＋ 새로 작심하기</button>
+</body>
+</html>

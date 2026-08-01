@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>방향 C — 뚝심</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Noto Sans KR", sans-serif;
+    background: #f4f1ea;
+    color: #121212;
+    line-height: 1.55;
+  }
+  .app { max-width: 420px; margin: 0 auto; padding: 40px 20px 120px; }
+
+  .header { margin-bottom: 26px; }
+  .kicker {
+    display: inline-block;
+    background: #121212; color: #f4f1ea;
+    font-weight: 700; font-size: 0.78rem;
+    padding: 4px 10px; border-radius: 4px;
+    letter-spacing: 0.08em;
+    transform: rotate(-2deg);
+    margin-bottom: 10px;
+  }
+  .logo {
+    font-weight: 900;
+    font-size: 3rem;
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+  }
+  .logo .hl {
+    color: #ff5c00;
+    text-decoration: underline;
+    text-decoration-thickness: 6px;
+    text-underline-offset: 6px;
+  }
+  .tagline { margin-top: 12px; font-weight: 500; color: #5c574d; word-break: keep-all; }
+
+  .stats { display: flex; gap: 10px; margin: 24px 0 6px; }
+  .stat {
+    flex: 1;
+    background: #fff;
+    border: 3px solid #121212;
+    border-radius: 14px;
+    padding: 14px 6px 12px;
+    text-align: center;
+    box-shadow: 5px 5px 0 #121212;
+  }
+  .stat .num { font-weight: 900; font-size: 1.9rem; line-height: 1.1; display: block; }
+  .stat.orange .num { color: #ff5c00; }
+  .stat .lab { font-size: 0.72rem; font-weight: 700; color: #5c574d; }
+  .stats-note {
+    margin: 16px 2px 26px;
+    font-weight: 900; font-size: 1.05rem;
+    word-break: keep-all;
+  }
+  .stats-note mark {
+    background: linear-gradient(transparent 55%, #ffd28f 55%);
+    padding: 0 2px;
+  }
+
+  .card {
+    position: relative;
+    background: #fff;
+    border: 3px solid #121212;
+    border-radius: 18px;
+    padding: 22px 20px;
+    margin-bottom: 22px;
+    box-shadow: 7px 7px 0 #121212;
+  }
+  .badge {
+    position: absolute; top: -14px; right: 14px;
+    background: #ff5c00; color: #fff;
+    font-weight: 900; font-size: 0.72rem;
+    padding: 6px 10px;
+    border: 3px solid #121212;
+    border-radius: 999px;
+    transform: rotate(4deg);
+    box-shadow: 3px 3px 0 #121212;
+  }
+  .badge.blue { background: #2b6ef2; transform: rotate(-3deg); }
+  .card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+  .card-emoji { font-size: 1.35rem; }
+  .card-title { font-weight: 900; font-size: 1.15rem; }
+
+  .boxes { display: flex; gap: 12px; margin: 18px 0; }
+  .box {
+    flex: 1; aspect-ratio: 1;
+    border: 3px dashed #c9c2b2;
+    border-radius: 14px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-weight: 900; color: #c9c2b2;
+  }
+  .box .n { font-size: 1.7rem; line-height: 1.1; }
+  .box .l { font-size: 0.68rem; font-weight: 700; }
+  .box.done {
+    border: 3px solid #121212;
+    background: #ff5c00; color: #fff;
+    transform: rotate(-2deg);
+    box-shadow: 4px 4px 0 #121212;
+  }
+  .box.today {
+    border: 3px solid #121212; color: #121212;
+    background: #fff;
+    animation: none;
+  }
+  .card-msg { font-weight: 500; font-size: 0.92rem; color: #5c574d; margin-bottom: 14px; word-break: keep-all; }
+  .card-msg b { color: #121212; }
+
+  .btn {
+    display: block; width: 100%;
+    padding: 16px;
+    border: 3px solid #121212; border-radius: 14px;
+    font-family: inherit; font-weight: 900; font-size: 1.05rem;
+    cursor: pointer;
+  }
+  .btn-go { background: #121212; color: #fff; box-shadow: 5px 5px 0 #ff5c00; }
+  .btn-again { background: #2b6ef2; color: #fff; box-shadow: 5px 5px 0 #121212; }
+  .card-record { font-size: 0.75rem; font-weight: 700; color: #a39b89; margin-top: 12px; }
+
+  .footer {
+    margin-top: 40px; text-align: center;
+    font-weight: 900; font-size: 0.95rem;
+    transform: rotate(-1deg);
+  }
+  .footer span {
+    background: #121212; color: #f4f1ea;
+    padding: 6px 12px; border-radius: 6px;
+    display: inline-block;
+  }
+  .fab {
+    position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
+    background: #ff5c00; color: #fff;
+    font-family: inherit; font-weight: 900; font-size: 1.05rem;
+    border: 3px solid #121212; border-radius: 999px;
+    padding: 15px 30px;
+    box-shadow: 5px 5px 0 #121212;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <span class="kicker">3일씩 사는 사람들</span>
+    <h1 class="logo">포기 전문,<br /><span class="hl">재도전 만렙.</span></h1>
+    <p class="tagline">작심삼일 120번이면 1년입니다. 진짜로요.</p>
+  </header>
+
+  <div class="stats">
+    <div class="stat orange"><span class="num">13</span><span class="lab">쌓인 날</span></div>
+    <div class="stat"><span class="num">4</span><span class="lab">완주</span></div>
+    <div class="stat"><span class="num">2</span><span class="lab">부활</span></div>
+  </div>
+  <p class="stats-note">작심삼일 <mark>4번 = 12일</mark>. 이 페이스면 평생 갑니다.</p>
+
+  <article class="card">
+    <span class="badge">진행 중 🔥</span>
+    <div class="card-head">
+      <span class="card-emoji">💧</span>
+      <h2 class="card-title">아침에 물 한 잔 마시기</h2>
+    </div>
+    <div class="boxes">
+      <div class="box done"><span class="n">✓</span><span class="l">DAY 1</span></div>
+      <div class="box today"><span class="n">2</span><span class="l">DAY 2</span></div>
+      <div class="box"><span class="n">3</span><span class="l">DAY 3</span></div>
+    </div>
+    <p class="card-msg"><b>내일이면 완주.</b> 오늘만 넘기면 됩니다.</p>
+    <button class="btn btn-go">오늘 해냈다 💪 (DAY 2)</button>
+    <p class="card-record">누적 13일 · 완주 4회 · 부활 2회</p>
+  </article>
+
+  <article class="card">
+    <span class="badge blue">부활 대기 중</span>
+    <div class="card-head">
+      <span class="card-emoji">📚</span>
+      <h2 class="card-title">30분 책 읽기</h2>
+    </div>
+    <div class="boxes">
+      <div class="box done"><span class="n">✓</span><span class="l">DAY 1</span></div>
+      <div class="box"><span class="n">2</span><span class="l">DAY 2</span></div>
+      <div class="box"><span class="n">3</span><span class="l">DAY 3</span></div>
+    </div>
+    <p class="card-msg"><b>포기 아님, 휴식임.</b> 쌓아둔 9일은 안 사라져요. 부활 한 번 가시죠.</p>
+    <button class="btn btn-again">오늘부터 부활 ⚡</button>
+    <p class="card-record">누적 9일 · 완주 3회 · 부활 1회</p>
+  </article>
+
+  <p class="footer"><span>작심삼일 × 120 = 1년</span></p>
+</div>
+<button class="fab">＋ 새 작심</button>
+</body>
+</html>

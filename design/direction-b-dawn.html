@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>방향 B — 새벽</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;900&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Noto Sans KR", sans-serif;
+    background: linear-gradient(180deg, #0a0f24 0%, #131a38 34%, #2c2b55 58%, #6a4a6e 78%, #c96f52 94%, #e89a63 100%);
+    min-height: 100vh;
+    color: #eef0fa;
+    line-height: 1.6;
+  }
+  .app { max-width: 420px; margin: 0 auto; padding: 44px 22px 120px; }
+
+  .header { text-align: center; margin-bottom: 8px; }
+  .logo {
+    font-family: "Noto Serif KR", serif;
+    font-weight: 900;
+    font-size: 2.3rem;
+    letter-spacing: 0.14em;
+    text-shadow: 0 0 24px rgba(232, 154, 99, 0.35);
+  }
+  .logo em { font-style: normal; color: #ffb26b; }
+  .tagline {
+    font-family: "Noto Serif KR", serif;
+    font-size: 0.95rem;
+    color: #a9aecb;
+    margin-top: 8px;
+    word-break: keep-all;
+  }
+
+  .horizon {
+    text-align: center;
+    margin: 26px 0 30px;
+  }
+  .horizon .days-big {
+    font-family: "Noto Serif KR", serif;
+    font-weight: 900;
+    font-size: 3.6rem;
+    line-height: 1.1;
+    color: #ffb26b;
+    text-shadow: 0 0 34px rgba(255, 178, 107, 0.45);
+  }
+  .horizon .days-cap { font-size: 0.85rem; color: #a9aecb; letter-spacing: 0.2em; }
+  .horizon .days-sub {
+    font-family: "Noto Serif KR", serif;
+    font-size: 0.92rem; color: #d8d3e8; margin-top: 10px; word-break: keep-all;
+  }
+  .substats {
+    display: flex; justify-content: center; gap: 26px; margin-top: 14px;
+    font-size: 0.8rem; color: #a9aecb;
+  }
+  .substats b { color: #eef0fa; font-weight: 700; }
+
+  .card {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 22px;
+    padding: 24px 22px;
+    margin-bottom: 16px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 10px 30px rgba(4, 6, 18, 0.4);
+  }
+  .card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .card-emoji { font-size: 1.3rem; }
+  .card-title { font-weight: 500; font-size: 1.08rem; letter-spacing: 0.01em; }
+
+  .suns { display: flex; justify-content: center; gap: 22px; margin: 8px 0 18px; }
+  .sun {
+    width: 66px; height: 66px; border-radius: 50%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 0.68rem; color: #7f85a8;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+  }
+  .sun.done {
+    border: none;
+    background: radial-gradient(circle at 40% 35%, #ffd9a0, #ff9e57 65%, #f07b3f);
+    color: #4a2410;
+    box-shadow: 0 0 22px rgba(255, 158, 87, 0.55);
+    font-weight: 700;
+  }
+  .sun.today {
+    border: 1px solid #ffb26b;
+    color: #ffb26b;
+    box-shadow: inset 0 -18px 22px -14px rgba(255, 178, 107, 0.5);
+  }
+  .sun .n { font-size: 1.05rem; font-weight: 700; line-height: 1.3; }
+
+  .card-msg {
+    text-align: center;
+    font-family: "Noto Serif KR", serif;
+    font-size: 0.92rem; color: #c9cbe0;
+    margin-bottom: 16px; word-break: keep-all;
+  }
+  .btn {
+    display: block; width: 100%; padding: 15px;
+    border: none; border-radius: 999px;
+    font-family: inherit; font-weight: 700; font-size: 1rem;
+    cursor: pointer;
+  }
+  .btn-sun {
+    background: linear-gradient(135deg, #ffb26b, #f07b3f);
+    color: #341607;
+    box-shadow: 0 6px 24px rgba(240, 123, 63, 0.4);
+  }
+  .btn-night {
+    background: rgba(255, 255, 255, 0.1);
+    color: #eef0fa;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  .card-record { text-align: center; font-size: 0.75rem; color: #7f85a8; margin-top: 12px; }
+
+  .footer {
+    margin-top: 40px; text-align: center;
+    font-family: "Noto Serif KR", serif;
+    font-size: 0.88rem; color: rgba(255, 240, 224, 0.75);
+  }
+  .fab {
+    position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
+    background: #eef0fa; color: #131a38;
+    font-family: inherit; font-weight: 700; font-size: 1rem;
+    border: none; border-radius: 999px; padding: 15px 30px;
+    box-shadow: 0 10px 26px rgba(4, 6, 18, 0.5);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <h1 class="logo">작심<em>삼일</em></h1>
+    <p class="tagline">무너진 밤 끝에도, 새벽은 다시 온다</p>
+  </header>
+
+  <section class="horizon">
+    <div class="days-cap">지금까지 떠오른 해</div>
+    <div class="days-big">13</div>
+    <div class="days-sub">작심삼일 네 번이 모여, 열이틀의 새벽이 되었어요</div>
+    <div class="substats"><span>완주 <b>4</b></span><span>다시 일어남 <b>2</b></span></div>
+  </section>
+
+  <article class="card">
+    <div class="card-head">
+      <span class="card-emoji">💧</span>
+      <h2 class="card-title">아침에 물 한 잔 마시기</h2>
+    </div>
+    <div class="suns">
+      <div class="sun done"><span class="n">☀</span><span>Day 1</span></div>
+      <div class="sun today"><span class="n">2</span><span>Day 2</span></div>
+      <div class="sun"><span class="n">3</span><span>Day 3</span></div>
+    </div>
+    <p class="card-msg">두 번째 해가 뜨기 직전이에요</p>
+    <button class="btn btn-sun">오늘의 해 띄우기</button>
+    <p class="card-record">누적 13일 · 완주 4회 · 다시 일어남 2회</p>
+  </article>
+
+  <article class="card">
+    <div class="card-head">
+      <span class="card-emoji">📚</span>
+      <h2 class="card-title">30분 책 읽기</h2>
+    </div>
+    <div class="suns">
+      <div class="sun done"><span class="n">☀</span><span>Day 1</span></div>
+      <div class="sun"><span class="n">2</span><span>Day 2</span></div>
+      <div class="sun"><span class="n">3</span><span>Day 3</span></div>
+    </div>
+    <p class="card-msg">밤이 길었을 뿐이에요.<br />떠오른 아홉 개의 해는 지지 않아요.</p>
+    <button class="btn btn-night">내일 새벽, 다시 작심 🌅</button>
+    <p class="card-record">누적 9일 · 완주 3회 · 다시 일어남 1회</p>
+  </article>
+
+  <p class="footer">「작심삼일도 여러 번 하면 평생이 된다」</p>
+</div>
+<button class="fab">＋ 새 작심</button>
+</body>
+</html>
