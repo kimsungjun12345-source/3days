@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>방향 E — 프로덕션</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #f7f6f3;
+    --card: #ffffff;
+    --line: #eeeae3;
+    --ink: #1a1917;
+    --gray: #9b948a;
+    --gray-strong: #6d675e;
+    --accent: #f4633a;
+    --accent-soft: #fdeee8;
+    --sage: #5f7d54;
+    --sage-soft: #eef3ec;
+    --chip: #f2f0ec;
+  }
+  body {
+    font-family: "Noto Sans KR", -apple-system, sans-serif;
+    background: #e8e6e1;
+    display: flex; justify-content: center;
+    line-height: 1.5;
+  }
+  .phone {
+    width: 390px; min-height: 844px;
+    background: var(--bg);
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+
+  /* 상태바 */
+  .statusbar {
+    height: 44px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px;
+    font-size: 0.9rem; font-weight: 700; color: var(--ink);
+  }
+  .statusbar .icons { display: flex; gap: 5px; font-size: 0.75rem; letter-spacing: -1px; }
+
+  /* 앱바 */
+  .appbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 20px 4px;
+  }
+  .appbar .brand { font-weight: 800; font-size: 1.15rem; letter-spacing: 0.01em; }
+  .appbar .brand em { font-style: normal; color: var(--accent); }
+  .appbar .bell {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--chip); font-size: 1rem;
+  }
+
+  .scroll { flex: 1; padding: 8px 20px 110px; }
+
+  /* 히어로 요약 카드 */
+  .hero {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 20px;
+    display: flex; align-items: center; gap: 16px;
+    box-shadow: 0 1px 4px rgba(40, 35, 25, 0.04);
+  }
+  .hero .cairn { flex-shrink: 0; }
+  .hero .label { font-size: 0.82rem; color: var(--gray); font-weight: 500; }
+  .hero .big { font-size: 1.65rem; font-weight: 800; letter-spacing: -0.01em; }
+  .hero .big span { color: var(--accent); }
+  .hero .sub { display: flex; gap: 10px; margin-top: 6px; }
+  .hero .pill {
+    background: var(--chip);
+    border-radius: 8px;
+    padding: 3px 8px;
+    font-size: 0.72rem; font-weight: 500; color: var(--gray-strong);
+  }
+
+  .section-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin: 26px 2px 12px;
+  }
+  .section-head h2 { font-size: 1.02rem; font-weight: 700; }
+  .section-head .more { font-size: 0.8rem; color: var(--gray); font-weight: 500; }
+
+  /* 작심 카드 */
+  .goal {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 18px 18px 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 4px rgba(40, 35, 25, 0.04);
+  }
+  .goal-top { display: flex; align-items: center; gap: 12px; }
+  .goal-ico {
+    width: 44px; height: 44px; border-radius: 14px;
+    background: var(--chip);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.35rem;
+  }
+  .goal-ico.orange { background: var(--accent-soft); }
+  .goal-ico.sage { background: var(--sage-soft); }
+  .goal-tt { flex: 1; }
+  .goal-tt .t { font-weight: 700; font-size: 1.02rem; letter-spacing: -0.01em; }
+  .goal-tt .s { font-size: 0.78rem; color: var(--gray); margin-top: 1px; }
+  .goal-tt .s b { color: var(--accent); font-weight: 700; }
+  .goal-tt .s .ok { color: var(--sage); font-weight: 700; }
+
+  .dots { display: flex; gap: 6px; }
+  .dot {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.68rem; font-weight: 700;
+    background: var(--chip); color: #c4bdb2;
+  }
+  .dot.done { background: var(--accent); color: #fff; }
+  .dot.today { background: #fff; border: 2px solid var(--accent); color: var(--accent); }
+
+  .goal .cta {
+    margin-top: 14px;
+    display: block; width: 100%;
+    height: 50px; border: none; border-radius: 14px;
+    font-family: inherit; font-size: 0.98rem; font-weight: 700;
+    cursor: pointer;
+  }
+  .cta-accent { background: var(--accent); color: #fff; }
+  .cta-sage { background: var(--sage); color: #fff; }
+  .cta-quiet { background: var(--chip); color: var(--gray-strong); font-weight: 500; }
+
+  /* 새 작심 추가 카드 */
+  .add {
+    border: 1.6px dashed #d8d2c8;
+    border-radius: 20px;
+    padding: 16px;
+    text-align: center;
+    color: var(--gray);
+    font-size: 0.92rem; font-weight: 500;
+    background: transparent;
+    width: 100%;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .add b { color: var(--gray-strong); }
+
+  /* 응원 배너 */
+  .note {
+    margin-top: 18px;
+    background: var(--accent-soft);
+    border-radius: 16px;
+    padding: 14px 16px;
+    font-size: 0.85rem; color: #8c4a30;
+    display: flex; gap: 10px; align-items: center;
+    word-break: keep-all;
+  }
+  .note .e { font-size: 1.1rem; }
+  .note b { font-weight: 700; }
+
+  /* 탭바 */
+  .tabbar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(255, 255, 255, 0.96);
+    border-top: 1px solid var(--line);
+    display: flex;
+    padding: 10px 8px 26px;
+    backdrop-filter: blur(10px);
+  }
+  .tab {
+    flex: 1; text-align: center;
+    font-size: 0.68rem; font-weight: 500; color: #b6afa4;
+  }
+  .tab .ti { font-size: 1.3rem; display: block; line-height: 1.3; }
+  .tab.on { color: var(--ink); font-weight: 700; }
+  .home-indicator {
+    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+    width: 134px; height: 5px; border-radius: 3px; background: #d8d4cd;
+  }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span class="icons">📶 ᯤ 🔋</span></div>
+
+  <div class="appbar">
+    <span class="brand">작심<em>삼일</em></span>
+    <span class="bell">🔔</span>
+  </div>
+
+  <div class="scroll">
+    <section class="hero">
+      <svg class="cairn" width="74" height="78" viewBox="0 0 100 106">
+        <defs>
+          <radialGradient id="hs" cx="38%" cy="26%" r="85%">
+            <stop offset="0%" stop-color="#cdc6b8"/><stop offset="62%" stop-color="#a89f8e"/><stop offset="100%" stop-color="#8d8371"/>
+          </radialGradient>
+        </defs>
+        <ellipse cx="50" cy="98" rx="38" ry="5" fill="rgba(90,80,60,0.12)"/>
+        <ellipse cx="50" cy="88" rx="33" ry="11" fill="url(#hs)" transform="rotate(-1.5 50 88)"/>
+        <ellipse cx="49" cy="70" rx="27" ry="9.5" fill="url(#hs)" transform="rotate(1.8 49 70)"/>
+        <ellipse cx="51" cy="55" rx="22" ry="8" fill="url(#hs)" transform="rotate(-2 51 55)"/>
+        <ellipse cx="50" cy="42" rx="17.5" ry="7" fill="url(#hs)" transform="rotate(1.5 50 42)"/>
+        <ellipse cx="50" cy="26" rx="13.5" ry="5.5" fill="rgba(244,99,58,0.12)" stroke="#f4633a" stroke-width="1.4" stroke-dasharray="4 3"/>
+        <text x="50" y="29" text-anchor="middle" font-size="7.5" font-weight="700" fill="#f4633a">2/3</text>
+      </svg>
+      <div>
+        <div class="label">돌탑과 함께한 날</div>
+        <div class="big">13일 <span>· 돌 4개</span></div>
+        <div class="sub">
+          <span class="pill">완주 4</span>
+          <span class="pill">다시 쌓음 2</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="section-head">
+      <h2>오늘의 작심</h2>
+      <span class="more">전체보기</span>
+    </div>
+
+    <article class="goal">
+      <div class="goal-top">
+        <div class="goal-ico orange">💧</div>
+        <div class="goal-tt">
+          <div class="t">아침에 물 한 잔 마시기</div>
+          <div class="s">둘째 날 · <b>내일이면 돌 하나 완성</b></div>
+        </div>
+        <div class="dots">
+          <span class="dot done">✓</span><span class="dot today">2</span><span class="dot">3</span>
+        </div>
+      </div>
+      <button class="cta cta-accent">오늘의 돌 얹기</button>
+    </article>
+
+    <article class="goal">
+      <div class="goal-top">
+        <div class="goal-ico sage">📚</div>
+        <div class="goal-tt">
+          <div class="t">30분 책 읽기</div>
+          <div class="s"><span class="ok">쌓아둔 9일은 그대로예요</span> · 이틀 쉬어감</div>
+        </div>
+        <div class="dots">
+          <span class="dot done">✓</span><span class="dot">2</span><span class="dot">3</span>
+        </div>
+      </div>
+      <button class="cta cta-sage">괜찮아요, 다시 쌓기</button>
+    </article>
+
+    <article class="goal">
+      <div class="goal-top">
+        <div class="goal-ico">🧘</div>
+        <div class="goal-tt">
+          <div class="t">자기 전 5분 스트레칭</div>
+          <div class="s">오늘 완료 · 셋째 날까지 하루 남음</div>
+        </div>
+        <div class="dots">
+          <span class="dot done">✓</span><span class="dot done">✓</span><span class="dot">3</span>
+        </div>
+      </div>
+      <button class="cta cta-quiet">오늘은 다 했어요 · 내일 봐요 👋</button>
+    </article>
+
+    <button class="add">＋ <b>새 작심 만들기</b> — 딱 3일만 약속해요</button>
+
+    <div class="note">
+      <span class="e">🪨</span>
+      <span><b>다시 쌓음 2회.</b> 무너지고도 돌아온 사람이 결국 탑을 완성해요.</span>
+    </div>
+  </div>
+
+  <nav class="tabbar">
+    <div class="tab on"><span class="ti">🏠</span>홈</div>
+    <div class="tab"><span class="ti">🗓️</span>기록</div>
+    <div class="tab"><span class="ti">🪨</span>내 돌탑</div>
+    <div class="tab"><span class="ti">⚙️</span>설정</div>
+  </nav>
+  <div class="home-indicator"></div>
+</div>
+</body>
+</html>
