@@ -34,13 +34,18 @@ function todayStr(offsetDays = 0) {
 /* ── 저장소 ─────────────────────────── */
 
 function load() {
+  let data = { goals: [] };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) data = JSON.parse(raw);
   } catch (e) {
     /* 손상된 데이터는 새로 시작 */
   }
-  return { goals: [] };
+  // history(체크한 모든 날짜)는 나중에 추가된 필드 — 예전 데이터도 이어받게 한다
+  for (const g of data.goals || []) {
+    if (!Array.isArray(g.history)) g.history = [...(g.checks || [])];
+  }
+  return data;
 }
 
 function save() {
@@ -77,6 +82,7 @@ function addGoal(title, icon) {
     icon,
     createdAt: new Date().toISOString(),
     checks: [],          // 이번 사이클에서 체크한 날짜들 (최대 3개)
+    history: [],         // 지금까지 체크한 모든 날짜 — 기록 화면의 재료
     lastCheckDate: null, // 같은 날 중복 카운트 방지
     totalDays: 0,
     completedCycles: 0,
@@ -93,6 +99,7 @@ function addGoal(title, icon) {
 function checkToday(goal, opts = {}) {
   if (checkedToday(goal) || goal.checks.length >= 3) return;
   goal.checks.push(todayStr());
+  if (!goal.history.includes(todayStr())) goal.history.push(todayStr());
   goal.lastCheckDate = todayStr();
   goal.totalDays += 1;
 
@@ -294,9 +301,15 @@ function statusLine(goal, status) {
 /* 카드를 길게 누르면 삭제 — 상시 노출되는 ✕ 없이 화면을 비워둔다 */
 function attachLongPressDelete(card, goal) {
   let timer = null;
-  const start = () => {
+  let fired = false;
+
+  const start = (ev) => {
+    // 오늘의 돌 얹기 같은 버튼을 꾹 눌렀다가 삭제되는 일은 없어야 한다
+    if (ev.target.closest("button")) return;
     clearTimeout(timer);
+    fired = false;
     timer = setTimeout(() => {
+      fired = true;
       card.classList.remove("pressing");
       removeGoal(goal);
     }, 650);
@@ -306,11 +319,23 @@ function attachLongPressDelete(card, goal) {
     clearTimeout(timer);
     card.classList.remove("pressing");
   };
+
   card.addEventListener("pointerdown", start);
   ["pointerup", "pointerleave", "pointercancel"].forEach((ev) =>
     card.addEventListener(ev, cancel)
   );
   card.addEventListener("contextmenu", (ev) => ev.preventDefault());
+  // 길게 눌러 삭제한 뒤에 따라오는 클릭이 기록 화면을 열지 않도록
+  card.addEventListener(
+    "click",
+    (ev) => {
+      if (fired) {
+        ev.stopPropagation();
+        fired = false;
+      }
+    },
+    true
+  );
 }
 
 function renderGoalCard(goal) {
@@ -357,6 +382,18 @@ function renderGoalCard(goal) {
     dots.appendChild(d);
   }
   top.appendChild(dots);
+
+  // 카드 윗부분을 누르면 이 작심이 걸어온 기록이 열린다
+  top.setAttribute("role", "button");
+  top.setAttribute("tabindex", "0");
+  top.setAttribute("aria-label", `${goal.title} 기록 보기`);
+  top.addEventListener("click", () => openDetail(goal));
+  top.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" || ev.key === " ") {
+      ev.preventDefault();
+      openDetail(goal);
+    }
+  });
 
   card.appendChild(top);
   attachLongPressDelete(card, goal);
@@ -452,6 +489,77 @@ function runPendingAnim() {
       setTimeout(() => toast("stone", msg), 180);
     }
   }
+}
+
+/* ── 기록 화면 ─────────────────────── */
+
+const WEEKS = 12;
+
+/* 지난 12주를 주 단위로 — 무너진 구간과 다시 쌓은 구간이 한눈에 보인다 */
+function renderCalendar(goal) {
+  const done = new Set(goal.history || []);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // 이번 주 일요일까지 채워서 격자를 맞춘다
+  const end = new Date(today);
+  end.setDate(end.getDate() + (6 - end.getDay()));
+
+  const cells = [];
+  const total = WEEKS * 7;
+  for (let i = total - 1; i >= 0; i--) {
+    const d = new Date(end);
+    d.setDate(d.getDate() - i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate()
+    ).padStart(2, "0")}`;
+    const isFuture = d > today;
+    const isToday = d.getTime() === today.getTime();
+    const cls = [
+      "cal-cell",
+      done.has(key) ? "on" : "",
+      isFuture ? "future" : "",
+      isToday ? "today" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    cells.push(`<i class="${cls}" title="${key}"></i>`);
+  }
+  return cells.join("");
+}
+
+/* 기록에서 읽어 낸 한마디 — 숫자보다 이야기를 돌려준다 */
+function historyWord(goal) {
+  const h = [...(goal.history || [])].sort();
+  if (h.length === 0) return "아직 첫 돌 전이에요.";
+  if (goal.restarts > 0) {
+    return `${goal.restarts}번 무너지고 ${goal.restarts}번 다시 왔어요. 그게 이 탑의 진짜 기록이에요.`;
+  }
+  if (goal.completedCycles > 0) {
+    return `${goal.completedCycles}번의 3일이 쌓여 ${goal.totalDays}일이 됐어요.`;
+  }
+  return "지금 첫 3일을 쌓는 중이에요.";
+}
+
+let detailGoalId = null;
+
+function openDetail(goal) {
+  detailGoalId = goal.id;
+  $("detail-ico").innerHTML = iconSVG(goalIcon(goal), 20);
+  $("detail-title").textContent = goal.title;
+  $("detail-stats").innerHTML =
+    `<div><b>${goal.totalDays}</b><span>함께한 날</span></div>` +
+    `<div><b>${goal.completedCycles + (goal.checks.length >= 3 ? 1 : 0)}</b><span>쌓은 돌</span></div>` +
+    // 다시 쌓은 횟수는 다른 종류의 성취라 색을 따로 준다
+    `<div class="again"><b>${goal.restarts}</b><span>다시 쌓음</span></div>`;
+  $("detail-cal").innerHTML = renderCalendar(goal);
+  $("detail-word").textContent = historyWord(goal);
+  $("detail").hidden = false;
+}
+
+function closeDetail() {
+  $("detail").hidden = true;
+  detailGoalId = null;
 }
 
 /* ── 완주 축하 ─────────────────────── */
@@ -637,6 +745,16 @@ function setupModal() {
     addGoal(title, selectedIcon);
     $("input-title").value = "";
     closeModal();
+  });
+
+  $("detail-close").addEventListener("click", closeDetail);
+  $("detail").addEventListener("click", (ev) => {
+    if (ev.target === $("detail")) closeDetail();
+  });
+  $("detail-delete").addEventListener("click", () => {
+    const goal = state.goals.find((g) => g.id === detailGoalId);
+    closeDetail();
+    if (goal) removeGoal(goal);
   });
 
   $("cheer-close").addEventListener("click", closeCheer);

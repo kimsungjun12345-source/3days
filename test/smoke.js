@@ -107,6 +107,32 @@ function dstr(offset) {
   assert((await page.locator(".goal-card .dot.done").count()) === 0, "next cycle starts empty when today already counted");
   assert((await page.locator("#stat-cycles").textContent()) === "3", "completed cycle is banked");
 
+  // 10. 기록 화면 — 카드를 탭하면 지난 12주가 열린다
+  await page.evaluate(([h, d1]) => {
+    localStorage.setItem("jaksim3.v1", JSON.stringify({ goals: [
+      { id: "r", title: "책 10쪽 읽기", icon: "book", createdAt: "",
+        checks: [d1], history: h, lastCheckDate: d1,
+        totalDays: h.length, completedCycles: 3, restarts: 2 }]}));
+  }, [[dstr(-9), dstr(-8), dstr(-7), dstr(-4), dstr(-3), dstr(-1)], dstr(-1)]);
+  await page.reload();
+
+  await page.click(".goal-top");
+  await page.waitForTimeout(300);
+  assert(await page.locator("#detail").isVisible(), "record sheet opens on card tap");
+  assert((await page.locator(".cal-cell").count()) === 84, "calendar shows 12 weeks");
+  assert((await page.locator(".cal-cell.on").count()) === 6, "calendar marks every day from history");
+  assert((await page.locator("#detail-word").textContent()).includes("다시"), "record sheet tells the restart story");
+  await page.click("#detail-close");
+  await page.waitForTimeout(200);
+  assert(await page.locator("#detail").isHidden(), "record sheet closes");
+
+  // 11. 버튼을 길게 눌러도 삭제되지 않는다
+  await page.locator(".goal-card .btn").hover();
+  await page.mouse.down();
+  await page.waitForTimeout(1000);
+  await page.mouse.up();
+  assert((await page.locator(".goal-card").count()) === 1, "long-press on a button never deletes the goal");
+
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 
   await page.screenshot({ path: __dirname + "/screenshot.png", fullPage: true });

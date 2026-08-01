@@ -53,6 +53,38 @@
       <p>작심삼일도 여러 번 하면, 평생이 된다</p>
     </footer>
 
+    <!-- 작심 기록 -->
+    <div class="modal-backdrop" id="detail" hidden>
+      <div class="modal detail" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+        <div class="detail-head">
+          <span class="detail-ico" id="detail-ico"></span>
+          <h2 id="detail-title"></h2>
+        </div>
+
+        <div class="detail-stats" id="detail-stats"></div>
+
+        <div class="cal-head">
+          <span>지난 12주</span>
+          <span class="cal-legend">
+            <i class="cal-dot"></i> 쉬어감
+            <i class="cal-dot on"></i> 쌓은 날
+          </span>
+        </div>
+        <div class="cal-wrap">
+          <div class="cal-days" aria-hidden="true">
+            <span>일</span><span></span><span>화</span><span></span><span>목</span><span></span><span>토</span>
+          </div>
+          <div class="cal" id="detail-cal"></div>
+        </div>
+        <p class="detail-word" id="detail-word"></p>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost btn-danger" id="detail-delete">지우기</button>
+          <button type="button" class="btn btn-primary" id="detail-close">닫기</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 완주 축하 -->
     <div class="cheer-backdrop" id="cheer" hidden>
       <div class="cheer" role="dialog" aria-modal="true" aria-labelledby="cheer-title">
