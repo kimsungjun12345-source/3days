@@ -3,56 +3,60 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#faf6f0" />
-  <meta name="description" content="작심삼일 — 딱 3일만 약속하는 자기계발 앱. 포기해도 괜찮아요, 다시 작심하면 되니까." />
-  <title>작심삼일 — 3일씩, 평생</title>
+  <meta name="theme-color" content="#f7f6f3" />
+  <meta name="description" content="작심삼일 — 딱 3일만 약속하는 습관 앱. 3일마다 돌 하나, 무너지면 다시 쌓기." />
+  <title>작심삼일</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪨</text></svg>" />
 </head>
 <body>
   <div class="app">
 
-    <header class="header">
-      <h1 class="logo">작심<span class="logo-accent">삼일</span></h1>
-      <p class="tagline">딱 3일만 약속해요. 포기해도 괜찮아요 — 그때 또 작심하면 되니까.</p>
+    <header class="appbar">
+      <h1 class="brand">작심<em>삼일</em></h1>
     </header>
 
-    <section class="stats" id="stats" hidden>
-      <div class="stat">
-        <span class="stat-value" id="stat-total-days">0</span>
-        <span class="stat-label">쌓인 날들</span>
-      </div>
-      <div class="stat">
-        <span class="stat-value" id="stat-cycles">0</span>
-        <span class="stat-label">완주한 작심</span>
-      </div>
-      <div class="stat">
-        <span class="stat-value" id="stat-restarts">0</span>
-        <span class="stat-label">다시 일어난 횟수</span>
+    <section class="hero" id="stats" hidden>
+      <div class="hero-cairn" id="hero-cairn" aria-hidden="true"></div>
+      <div class="hero-body">
+        <div class="hero-label">돌탑과 함께한 날</div>
+        <div class="hero-big"><span id="stat-total-days">0</span>일</div>
+        <div class="hero-sub">
+          쌓은 돌 <b id="stat-cycles">0</b> · 다시 쌓음 <b id="stat-restarts">0</b>
+        </div>
       </div>
     </section>
 
-    <p class="stats-note" id="stats-note" hidden></p>
+    <section class="empty" id="empty" hidden>
+      <div class="empty-cairn" aria-hidden="true"></div>
+      <h2>첫 돌을 쌓아볼까요?</h2>
+      <p>
+        약속은 딱 3일. 3일을 채우면 돌 하나가 쌓여요.<br />
+        무너져도 괜찮아요 — 돌탑은 원래<br />
+        무너지면 다시 쌓는 거니까요.
+      </p>
+    </section>
+
+    <div class="section-head" id="section-head" hidden>
+      <h2>오늘의 작심</h2>
+    </div>
 
     <main id="goal-list" class="goal-list"></main>
 
-    <section class="empty" id="empty" hidden>
-      <div class="empty-emoji">🌱</div>
-      <h2>작심삼일, 그거 좋은 거예요</h2>
-      <p>
-        3일 만에 포기하는 게 아니라, <strong>3일씩 해내는 거예요.</strong><br />
-        3일이 모이면 6일이 되고, 9일이 되고,<br />
-        어느새 평생이 됩니다.
-      </p>
-      <p class="empty-cta">첫 번째 작심을 만들어 볼까요?</p>
-    </section>
+    <button class="add-card" id="btn-add">＋ <b>새 작심 만들기</b><span class="add-sub"> — 딱 3일만 약속해요</span></button>
 
-    <button class="fab" id="btn-add" aria-label="새 작심 만들기">＋ 새 작심</button>
+    <p class="note" id="note" hidden></p>
 
-    <!-- 새 작심 모달 -->
+    <footer class="footer">
+      <p>작심삼일도 여러 번 하면, 평생이 된다</p>
+    </footer>
+
+    <!-- 새 작심 바텀시트 -->
     <div class="modal-backdrop" id="modal" hidden>
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-        <h2 id="modal-title">새 작심 🔥</h2>
+        <h2 id="modal-title">새 작심</h2>
         <p class="modal-sub">거창할 필요 없어요. 딱 3일만 해볼 것 하나.</p>
         <form id="form-add">
           <div class="emoji-row" id="emoji-row"></div>
@@ -71,10 +75,6 @@
         </form>
       </div>
     </div>
-
-    <footer class="footer">
-      <p>「작심삼일도 여러 번 하면 평생이 된다」</p>
-    </footer>
   </div>
 
   <div id="confetti" class="confetti-layer" aria-hidden="true"></div>

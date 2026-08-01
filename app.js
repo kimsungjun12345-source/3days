@@ -1,37 +1,10 @@
-/* 작심삼일 — 3일씩 약속하고, 무너지면 또 작심하는 습관 앱 */
+/* 작심삼일 — 3일마다 돌 하나, 무너지면 다시 쌓는 습관 앱 */
 
 const STORAGE_KEY = "jaksim3.v1";
 
-const EMOJIS = ["🔥", "💪", "📚", "🏃", "💧", "🧘", "✍️", "🌅", "🥗", "💤"];
+const EMOJIS = ["🪨", "💧", "📚", "🏃", "🧘", "✍️", "🌅", "🥗", "💪", "💤"];
 
-const MESSAGES = {
-  fresh: [
-    "오늘이 Day 1이에요. 딱 3일만 가봐요.",
-    "시작이 반, 3일이면 완주예요.",
-    "부담 갖지 마세요. 약속은 3일뿐이니까.",
-  ],
-  day1: [
-    "좋아요, 하루 해냈어요. 이제 이틀!",
-    "Day 1 완료. 내일 또 만나요.",
-  ],
-  day2: [
-    "이틀째! 내일이면 작심삼일 완성이에요.",
-    "하루만 더 하면 완주예요. 거의 다 왔어요.",
-  ],
-  complete: [
-    "작심삼일 완주! 3일을 해냈어요.",
-    "약속한 3일, 전부 지켰어요. 대단해요.",
-  ],
-  broken: [
-    "쉬어간 것도 과정이에요. 지금까지 쌓은 날들은 그대로예요.",
-    "포기가 아니라 잠깐 멈춘 거예요. 또 작심하면 돼요.",
-    "괜찮아요. 작심삼일은 원래 여러 번 하는 거예요.",
-  ],
-};
-
-function pick(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
+const DAY_KO = ["첫째", "둘째", "셋째"];
 
 function todayStr(offsetDays = 0) {
   const d = new Date();
@@ -62,8 +35,8 @@ let state = load();
 /* ── 상태 판정 ──────────────────────────
  * fresh    : 이번 사이클 체크 0개 → 오늘 시작 가능
  * active   : 1~2개 체크, 아직 안 끊김 → 진행 중
- * complete : 3개 체크 → 완주, 다음 작심 대기
- * broken   : 1~2개 체크했지만 하루를 건너뜀 → 다시 작심 대기
+ * complete : 3개 체크 → 돌 하나 완성, 다음 작심 대기
+ * broken   : 1~2개 체크했지만 하루를 건너뜀 → 다시 쌓기 대기
  */
 function goalStatus(goal) {
   const checks = goal.checks;
@@ -106,11 +79,11 @@ function checkToday(goal) {
   if (goal.checks.length === 3) celebrate();
 }
 
-/* 완주 후 다음 3일 시작 */
+/* 돌 하나 완성 후 다음 3일 시작 */
 function nextCycle(goal) {
   goal.completedCycles += 1;
   goal.checks = [];
-  // 완주한 날 바로 누르면 오늘은 이미 카운트됐으므로 내일부터 Day 1
+  // 완성한 날 바로 누르면 오늘은 이미 카운트됐으므로 내일부터 첫째 날
   if (!checkedToday(goal)) checkToday(goal);
   else {
     save();
@@ -118,7 +91,7 @@ function nextCycle(goal) {
   }
 }
 
-/* 끊긴 뒤 다시 작심 — 쌓은 날은 유지, 사이클만 새로 */
+/* 끊긴 뒤 다시 쌓기 — 쌓은 날은 유지, 사이클만 새로 */
 function restart(goal) {
   goal.restarts += 1;
   goal.checks = [];
@@ -138,6 +111,71 @@ function removeGoal(goal) {
   render();
 }
 
+/* ── 돌탑 SVG ────────────────────────
+ * stones   : 완성한 돌 개수 (그림에는 최대 MAX_STONES개까지)
+ * building : 쌓는 중인 돌(점선)을 얹을지
+ * ghost    : 아직 아무것도 없을 때 보여줄 흐린 돌 개수
+ * viewBox는 쌓인 높이에 맞춰 계산하므로 돌이 늘어도 잘리지 않는다.
+ */
+const MAX_STONES = 5;
+
+function cairnSVG(stones, building, ghost = 0) {
+  const shown = Math.min(stones, MAX_STONES);
+  const groundY = 122;
+  let y = groundY - 4;
+  let rx = 40;
+  let ry = 13.5;
+  let minY = groundY;
+  const parts = [`<ellipse cx="60" cy="${groundY}" rx="46" ry="6" fill="rgba(90,80,60,0.09)"/>`];
+
+  for (let i = 0; i < shown; i++) {
+    y -= ry * 1.5;
+    const tilt = i % 2 === 0 ? -1.6 : 1.7;
+    const cx = 60 + (i % 2 === 0 ? -1.5 : 1.5);
+    parts.push(
+      `<ellipse cx="${cx}" cy="${y}" rx="${rx}" ry="${ry}" fill="url(#stone)" transform="rotate(${tilt} ${cx} ${y})"/>`
+    );
+    minY = Math.min(minY, y - ry);
+    y -= ry * 0.4;
+    rx *= 0.85;
+    ry *= 0.93;
+  }
+
+  for (let i = 0; i < ghost; i++) {
+    y -= ry * 1.5;
+    parts.push(
+      `<ellipse cx="60" cy="${y}" rx="${rx}" ry="${ry}" fill="rgba(168,159,142,0.12)"/>`
+    );
+    minY = Math.min(minY, y - ry);
+    y -= ry * 0.4;
+    rx *= 0.85;
+    ry *= 0.93;
+  }
+
+  if (building) {
+    const by = y - ry * 1.3;
+    const brx = Math.max(rx * 0.92, 15);
+    const bry = Math.max(ry * 0.88, 6);
+    parts.push(
+      `<ellipse cx="60" cy="${by}" rx="${brx}" ry="${bry}"
+        fill="rgba(232,93,61,0.10)" stroke="#e85d3d" stroke-width="1.6" stroke-dasharray="4.5 3.5"/>`
+    );
+    minY = Math.min(minY, by - bry);
+  }
+
+  const top = minY - 7;
+  return `<svg viewBox="0 ${top} 120 ${groundY + 10 - top}" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="stone" cx="38%" cy="26%" r="85%">
+        <stop offset="0%" stop-color="#cdc6b8"/>
+        <stop offset="62%" stop-color="#a89f8e"/>
+        <stop offset="100%" stop-color="#8d8371"/>
+      </radialGradient>
+    </defs>
+    ${parts.join("\n")}
+  </svg>`;
+}
+
 /* ── 렌더링 ─────────────────────────── */
 
 const $ = (id) => document.getElementById(id);
@@ -150,31 +188,37 @@ function render() {
 function renderStats() {
   const goals = state.goals;
   const totalDays = goals.reduce((s, g) => s + g.totalDays, 0);
-  const cycles = goals.reduce((s, g) => s + g.completedCycles, 0) +
+  const cycles =
+    goals.reduce((s, g) => s + g.completedCycles, 0) +
     goals.filter((g) => g.checks.length >= 3).length;
   const restarts = goals.reduce((s, g) => s + g.restarts, 0);
+  const building = goals.some((g) => {
+    const st = goalStatus(g);
+    return st === "fresh" || st === "active";
+  });
 
   const hasGoals = goals.length > 0;
   $("stats").hidden = !hasGoals;
+  $("section-head").hidden = !hasGoals;
   $("empty").hidden = hasGoals;
 
   $("stat-total-days").textContent = totalDays;
   $("stat-cycles").textContent = cycles;
   $("stat-restarts").textContent = restarts;
+  $("hero-cairn").innerHTML = cairnSVG(cycles, building);
 
-  const note = $("stats-note");
-  if (!hasGoals || totalDays === 0) {
-    note.hidden = true;
-  } else {
+  const emptyCairn = document.querySelector(".empty-cairn");
+  if (emptyCairn && !hasGoals) emptyCairn.innerHTML = cairnSVG(0, true, 2);
+
+  const note = $("note");
+  if (hasGoals && restarts >= 1) {
     note.hidden = false;
-    if (cycles > 0) {
-      note.textContent = `작심삼일 ${cycles}번 = 벌써 ${cycles * 3}일. 이렇게 평생 가는 거예요.`;
-    } else {
-      note.textContent = "첫 3일을 향해 가는 중이에요.";
-    }
-    if (restarts >= 3) {
-      note.textContent += ` 그리고 ${restarts}번이나 다시 일어났어요. 그게 진짜 실력이에요.`;
-    }
+    note.innerHTML = `<b>다시 쌓음 ${restarts}회.</b> 무너지고도 돌아온 사람이 결국 탑을 완성해요.`;
+  } else if (hasGoals && cycles >= 1) {
+    note.hidden = false;
+    note.innerHTML = `작심삼일 <b>${cycles}번 = ${cycles * 3}일.</b> 이렇게 평생 가는 거예요.`;
+  } else {
+    note.hidden = true;
   }
 }
 
@@ -186,87 +230,107 @@ function renderGoals() {
   }
 }
 
+function statusLine(goal, status) {
+  const n = goal.checks.length;
+  if (status === "complete") return `<b>돌 하나 완성!</b>`;
+  if (status === "broken") return `<span class="ok">쌓아둔 ${goal.totalDays}일은 그대로예요</span>`;
+  if (checkedToday(goal) && n === 0) return `내일 새 돌을 시작해요`;
+  if (checkedToday(goal)) return `${DAY_KO[n - 1]} 날 완료`;
+  if (n === 2) return `<b>오늘이면 돌 하나 완성</b>`;
+  if (n === 1) return `${DAY_KO[n]} 날이에요`;
+  return `오늘이 첫날`;
+}
+
+/* 카드를 길게 누르면 삭제 — 상시 노출되는 ✕ 없이 화면을 비워둔다 */
+function attachLongPressDelete(card, goal) {
+  let timer = null;
+  const start = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      card.classList.remove("pressing");
+      removeGoal(goal);
+    }, 650);
+    card.classList.add("pressing");
+  };
+  const cancel = () => {
+    clearTimeout(timer);
+    card.classList.remove("pressing");
+  };
+  card.addEventListener("pointerdown", start);
+  ["pointerup", "pointerleave", "pointercancel"].forEach((ev) =>
+    card.addEventListener(ev, cancel)
+  );
+  card.addEventListener("contextmenu", (ev) => ev.preventDefault());
+}
+
 function renderGoalCard(goal) {
   const status = goalStatus(goal);
   const card = document.createElement("article");
   card.className = `goal-card state-${status}`;
 
-  // 헤더
-  const head = document.createElement("div");
-  head.className = "goal-head";
-  head.innerHTML = `<span class="goal-emoji"></span><span class="goal-title"></span>`;
-  head.querySelector(".goal-emoji").textContent = goal.emoji;
-  head.querySelector(".goal-title").textContent = goal.title;
-  const del = document.createElement("button");
-  del.className = "btn-delete";
-  del.textContent = "✕";
-  del.setAttribute("aria-label", "작심 삭제");
-  del.addEventListener("click", () => removeGoal(goal));
-  head.appendChild(del);
-  card.appendChild(head);
+  const top = document.createElement("div");
+  top.className = "goal-top";
 
-  // 3일 점
-  const days = document.createElement("div");
-  days.className = "days";
+  const ico = document.createElement("div");
+  ico.className = "goal-ico";
+  ico.textContent = goal.emoji;
+  top.appendChild(ico);
+
+  const tt = document.createElement("div");
+  tt.className = "goal-tt";
+  const title = document.createElement("div");
+  title.className = "goal-title";
+  title.textContent = goal.title;
+  const sub = document.createElement("div");
+  sub.className = "goal-status";
+  sub.innerHTML = statusLine(goal, status);
+  tt.appendChild(title);
+  tt.appendChild(sub);
+  top.appendChild(tt);
+
+  const dots = document.createElement("div");
+  dots.className = "dots";
   for (let i = 0; i < 3; i++) {
-    const d = document.createElement("div");
+    const d = document.createElement("span");
     const done = i < goal.checks.length;
-    const isNext = i === goal.checks.length && (status === "fresh" || status === "active");
-    d.className = "day" + (done ? " done" : "") + (isNext && !checkedToday(goal) ? " today" : "");
-    d.innerHTML = `<span class="day-num">${done ? "✓" : i + 1}</span><span>Day ${i + 1}</span>`;
-    days.appendChild(d);
+    const isNext =
+      i === goal.checks.length &&
+      (status === "fresh" || status === "active") &&
+      !checkedToday(goal);
+    d.className = "dot" + (done ? " done" : "") + (isNext ? " today" : "");
+    d.textContent = done ? "✓" : i + 1;
+    dots.appendChild(d);
   }
-  card.appendChild(days);
+  top.appendChild(dots);
 
-  // 상태 메시지
-  const msg = document.createElement("p");
-  msg.className = "goal-message";
-  card.appendChild(msg);
+  card.appendChild(top);
+  attachLongPressDelete(card, goal);
 
-  // 액션 버튼
   const btn = document.createElement("button");
   btn.className = "btn";
 
   if (status === "complete") {
-    msg.innerHTML = `<strong>작심삼일 완주!</strong> ${pick(MESSAGES.complete)}`;
     btn.classList.add("btn-success");
-    btn.textContent = "또 작심하기 → 3일 더 🔥";
+    btn.textContent = "또 작심하기 — 다음 돌 쌓기";
     btn.addEventListener("click", () => nextCycle(goal));
   } else if (status === "broken") {
-    msg.innerHTML = `<strong>괜찮아요.</strong> ${pick(MESSAGES.broken)}`;
     btn.classList.add("btn-rest");
-    btn.textContent = "오늘부터 다시 작심삼일 🌅";
+    btn.textContent = "괜찮아요, 다시 쌓기";
     btn.addEventListener("click", () => restart(goal));
   } else if (checkedToday(goal) && goal.checks.length === 0) {
-    // 완주 직후 '또 작심하기'를 누른 날 — 오늘은 이미 카운트됐으므로 내일부터 Day 1
-    msg.innerHTML = "<strong>다음 작심 예약 완료!</strong> 새로운 3일은 내일부터 시작해요.";
     btn.classList.add("btn-done");
-    btn.textContent = "내일 Day 1에서 만나요 🌙";
+    btn.textContent = "내일 첫 돌에서 만나요";
     btn.disabled = true;
   } else if (checkedToday(goal)) {
-    msg.textContent = pick(goal.checks.length === 1 ? MESSAGES.day1 : MESSAGES.day2);
     btn.classList.add("btn-done");
-    btn.textContent = "오늘 완료 ✓ 내일 또 만나요";
+    btn.textContent = "오늘은 다 했어요";
     btn.disabled = true;
   } else {
-    msg.textContent =
-      status === "fresh" ? pick(MESSAGES.fresh) : `Day ${goal.checks.length + 1}, 오늘도 가볼까요?`;
     btn.classList.add("btn-primary");
-    btn.textContent = `오늘 해냈어요 (Day ${goal.checks.length + 1})`;
+    btn.textContent = "오늘의 돌 얹기";
     btn.addEventListener("click", () => checkToday(goal));
   }
   card.appendChild(btn);
-
-  // 누적 기록
-  if (goal.totalDays > 0) {
-    const rec = document.createElement("p");
-    rec.className = "goal-record";
-    const parts = [`누적 ${goal.totalDays}일`];
-    if (goal.completedCycles > 0) parts.push(`완주 ${goal.completedCycles}회`);
-    if (goal.restarts > 0) parts.push(`다시 일어남 ${goal.restarts}회`);
-    rec.textContent = parts.join(" · ");
-    card.appendChild(rec);
-  }
 
   return card;
 }
@@ -275,8 +339,8 @@ function renderGoalCard(goal) {
 
 function celebrate() {
   const layer = $("confetti");
-  const colors = ["#e8590c", "#f59f00", "#2f9e44", "#4c6ef5", "#e64980"];
-  for (let i = 0; i < 60; i++) {
+  const colors = ["#e85d3d", "#f0a05a", "#5f7d54", "#a89f8e", "#1b1a18"];
+  for (let i = 0; i < 50; i++) {
     const p = document.createElement("div");
     p.className = "confetti-piece";
     p.style.left = Math.random() * 100 + "vw";
@@ -288,7 +352,7 @@ function celebrate() {
   setTimeout(() => (layer.innerHTML = ""), 4000);
 }
 
-/* ── 모달 ─────────────────────────── */
+/* ── 바텀시트 ─────────────────────── */
 
 let selectedEmoji = EMOJIS[0];
 

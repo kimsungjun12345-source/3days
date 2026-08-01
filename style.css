@@ -1,17 +1,15 @@
 :root {
-  --bg: #faf6f0;
+  --bg: #f7f6f3;
   --card: #ffffff;
-  --ink: #2b2622;
-  --ink-soft: #8a7f74;
-  --accent: #e8590c;
-  --accent-soft: #ffe8d9;
-  --success: #2f9e44;
-  --success-soft: #d3f9d8;
-  --rest: #4c6ef5;
-  --rest-soft: #e7ecff;
-  --line: #eee4d8;
+  --line: #ece8e1;
+  --ink: #1b1a18;
+  --gray: #9a938a;
+  --gray-strong: #6e6860;
+  --chip: #f1efeb;
+  --accent: #e85d3d;
+  --accent-soft: #fbeee9;
+  --sage: #5f7d54;
   --radius: 20px;
-  --shadow: 0 4px 20px rgba(74, 52, 30, 0.08);
 }
 
 * {
@@ -20,7 +18,6 @@
   box-sizing: border-box;
 }
 
-/* display: flex/grid를 쓰는 요소에서도 hidden 속성이 이기도록 */
 [hidden] {
   display: none !important;
 }
@@ -30,218 +27,248 @@ html {
 }
 
 body {
-  font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
-    "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  font-family: Pretendard, "Noto Sans KR", -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   background: var(--bg);
   color: var(--ink);
-  line-height: 1.6;
+  line-height: 1.5;
   min-height: 100vh;
 }
 
 .app {
-  max-width: 480px;
+  max-width: 430px;
   margin: 0 auto;
-  padding: 32px 20px 120px;
+  padding: 16px 20px calc(40px + env(safe-area-inset-bottom));
 }
 
-/* ── 헤더 ─────────────────────────── */
-.header {
-  text-align: center;
-  margin-bottom: 28px;
+/* ── 앱바 ─────────────────────────── */
+.appbar {
+  padding: 8px 2px 16px;
 }
 
-.logo {
-  font-size: 2.2rem;
+.brand {
+  font-size: 1.2rem;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.01em;
 }
 
-.logo-accent {
+.brand em {
+  font-style: normal;
   color: var(--accent);
 }
 
-.tagline {
-  margin-top: 6px;
-  font-size: 0.92rem;
-  color: var(--ink-soft);
-  word-break: keep-all;
-}
-
-/* ── 통계 ─────────────────────────── */
-.stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.stat {
+/* ── 히어로 ───────────────────────── */
+.hero {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 14px 8px;
-  text-align: center;
-  box-shadow: var(--shadow);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  box-shadow: 0 1px 4px rgba(40, 35, 25, 0.04);
 }
 
-.stat-value {
+.hero-cairn {
+  flex-shrink: 0;
+  width: 72px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.hero-cairn svg {
   display: block;
-  font-size: 1.5rem;
+  width: 100%;
+  height: auto;
+  max-height: 92px;
+}
+
+.hero-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--gray);
+}
+
+.hero-big {
+  font-size: 1.8rem;
   font-weight: 800;
-  color: var(--accent);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
 }
 
-.stat-label {
-  font-size: 0.75rem;
-  color: var(--ink-soft);
+.hero-sub {
+  margin-top: 2px;
+  font-size: 0.82rem;
+  color: var(--gray);
 }
 
-.stats-note {
+.hero-sub b {
+  color: var(--gray-strong);
+  font-weight: 700;
+}
+
+/* ── 섹션 헤더 ─────────────────────── */
+.section-head {
+  margin: 26px 2px 12px;
+}
+
+.section-head h2 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* ── 빈 상태 ──────────────────────── */
+.empty {
   text-align: center;
-  font-size: 0.85rem;
-  color: var(--ink-soft);
-  margin-bottom: 24px;
+  padding: 40px 12px 10px;
   word-break: keep-all;
 }
 
-/* ── 목표 카드 ─────────────────────── */
+.empty-cairn {
+  width: 96px;
+  margin: 0 auto 18px;
+}
+
+.empty-cairn svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.empty h2 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.empty p {
+  color: var(--gray);
+  font-size: 0.9rem;
+}
+
+/* ── 작심 카드 ─────────────────────── */
 .goal-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .goal-card {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 20px;
-  box-shadow: var(--shadow);
-  position: relative;
+  padding: 18px 18px 16px;
+  box-shadow: 0 1px 4px rgba(40, 35, 25, 0.04);
 }
 
-.goal-head {
+.goal-top {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: 12px;
 }
 
-.goal-emoji {
-  font-size: 1.6rem;
+.goal-ico {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--chip);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.goal-tt {
+  flex: 1;
+  min-width: 0;
 }
 
 .goal-title {
-  font-size: 1.05rem;
   font-weight: 700;
-  flex: 1;
-  word-break: keep-all;
-}
-
-.btn-delete {
-  border: none;
-  background: none;
-  color: var(--ink-soft);
   font-size: 1rem;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 8px;
-  opacity: 0.5;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.btn-delete:hover {
-  opacity: 1;
-  background: var(--line);
+.goal-status {
+  font-size: 0.78rem;
+  color: var(--gray);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* 3일 점 표시 */
-.days {
+.goal-status b {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.goal-status .ok {
+  color: var(--sage);
+  font-weight: 700;
+}
+
+.dots {
   display: flex;
-  gap: 14px;
-  justify-content: center;
-  margin: 18px 0;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
-.day {
-  width: 64px;
-  height: 64px;
+.dot {
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  border: 2px dashed var(--line);
-  color: var(--ink-soft);
-  background: transparent;
-  transition: transform 0.15s ease;
+  background: var(--chip);
+  color: #c6bfb4;
 }
 
-.day .day-num {
-  font-size: 1.05rem;
+.dot.done {
+  background: var(--accent);
+  color: #fff;
 }
 
-.day.done {
+.dot.today {
+  background: var(--card);
   border: 2px solid var(--accent);
-  background: var(--accent-soft);
   color: var(--accent);
 }
 
-.day.today {
-  border-style: solid;
-  border-color: var(--accent);
-  animation: pulse 1.8s ease-in-out infinite;
+/* 길게 눌러 삭제 — 누르는 동안만 살짝 줄어든다 */
+.goal-card.pressing {
+  transform: scale(0.985);
+  transition: transform 0.6s ease;
 }
 
-@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.06); }
-}
-
-/* 상태 메시지 & 버튼 */
-.goal-message {
-  text-align: center;
-  font-size: 0.9rem;
-  color: var(--ink-soft);
-  margin-bottom: 14px;
-  word-break: keep-all;
-}
-
-.goal-message strong {
-  color: var(--ink);
-}
-
-.goal-card.state-complete .goal-message strong {
-  color: var(--success);
-}
-
-.goal-card.state-broken .goal-message strong {
-  color: var(--rest);
-}
-
-.goal-record {
-  text-align: center;
-  font-size: 0.78rem;
-  color: var(--ink-soft);
-  margin-top: 12px;
-}
-
+/* 카드 버튼 */
 .btn {
   display: block;
   width: 100%;
-  padding: 14px;
+  height: 50px;
   border: none;
   border-radius: 14px;
-  font-size: 1rem;
-  font-weight: 700;
   font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
   cursor: pointer;
   transition: transform 0.1s ease, opacity 0.15s ease;
 }
 
+.goal-card .btn {
+  margin-top: 14px;
+}
+
 .btn:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
 }
 
 .btn-primary {
@@ -250,82 +277,85 @@ body {
 }
 
 .btn-success {
-  background: var(--success);
+  background: var(--ink);
   color: #fff;
 }
 
 .btn-rest {
-  background: var(--rest);
+  background: var(--sage);
   color: #fff;
 }
 
 .btn-done {
-  background: var(--success-soft);
-  color: var(--success);
+  background: var(--chip);
+  color: var(--gray-strong);
+  font-weight: 500;
   cursor: default;
+}
+
+.btn-done:active {
+  transform: none;
 }
 
 .btn-ghost {
   background: none;
-  color: var(--ink-soft);
+  color: var(--gray);
 }
 
-/* ── 빈 상태 ─────────────────────── */
-.empty {
+/* ── 새 작심 추가 카드 ──────────────── */
+.add-card {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  border: 1.6px dashed #d9d3c9;
+  border-radius: var(--radius);
+  padding: 16px;
   text-align: center;
-  padding: 40px 12px;
+  background: none;
+  font-family: inherit;
+  font-size: 0.92rem;
+  color: var(--gray);
+  cursor: pointer;
+}
+
+.add-card b {
+  color: var(--gray-strong);
+  font-weight: 700;
+}
+
+.add-card:active {
+  background: var(--chip);
+}
+
+/* ── 응원 배너 ─────────────────────── */
+.note {
+  margin-top: 18px;
+  background: var(--chip);
+  border-radius: 16px;
+  padding: 13px 16px;
+  font-size: 0.83rem;
+  color: var(--gray-strong);
   word-break: keep-all;
 }
 
-.empty-emoji {
-  font-size: 3rem;
-  margin-bottom: 12px;
-}
-
-.empty h2 {
-  font-size: 1.2rem;
-  margin-bottom: 10px;
-}
-
-.empty p {
-  color: var(--ink-soft);
-  font-size: 0.95rem;
-}
-
-.empty-cta {
-  margin-top: 18px;
+.note b {
+  color: var(--ink);
   font-weight: 700;
-  color: var(--accent) !important;
 }
 
-/* ── 플로팅 버튼 ──────────────────── */
-.fab {
-  position: fixed;
-  bottom: max(24px, env(safe-area-inset-bottom));
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--ink);
-  color: #fff;
-  border: none;
-  border-radius: 999px;
-  padding: 14px 28px;
-  font-size: 1rem;
-  font-weight: 700;
-  font-family: inherit;
-  cursor: pointer;
-  box-shadow: 0 8px 24px rgba(43, 38, 34, 0.3);
-  z-index: 10;
+/* ── 푸터 ─────────────────────────── */
+.footer {
+  margin-top: 40px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: #c6bfb4;
 }
 
-.fab:active {
-  transform: translateX(-50%) scale(0.96);
-}
-
-/* ── 모달 ─────────────────────────── */
+/* ── 바텀시트 ─────────────────────── */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(43, 38, 34, 0.45);
+  background: rgba(27, 26, 24, 0.4);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -335,9 +365,9 @@ body {
 .modal {
   background: var(--card);
   border-radius: 24px 24px 0 0;
-  padding: 28px 24px calc(28px + env(safe-area-inset-bottom));
+  padding: 26px 22px calc(26px + env(safe-area-inset-bottom));
   width: 100%;
-  max-width: 480px;
+  max-width: 430px;
   animation: slide-up 0.25s ease;
 }
 
@@ -347,12 +377,13 @@ body {
 }
 
 .modal h2 {
-  font-size: 1.3rem;
+  font-size: 1.2rem;
+  font-weight: 800;
 }
 
 .modal-sub {
-  color: var(--ink-soft);
-  font-size: 0.88rem;
+  color: var(--gray);
+  font-size: 0.86rem;
   margin: 4px 0 16px;
 }
 
@@ -364,11 +395,12 @@ body {
 }
 
 .emoji-option {
-  font-size: 1.4rem;
-  padding: 8px;
+  font-size: 1.3rem;
+  width: 44px;
+  height: 44px;
   border: 2px solid transparent;
   border-radius: 12px;
-  background: var(--bg);
+  background: var(--chip);
   cursor: pointer;
   line-height: 1;
 }
@@ -380,10 +412,11 @@ body {
 
 #input-title {
   width: 100%;
-  padding: 14px;
+  height: 52px;
+  padding: 0 16px;
   font-size: 1rem;
   font-family: inherit;
-  border: 2px solid var(--line);
+  border: 1.6px solid var(--line);
   border-radius: 14px;
   background: var(--bg);
   color: var(--ink);
@@ -397,7 +430,7 @@ body {
 .modal-actions {
   display: flex;
   gap: 10px;
-  margin-top: 18px;
+  margin-top: 16px;
 }
 
 .modal-actions .btn-ghost {
@@ -406,14 +439,6 @@ body {
 
 .modal-actions .btn-primary {
   flex: 2;
-}
-
-/* ── 푸터 ─────────────────────────── */
-.footer {
-  text-align: center;
-  margin-top: 48px;
-  font-size: 0.8rem;
-  color: var(--ink-soft);
 }
 
 /* ── 색종이 ───────────────────────── */
@@ -428,8 +453,8 @@ body {
 .confetti-piece {
   position: absolute;
   top: -12px;
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 2px;
   animation: confetti-fall linear forwards;
 }
@@ -438,12 +463,5 @@ body {
   to {
     transform: translateY(110vh) rotate(720deg);
     opacity: 0.6;
-  }
-}
-
-@media (max-width: 360px) {
-  .day {
-    width: 56px;
-    height: 56px;
   }
 }
