@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>방향 D — 돌탑</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;900&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Noto Sans KR", sans-serif;
+    background: linear-gradient(180deg, #eef0ea 0%, #f3efe6 38%, #f6f0e2 100%);
+    color: #35302a;
+    line-height: 1.65;
+  }
+  .app { max-width: 420px; margin: 0 auto; padding: 40px 22px 120px; }
+
+  .header { text-align: center; }
+  .logo {
+    font-family: "Noto Serif KR", serif;
+    font-weight: 900;
+    font-size: 1.6rem;
+    letter-spacing: 0.34em;
+    text-indent: 0.34em;
+    color: #35302a;
+  }
+  .tagline {
+    font-family: "Noto Serif KR", serif;
+    font-size: 0.9rem;
+    color: #8f8778;
+    margin-top: 2px;
+  }
+
+  /* ── 돌탑 ── */
+  .cairn { text-align: center; margin: 18px 0 6px; }
+  .cairn svg { width: 230px; height: auto; }
+  .cairn-caption {
+    font-family: "Noto Serif KR", serif;
+    font-size: 1.06rem;
+    color: #4a443c;
+    word-break: keep-all;
+  }
+  .cairn-caption b { font-weight: 900; color: #cf6a3f; }
+  .cairn-sub {
+    display: flex; justify-content: center; gap: 22px;
+    margin: 10px 0 30px;
+    font-size: 0.8rem; color: #8f8778;
+  }
+  .cairn-sub b { color: #4a443c; font-weight: 700; }
+
+  /* ── 카드 ── */
+  .card {
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid #e3dccb;
+    border-radius: 24px;
+    padding: 24px 22px;
+    margin-bottom: 16px;
+    box-shadow: 0 6px 24px rgba(90, 80, 60, 0.07);
+  }
+  .card-head { display: flex; align-items: center; gap: 9px; margin-bottom: 4px; }
+  .card-emoji { font-size: 1.2rem; }
+  .card-title { font-weight: 700; font-size: 1.08rem; }
+
+  .pebbles { display: flex; justify-content: center; gap: 18px; margin: 20px 0 4px; }
+  .pebble {
+    width: 76px; height: 58px;
+    border-radius: 50% 50% 46% 54% / 60% 58% 42% 40%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 0.66rem; font-weight: 500;
+    color: #b0a894;
+    border: 1.6px dashed #d5cdb8;
+  }
+  .pebble .n { font-size: 1rem; font-weight: 700; line-height: 1.25; }
+  .pebble.done {
+    border: none;
+    background: radial-gradient(ellipse at 38% 28%, #c9c2b4, #a49c8c 68%, #918876);
+    color: #fbf8f0;
+    box-shadow: inset 0 -6px 10px rgba(60, 52, 40, 0.18), 0 3px 8px rgba(90, 80, 60, 0.25);
+  }
+  .pebble.today {
+    border: 1.6px solid #cf6a3f;
+    color: #cf6a3f;
+    background: rgba(207, 106, 63, 0.06);
+  }
+
+  .card-msg {
+    text-align: center;
+    font-family: "Noto Serif KR", serif;
+    font-size: 0.9rem;
+    color: #8f8778;
+    margin: 12px 0 16px;
+    word-break: keep-all;
+  }
+  .card-msg b { color: #4a443c; font-weight: 600; }
+
+  .btn {
+    display: block; width: 100%;
+    padding: 15px;
+    border: none; border-radius: 16px;
+    font-family: inherit; font-weight: 700; font-size: 1rem;
+    cursor: pointer;
+  }
+  .btn-main { background: #cf6a3f; color: #fdf9f2; box-shadow: 0 6px 18px rgba(207, 106, 63, 0.3); }
+  .btn-rebuild { background: #6c7a5d; color: #f4f6ef; box-shadow: 0 6px 18px rgba(108, 122, 93, 0.3); }
+  .card-record { text-align: center; font-size: 0.75rem; color: #b0a894; margin-top: 12px; }
+
+  .footer {
+    margin-top: 42px; text-align: center;
+    font-family: "Noto Serif KR", serif;
+    font-size: 0.86rem; color: #8f8778;
+  }
+  .fab {
+    position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
+    background: #35302a; color: #f6f0e2;
+    font-family: inherit; font-weight: 700; font-size: 1rem;
+    border: none; border-radius: 999px; padding: 15px 30px;
+    box-shadow: 0 10px 26px rgba(53, 48, 42, 0.35);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <h1 class="logo">작심삼일</h1>
+    <p class="tagline">무너지면, 다시 쌓으면 됩니다</p>
+  </header>
+
+  <section class="cairn">
+    <svg viewBox="0 0 240 235" role="img" aria-label="돌 네 개가 쌓인 나의 돌탑">
+      <defs>
+        <radialGradient id="st" cx="38%" cy="26%" r="85%">
+          <stop offset="0%" stop-color="#cdc6b8"/>
+          <stop offset="62%" stop-color="#a89f8e"/>
+          <stop offset="100%" stop-color="#8d8371"/>
+        </radialGradient>
+        <radialGradient id="st2" cx="40%" cy="28%" r="85%">
+          <stop offset="0%" stop-color="#d6cfc2"/>
+          <stop offset="65%" stop-color="#b2a996"/>
+          <stop offset="100%" stop-color="#968c79"/>
+        </radialGradient>
+      </defs>
+      <!-- 땅 그림자 -->
+      <ellipse cx="120" cy="216" rx="86" ry="10" fill="rgba(90,80,60,0.13)"/>
+      <!-- 돌 4개 (완주한 사이클) -->
+      <ellipse cx="120" cy="196" rx="74" ry="24" fill="url(#st)" transform="rotate(-1.2 120 196)"/>
+      <ellipse cx="118" cy="158" rx="60" ry="21" fill="url(#st2)" transform="rotate(1.6 118 158)"/>
+      <ellipse cx="121" cy="126" rx="49" ry="18" fill="url(#st)" transform="rotate(-2 121 126)"/>
+      <ellipse cx="119" cy="99" rx="39" ry="15" fill="url(#st2)" transform="rotate(1.4 119 99)"/>
+      <!-- 하이라이트 -->
+      <ellipse cx="98" cy="188" rx="20" ry="6" fill="rgba(255,252,242,0.35)" transform="rotate(-8 98 188)"/>
+      <ellipse cx="102" cy="152" rx="15" ry="5" fill="rgba(255,252,242,0.32)" transform="rotate(-8 102 152)"/>
+      <ellipse cx="107" cy="121" rx="12" ry="4" fill="rgba(255,252,242,0.3)" transform="rotate(-8 107 121)"/>
+      <ellipse cx="107" cy="95" rx="10" ry="3.5" fill="rgba(255,252,242,0.3)" transform="rotate(-8 107 95)"/>
+      <!-- 지금 쌓는 중인 돌 (점선, 2/3 진행) -->
+      <ellipse cx="120" cy="66" rx="30" ry="12" fill="rgba(207,106,63,0.10)"
+               stroke="#cf6a3f" stroke-width="1.6" stroke-dasharray="5 4"/>
+      <text x="120" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="#cf6a3f">2/3</text>
+      <!-- 반짝임 -->
+      <g fill="#cf6a3f" opacity="0.55">
+        <circle cx="163" cy="52" r="1.8"/>
+        <circle cx="76" cy="44" r="1.4"/>
+        <circle cx="152" cy="30" r="1.2"/>
+      </g>
+    </svg>
+    <p class="cairn-caption">돌 <b>네 개</b>를 쌓았고, <b>다섯 번째 돌</b>을 올리는 중이에요</p>
+    <div class="cairn-sub">
+      <span>함께한 날 <b>13</b></span>
+      <span>쌓은 돌 <b>4</b></span>
+      <span>다시 쌓음 <b>2</b></span>
+    </div>
+  </section>
+
+  <article class="card">
+    <div class="card-head">
+      <span class="card-emoji">💧</span>
+      <h2 class="card-title">아침에 물 한 잔 마시기</h2>
+    </div>
+    <div class="pebbles">
+      <div class="pebble done"><span class="n">✓</span><span>첫째 날</span></div>
+      <div class="pebble today"><span class="n">둘</span><span>둘째 날</span></div>
+      <div class="pebble"><span class="n">셋</span><span>셋째 날</span></div>
+    </div>
+    <p class="card-msg">오늘 하나 더 얹으면, <b>돌이 절반 넘게</b> 올라가요</p>
+    <button class="btn btn-main">오늘의 돌 얹기</button>
+    <p class="card-record">함께한 날 13 · 쌓은 돌 4 · 다시 쌓음 2</p>
+  </article>
+
+  <article class="card">
+    <div class="card-head">
+      <span class="card-emoji">📚</span>
+      <h2 class="card-title">30분 책 읽기</h2>
+    </div>
+    <div class="pebbles">
+      <div class="pebble done"><span class="n">✓</span><span>첫째 날</span></div>
+      <div class="pebble"><span class="n">둘</span><span>둘째 날</span></div>
+      <div class="pebble"><span class="n">셋</span><span>셋째 날</span></div>
+    </div>
+    <p class="card-msg">돌탑은 원래 <b>무너지면 다시 쌓는 것.</b><br />발밑의 돌 아홉 개는 그대로 있어요.</p>
+    <button class="btn btn-rebuild">다시 쌓기 시작</button>
+    <p class="card-record">함께한 날 9 · 쌓은 돌 3 · 다시 쌓음 1</p>
+  </article>
+
+  <p class="footer">「작심삼일도 여러 번 하면 평생이 된다」</p>
+</div>
+<button class="fab">＋ 새 작심</button>
+</body>
+</html>
