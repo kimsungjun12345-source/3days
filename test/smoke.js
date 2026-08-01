@@ -46,6 +46,7 @@ function dstr(offset) {
   await page.evaluate(([d2, d1, d0]) => {
     const s = JSON.parse(localStorage.getItem("jaksim3.v1"));
     s.goals[0].checks = [d2, d1, d0];
+    s.goals[0].history = [d2, d1, d0];
     s.goals[0].lastCheckDate = d0;
     s.goals[0].totalDays = 3;
     localStorage.setItem("jaksim3.v1", JSON.stringify(s));
@@ -61,12 +62,13 @@ function dstr(offset) {
   assert((await page.locator("#stat-cycles").textContent()) === "1", "cycle count preserved after rollover");
 
   // 6. 끊김 시나리오: 마지막 체크가 3일 전
-  await page.evaluate(([d3]) => {
+  await page.evaluate(([d3, d4, d5]) => {
     const s = JSON.parse(localStorage.getItem("jaksim3.v1"));
     s.goals[0].checks = [d3];
     s.goals[0].lastCheckDate = d3;
+    s.goals[0].history = [d5, d4, d3];
     localStorage.setItem("jaksim3.v1", JSON.stringify(s));
-  }, [dstr(-3)]);
+  }, [dstr(-3), dstr(-4), dstr(-5)]);
   await page.reload();
   assert(await page.locator(".goal-card.state-broken").isVisible(), "broken state when a day was missed");
   assert((await page.locator("#stat-total-days").textContent()) === "3", "accumulated days preserved when broken");
@@ -132,6 +134,44 @@ function dstr(offset) {
   await page.waitForTimeout(1000);
   await page.mouse.up();
   assert((await page.locator(".goal-card").count()) === 1, "long-press on a button never deletes the goal");
+
+  // 12. 완주 후 방치 — 앱이 멈춰 있지 않고 상태가 흘러간다
+  const seedDone = async (lastOffset) => {
+    await page.evaluate(([a, b, c]) => {
+      localStorage.setItem("jaksim3.v1", JSON.stringify({ goals: [
+        { id: "s", title: "아침에 물 한 잔", icon: "water", createdAt: "",
+          checks: [a, b, c], history: [a, b, c], lastCheckDate: c,
+          totalDays: 3, completedCycles: 0, restarts: 0 }]}));
+    }, [dstr(lastOffset - 2), dstr(lastOffset - 1), dstr(lastOffset)]);
+    await page.reload();
+  };
+
+  await seedDone(0);
+  assert(await page.locator(".goal-card.state-complete").isVisible(), "day of completion stays celebratory");
+
+  await seedDone(-1);
+  assert(await page.locator(".goal-card.state-resting").isVisible(), "the day after completion invites the next three days");
+  assert((await page.locator(".goal-card .btn").textContent()).includes("오늘부터"), "resting offers to continue today");
+
+  await seedDone(-5);
+  assert(await page.locator(".goal-card.state-lapsed").isVisible(), "a long pause after completion is recognised, not celebrated");
+  assert((await page.locator(".goal-status").textContent()).includes("5일째 쉬는 중"), "lapsed card says how long the pause has been");
+
+  await page.click(".goal-card .btn-rest");
+  await page.waitForTimeout(300);
+  assert((await page.locator(".goal-card .dot.done").count()) === 1, "coming back starts today as the first day");
+  assert((await page.locator("#stat-cycles").textContent()) === "1", "the stone earned before the pause is kept");
+
+  // 13. 같은 날 여러 작심을 체크해도 함께한 날은 하루
+  await page.evaluate((d0) => {
+    localStorage.setItem("jaksim3.v1", JSON.stringify({ goals:
+      ["물", "걷기", "독서"].map((t, i) => ({
+        id: "m" + i, title: t, icon: "stone", createdAt: "",
+        checks: [d0], history: [d0], lastCheckDate: d0,
+        totalDays: 1, completedCycles: 0, restarts: 0 })) }));
+  }, dstr(0));
+  await page.reload();
+  assert((await page.locator("#stat-total-days").textContent()) === "1", "three goals checked today still count as one day");
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 

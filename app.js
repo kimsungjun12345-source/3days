@@ -57,16 +57,34 @@ let state = load();
 /* ── 상태 판정 ──────────────────────────
  * fresh    : 이번 사이클 체크 0개 → 오늘 시작 가능
  * active   : 1~2개 체크, 아직 안 끊김 → 진행 중
- * complete : 3개 체크 → 돌 하나 완성, 다음 작심 대기
+ * complete : 오늘 3개를 다 채움 → 완주 당일
+ * resting  : 어제 완주하고 아직 다음을 시작하지 않음 → 오늘 이어가기
+ * lapsed   : 완주한 뒤 이틀 넘게 쉬는 중 → 돌아오기를 기다림
  * broken   : 1~2개 체크했지만 하루를 건너뜀 → 다시 쌓기 대기
+ *
+ * 완주 상태를 날짜로 나누는 이유: 예전에는 3개를 채우면 상태가 영원히
+ * complete로 굳어, 몇 주를 쉬어도 앱이 "돌 하나 완성!"만 반복했다.
+ * 그러면 앱이 사용자가 떠난 것을 알아채지 못한다.
  */
 function goalStatus(goal) {
   const checks = goal.checks;
   if (checks.length === 0) return "fresh";
-  if (checks.length >= 3) return "complete";
   const last = checks[checks.length - 1];
+  if (checks.length >= 3) {
+    if (last >= todayStr()) return "complete";
+    if (last >= todayStr(-1)) return "resting";
+    return "lapsed";
+  }
   if (last < todayStr(-1)) return "broken";
   return "active";
+}
+
+/* 마지막으로 돌을 얹은 지 며칠 지났는지 */
+function daysSinceLastCheck(goal) {
+  if (!goal.lastCheckDate) return null;
+  const last = new Date(goal.lastCheckDate + "T00:00:00");
+  const today = new Date(todayStr() + "T00:00:00");
+  return Math.round((today - last) / 86400000);
 }
 
 function checkedToday(goal) {
@@ -118,18 +136,19 @@ function checkToday(goal, opts = {}) {
 }
 
 /* 돌 하나 완성 후 다음 3일 시작 */
-function nextCycle(goal) {
+function nextCycle(goal, from) {
   goal.completedCycles += 1;
   goal.checks = [];
   haptic(10);
   // 완성한 날 바로 누르면 오늘은 이미 카운트됐으므로 내일부터 첫째 날
   if (!checkedToday(goal)) {
     checkToday(goal, { silent: true });
-    toast("🪨", "또 하나 쌓기 시작!");
+    // 쉬다가 돌아온 사람에게는 다른 인사가 필요하다
+    toast("stone", from === "lapsed" ? "돌아왔네요. 그거면 충분해요" : "또 하나 쌓기 시작!");
   } else {
     save();
     render();
-    toast("🌙", "내일 첫 돌에서 만나요");
+    toast("sleep", "내일 첫 돌에서 만나요");
   }
 }
 
@@ -234,7 +253,10 @@ function render() {
 
 function renderStats() {
   const goals = state.goals;
-  const totalDays = goals.reduce((s, g) => s + g.totalDays, 0);
+  // '함께한 날'은 체크 횟수의 합이 아니라 실제로 돌을 얹은 날의 수.
+  // 목표 3개를 하루에 다 체크했다고 3일이 되면 안 된다.
+  const totalDays = totalDaysWithTower();
+
   const cycles =
     goals.reduce((s, g) => s + g.completedCycles, 0) +
     goals.filter((g) => g.checks.length >= 3).length;
@@ -290,6 +312,9 @@ function renderGoals() {
 function statusLine(goal, status) {
   const n = goal.checks.length;
   if (status === "complete") return `<b>돌 하나 완성!</b>`;
+  // 상태줄은 한 줄에 들어가야 한다 — 위로하는 말은 버튼과 아래 배너가 맡는다
+  if (status === "resting") return `어제 완성 · <b>오늘 이어서</b>`;
+  if (status === "lapsed") return `<span class="ok">${daysSinceLastCheck(goal)}일째 쉬는 중</span>`;
   if (status === "broken") return `<span class="ok">쌓아둔 ${goal.totalDays}일은 그대로예요</span>`;
   if (checkedToday(goal) && n === 0) return `내일 새 돌을 시작해요`;
   if (checkedToday(goal)) return `${DAY_KO[n - 1]} 날 완료`;
@@ -370,9 +395,12 @@ function renderGoalCard(goal) {
 
   const dots = document.createElement("div");
   dots.className = "dots";
+  // 완주 다음 날부터는 지난 사이클의 ✓ 대신 비어 있는 세 칸을 보여 준다.
+  // 다 채워진 칸이 남아 있으면 "이미 끝났다"로 읽혀 다음 걸음이 보이지 않는다.
+  const showPrevChecks = status !== "resting" && status !== "lapsed";
   for (let i = 0; i < 3; i++) {
     const d = document.createElement("span");
-    const done = i < goal.checks.length;
+    const done = showPrevChecks && i < goal.checks.length;
     const isNext =
       i === goal.checks.length &&
       (status === "fresh" || status === "active") &&
@@ -405,6 +433,15 @@ function renderGoalCard(goal) {
     btn.classList.add("btn-success");
     btn.textContent = "또 작심하기 — 다음 돌 쌓기";
     btn.addEventListener("click", () => nextCycle(goal));
+  } else if (status === "resting") {
+    // 어제 완주 — 오늘 바로 이어 가는 게 가장 쉬운 다음 걸음이다
+    btn.classList.add("btn-primary");
+    btn.textContent = "오늘부터 다음 3일";
+    btn.addEventListener("click", () => nextCycle(goal));
+  } else if (status === "lapsed") {
+    btn.classList.add("btn-rest");
+    btn.textContent = "다시 쌓기 시작";
+    btn.addEventListener("click", () => nextCycle(goal, "lapsed"));
   } else if (status === "broken") {
     btn.classList.add("btn-rest");
     btn.textContent = "괜찮아요, 다시 쌓기";
@@ -564,6 +601,13 @@ function closeDetail() {
 
 /* ── 완주 축하 ─────────────────────── */
 
+/* 돌을 얹은 날의 수 — 같은 날 여러 작심을 해도 하루로 센다 */
+function totalDaysWithTower() {
+  const days = new Set();
+  for (const g of state.goals) for (const d of g.history || []) days.add(d);
+  return days.size;
+}
+
 function totalStones() {
   return (
     state.goals.reduce((s, g) => s + g.completedCycles, 0) +
@@ -581,7 +625,7 @@ function cheerWord(stones, restarts, isFirst) {
 function showCheer(goal) {
   const stones = totalStones();
   const restarts = state.goals.reduce((s, g) => s + g.restarts, 0);
-  const days = state.goals.reduce((s, g) => s + g.totalDays, 0);
+  const days = totalDaysWithTower();
 
   // 축하 화면에서는 탑을 더 높이 보여 준다
   $("cheer-cairn").innerHTML = cairnSVG(stones, false, 0, 9);
