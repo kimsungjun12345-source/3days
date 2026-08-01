@@ -53,13 +53,26 @@
       <p>작심삼일도 여러 번 하면, 평생이 된다</p>
     </footer>
 
+    <!-- 완주 축하 -->
+    <div class="cheer-backdrop" id="cheer" hidden>
+      <div class="cheer" role="dialog" aria-modal="true" aria-labelledby="cheer-title">
+        <div class="cheer-cairn" id="cheer-cairn" aria-hidden="true"></div>
+        <p class="cheer-kicker" id="cheer-kicker">작심삼일 완주</p>
+        <h2 class="cheer-title" id="cheer-title">네 번째 돌을 얹었어요</h2>
+        <p class="cheer-goal" id="cheer-goal"></p>
+        <div class="cheer-stats" id="cheer-stats"></div>
+        <p class="cheer-word" id="cheer-word"></p>
+        <button class="btn btn-primary" id="cheer-next">또 작심하기 — 다음 3일</button>
+        <button class="btn btn-ghost" id="cheer-close">오늘은 여기까지</button>
+      </div>
+    </div>
+
     <!-- 새 작심 바텀시트 -->
     <div class="modal-backdrop" id="modal" hidden>
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <h2 id="modal-title">새 작심</h2>
         <p class="modal-sub">거창할 필요 없어요. 딱 3일만 해볼 것 하나.</p>
         <form id="form-add">
-          <div class="emoji-row" id="emoji-row"></div>
           <input
             type="text"
             id="input-title"
@@ -68,6 +81,8 @@
             autocomplete="off"
             required
           />
+          <div class="suggest-row" id="suggest-row"></div>
+          <div class="icon-row" id="icon-row"></div>
           <div class="modal-actions">
             <button type="button" class="btn btn-ghost" id="btn-cancel">다음에</button>
             <button type="submit" class="btn btn-primary">3일 약속하기</button>
@@ -79,6 +94,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   <div id="confetti" class="confetti-layer" aria-hidden="true"></div>
+  <script src="icons.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -2,9 +2,26 @@
 
 const STORAGE_KEY = "jaksim3.v1";
 
-const EMOJIS = ["🪨", "💧", "📚", "🏃", "🧘", "✍️", "🌅", "🥗", "💪", "💤"];
-
 const DAY_KO = ["첫째", "둘째", "셋째"];
+
+const ORDINAL_KO = [
+  "첫", "두", "세", "네", "다섯", "여섯", "일곱", "여덟", "아홉", "열",
+  "열한", "열두", "열세", "열네", "열다섯",
+];
+
+function ordinal(n) {
+  return (ORDINAL_KO[n - 1] || n) + " 번째";
+}
+
+/* 처음 온 사람이 빈 입력창 앞에서 멈추지 않도록 */
+const SUGGESTIONS = [
+  { title: "아침에 물 한 잔", icon: "water" },
+  { title: "10분 걷기", icon: "run" },
+  { title: "자기 전 스트레칭", icon: "meditate" },
+  { title: "책 10쪽 읽기", icon: "book" },
+  { title: "일기 세 줄 쓰기", icon: "pen" },
+  { title: "12시 전에 눕기", icon: "sleep" },
+];
 
 function todayStr(offsetDays = 0) {
   const d = new Date();
@@ -53,11 +70,11 @@ function checkedToday(goal) {
 
 /* ── 액션 ─────────────────────────── */
 
-function addGoal(title, emoji) {
+function addGoal(title, icon) {
   const goal = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     title,
-    emoji,
+    icon,
     createdAt: new Date().toISOString(),
     checks: [],          // 이번 사이클에서 체크한 날짜들 (최대 3개)
     lastCheckDate: null, // 같은 날 중복 카운트 방지
@@ -70,7 +87,7 @@ function addGoal(title, emoji) {
   save();
   render();
   haptic(10);
-  toast(emoji, "약속했어요. 딱 3일만 가봐요!");
+  toast(icon, "약속했어요. 딱 3일만 가봐요!");
 }
 
 function checkToday(goal, opts = {}) {
@@ -140,8 +157,8 @@ function removeGoal(goal) {
  */
 const MAX_STONES = 5;
 
-function cairnSVG(stones, building, ghost = 0) {
-  const shown = Math.min(stones, MAX_STONES);
+function cairnSVG(stones, building, ghost = 0, max = MAX_STONES) {
+  const shown = Math.min(stones, max);
   const groundY = 122;
   let y = groundY - 4;
   let rx = 40;
@@ -232,6 +249,8 @@ function renderStats() {
   $("stats").hidden = !hasGoals;
   $("section-head").hidden = !hasGoals;
   $("empty").hidden = hasGoals;
+  // 아직 아무것도 없을 땐 추가 버튼이 유일한 할 일이므로 눈에 띄게 둔다
+  $("btn-add").classList.toggle("first-cta", !hasGoals);
 
   $("stat-total-days").textContent = totalDays;
   $("stat-cycles").textContent = cycles;
@@ -309,7 +328,7 @@ function renderGoalCard(goal) {
 
   const ico = document.createElement("div");
   ico.className = "goal-ico";
-  ico.textContent = goal.emoji;
+  ico.innerHTML = iconSVG(goalIcon(goal), 22);
   top.appendChild(ico);
 
   const tt = document.createElement("div");
@@ -381,10 +400,9 @@ function haptic(ms) {
 
 let toastTimer = null;
 
-function toast(emoji, text) {
+function toast(iconKey, text) {
   const el = $("toast");
-  el.innerHTML = `<span class="toast-emoji"></span><span class="toast-text"></span>`;
-  el.querySelector(".toast-emoji").textContent = emoji;
+  el.innerHTML = `<span class="toast-icon">${iconSVG(iconKey, 18)}</span><span class="toast-text"></span>`;
   el.querySelector(".toast-text").textContent = text;
   el.hidden = false;
   // 재생 중이던 애니메이션을 끊고 처음부터 다시
@@ -403,6 +421,8 @@ let pendingAnim = null;
 let newGoalId = null;
 /* 돌이 공중에 떠 있는 동안 true — 그동안 히어로 돌탑은 자라지 않고 기다린다 */
 let heroStoneHeld = false;
+/* 축하 화면이 보고 있는 목표 */
+let cheerGoalId = null;
 
 function runPendingAnim() {
   const job = pendingAnim;
@@ -419,28 +439,77 @@ function runPendingAnim() {
 
   if (job.completed) {
     haptic([12, 60, 24]);
-    flyStoneToTower(dot);
-    if (!job.silent) {
-      setTimeout(() => toast("🎉", "돌 하나 완성! 3일을 해냈어요"), 620);
-    }
+    const goal = state.goals.find((g) => g.id === job.goalId);
+    flyStoneToTower(dot, () => {
+      // 돌이 얹힌 뒤에 축하 화면 — 탑이 자라는 걸 먼저 보게 한다
+      if (goal) setTimeout(() => showCheer(goal), 420);
+    });
   } else {
     haptic(12);
     if (!job.silent) {
       const left = 3 - job.dotIndex - 1;
       const msg = left === 1 ? "하루만 더 하면 돌 하나 완성" : "좋아요, 오늘도 해냈어요";
-      setTimeout(() => toast("✨", msg), 180);
+      setTimeout(() => toast("stone", msg), 180);
     }
   }
 }
 
+/* ── 완주 축하 ─────────────────────── */
+
+function totalStones() {
+  return (
+    state.goals.reduce((s, g) => s + g.completedCycles, 0) +
+    state.goals.filter((g) => g.checks.length >= 3).length
+  );
+}
+
+function cheerWord(stones, restarts, isFirst) {
+  if (isFirst) return "첫 3일을 해냈어요. 이 감각만 기억하면 돼요.";
+  if (restarts > 0) return "무너졌다 다시 쌓은 탑이라, 더 단단해요.";
+  if (stones % 10 === 0) return `돌 ${stones}개. 이만큼 쌓은 사람은 흔치 않아요.`;
+  return `작심삼일 ${stones}번 = ${stones * 3}일. 이렇게 평생 가는 거예요.`;
+}
+
+function showCheer(goal) {
+  const stones = totalStones();
+  const restarts = state.goals.reduce((s, g) => s + g.restarts, 0);
+  const days = state.goals.reduce((s, g) => s + g.totalDays, 0);
+
+  // 축하 화면에서는 탑을 더 높이 보여 준다
+  $("cheer-cairn").innerHTML = cairnSVG(stones, false, 0, 9);
+  $("cheer-title").textContent = `${ordinal(stones)} 돌을 얹었어요`;
+  $("cheer-goal").innerHTML = `<span class="cheer-goal-ico">${iconSVG(goalIcon(goal), 16)}</span>`;
+  $("cheer-goal").appendChild(document.createTextNode(goal.title));
+  $("cheer-stats").innerHTML =
+    `<span>함께한 날 <b>${days}</b></span><span>쌓은 돌 <b>${stones}</b></span>` +
+    (restarts ? `<span>다시 쌓음 <b>${restarts}</b></span>` : "");
+  $("cheer-word").textContent = cheerWord(stones, restarts, stones === 1);
+
+  cheerGoalId = goal.id;
+  const el = $("cheer");
+  el.hidden = false;
+  el.classList.remove("show");
+  void el.offsetWidth;
+  el.classList.add("show");
+  haptic([10, 40, 18]);
+}
+
+function closeCheer() {
+  const el = $("cheer");
+  el.classList.remove("show");
+  setTimeout(() => (el.hidden = true), 220);
+  cheerGoalId = null;
+}
+
 /* 완주한 돌이 카드에서 히어로 돌탑으로 날아가 얹힌다 */
-function flyStoneToTower(fromEl) {
+function flyStoneToTower(fromEl, onLanded) {
   const hero = $("hero-cairn");
   const cairnSvg = hero && hero.querySelector("svg");
   // 착지점 = 탑 꼭대기에 비어 있는 점선 자리
   const slot = cairnSvg && cairnSvg.querySelector(".building-stone");
   if (!fromEl || !hero || !slot || reduceMotion) {
     landStone();
+    if (onLanded) onLanded();
     return;
   }
 
@@ -474,6 +543,7 @@ function flyStoneToTower(fromEl) {
   anim.onfinish = () => {
     stone.remove();
     landStone(to.left + to.width / 2, to.top + to.height / 2);
+    if (onLanded) onLanded();
   };
 }
 
@@ -517,27 +587,44 @@ function stoneDust(x, y) {
 
 /* ── 바텀시트 ─────────────────────── */
 
-let selectedEmoji = EMOJIS[0];
+let selectedIcon = ICON_KEYS[0];
+
+function selectIcon(key) {
+  selectedIcon = key;
+  $("icon-row")
+    .querySelectorAll(".icon-option")
+    .forEach((el) => el.classList.toggle("selected", el.dataset.icon === key));
+}
 
 function setupModal() {
-  const row = $("emoji-row");
-  for (const e of EMOJIS) {
+  const row = $("icon-row");
+  for (const key of ICON_KEYS) {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "emoji-option" + (e === selectedEmoji ? " selected" : "");
-    b.textContent = e;
-    b.addEventListener("click", () => {
-      selectedEmoji = e;
-      row.querySelectorAll(".emoji-option").forEach((el) => el.classList.remove("selected"));
-      b.classList.add("selected");
-    });
+    b.className = "icon-option" + (key === selectedIcon ? " selected" : "");
+    b.dataset.icon = key;
+    b.innerHTML = iconSVG(key, 20);
+    b.setAttribute("aria-label", ICONS[key].label);
+    b.addEventListener("click", () => selectIcon(key));
     row.appendChild(b);
   }
 
-  $("btn-add").addEventListener("click", () => {
-    $("modal").hidden = false;
-    $("input-title").focus();
-  });
+  // 빈 입력창 앞에서 막히지 않도록 추천 문구를 눌러 바로 채운다
+  const sug = $("suggest-row");
+  for (const s of SUGGESTIONS) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "suggest-chip";
+    b.textContent = s.title;
+    b.addEventListener("click", () => {
+      $("input-title").value = s.title;
+      selectIcon(s.icon);
+      haptic(6);
+    });
+    sug.appendChild(b);
+  }
+
+  $("btn-add").addEventListener("click", openModal);
   $("btn-cancel").addEventListener("click", closeModal);
   $("modal").addEventListener("click", (ev) => {
     if (ev.target === $("modal")) closeModal();
@@ -547,10 +634,23 @@ function setupModal() {
     ev.preventDefault();
     const title = $("input-title").value.trim();
     if (!title) return;
-    addGoal(title, selectedEmoji);
+    addGoal(title, selectedIcon);
     $("input-title").value = "";
     closeModal();
   });
+
+  $("cheer-close").addEventListener("click", closeCheer);
+  $("cheer-next").addEventListener("click", () => {
+    const goal = state.goals.find((g) => g.id === cheerGoalId);
+    closeCheer();
+    if (goal) nextCycle(goal);
+  });
+}
+
+function openModal() {
+  selectIcon(ICON_KEYS[0]);
+  $("modal").hidden = false;
+  $("input-title").focus();
 }
 
 function closeModal() {
