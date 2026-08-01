@@ -966,10 +966,24 @@ body {
   word-break: keep-all;
 }
 
+.cheer-foot {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
 .cheer .btn-ghost {
+  flex: 1;
   height: 42px;
-  margin-top: 4px;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
+}
+
+.cheer #cheer-share {
+  color: var(--gray-strong);
+}
+
+.cheer #cheer-share:disabled {
+  opacity: 0.5;
 }
 
 /* ── 모션 최소화 설정 존중 ───────────── */

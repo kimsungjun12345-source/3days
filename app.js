@@ -990,6 +990,29 @@ function setupModal() {
     if (goal) removeGoal(goal);
   });
 
+  $("cheer-share").addEventListener("click", async (ev) => {
+    const goal = state.goals.find((g) => g.id === cheerGoalId);
+    if (!goal) return;
+    const btn = ev.currentTarget;
+    btn.disabled = true;
+    try {
+      const res = await shareCard({
+        title: `${ordinal(stoneCount(goal))} 돌을 얹었어요`,
+        goalTitle: goal.title,
+        stones: stoneCount(goal),
+        days: goal.totalDays,
+        restarts: goal.restarts,
+        word: cheerWord(stoneCount(goal), goal.restarts, stoneCount(goal) === 1),
+        dateKey: todayStr(),
+      });
+      if (res.ok && res.how !== "cancelled") toast("stone", "이 순간을 이미지로 저장했어요");
+    } catch (e) {
+      toast("stone", "저장하지 못했어요. 잠시 뒤 다시 시도해 주세요");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
   $("cheer-close").addEventListener("click", closeCheer);
   $("cheer-next").addEventListener("click", () => {
     const goal = state.goals.find((g) => g.id === cheerGoalId);

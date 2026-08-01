@@ -253,6 +253,33 @@ function dstr(offset) {
   await page.waitForTimeout(400);
   assert((await page.locator(".goal-card").count()) === 2, "a wrong file never wipes existing records");
 
+  // 16. 공유 카드 — 완주한 순간을 이미지로
+  await page.evaluate(([d2, d1]) => {
+    localStorage.setItem("jaksim3.v1", JSON.stringify({ goals: [
+      { id: "sh", title: "아침에 물 한 잔 마시기", icon: "water", createdAt: "",
+        checks: [d2, d1], history: [d2, d1], lastCheckDate: d1,
+        totalDays: 17, completedCycles: 5, restarts: 3 }]}));
+  }, [dstr(-2), dstr(-1)]);
+  await page.reload();
+  await page.click(".goal-card .btn-primary");
+  await page.waitForTimeout(1800);
+  assert(await page.locator("#cheer-share").isVisible(), "celebration offers to save the moment");
+
+  const card = await page.evaluate(() => {
+    const c = renderShareCard({ title: "여섯 번째 돌을 얹었어요", goalTitle: "아침에 물 한 잔 마시기",
+      stones: 6, days: 18, restarts: 3, word: "무너졌다 다시 쌓은 탑이라, 더 단단해요.", dateKey: "2026-01-01" });
+    return { w: c.width, h: c.height, blank: c.getContext("2d")
+      .getImageData(0, 0, c.width, c.height).data.every((v, i) => i % 4 === 3 || v === 247) };
+  });
+  assert(card.w === 1080 && card.h === 1350, "share card is 4:5 (1080x1350)");
+  assert(card.blank === false, "share card actually has something drawn on it");
+
+  const [shot] = await Promise.all([page.waitForEvent("download"), page.click("#cheer-share")]);
+  assert(/\.png$/.test(shot.suggestedFilename()), "share card saves as a png, got: " + shot.suggestedFilename());
+  const shotPath = path.join(os.tmpdir(), "jaksim-share-test.png");
+  await shot.saveAs(shotPath);
+  assert(fs.statSync(shotPath).size > 20000, "saved share card is a real image, not an empty file");
+
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 
   await page.screenshot({ path: __dirname + "/screenshot.png", fullPage: true });
