@@ -184,9 +184,10 @@ function dstr(offset) {
   await page.reload();
   await page.waitForTimeout(200);
 
+  // 돌 하나는 그림자·측면·윗면이 묶인 <g> 한 덩어리
   const stonesIn = (id) => page.evaluate((i) => {
-    const t = document.querySelector('#hero-garden .tower[data-goal-id="' + i + '"]');
-    return t ? t.querySelectorAll("ellipse:not(.building-stone)").length - 1 : -1;
+    const t = document.querySelector('#hero-garden .tower[data-goal-id="' + i + '"] .tower-inner');
+    return t ? t.querySelectorAll(":scope > g").length : -1;
   }, id);
 
   assert((await page.locator("#hero-garden .tower").count()) === 2, "every goal gets its own tower in the garden");

@@ -183,11 +183,44 @@ function removeGoal(goal) {
  */
 const MAX_STONES = 5;
 
-const STONE_GRADIENT = `<radialGradient id="stone" cx="38%" cy="26%" r="85%">
-    <stop offset="0%" stop-color="#cdc6b8"/>
-    <stop offset="62%" stop-color="#a89f8e"/>
-    <stop offset="100%" stop-color="#8d8371"/>
-  </radialGradient>`;
+/* 빛은 왼쪽 위에서 온다는 전제로, 돌마다 측면·윗면·그림자를 나눠 그린다 */
+const STONE_GRADIENT = `<radialGradient id="stoneSide" cx="33%" cy="20%" r="92%">
+    <stop offset="0%" stop-color="#ded8cc"/>
+    <stop offset="34%" stop-color="#bdb4a2"/>
+    <stop offset="72%" stop-color="#8f8674"/>
+    <stop offset="100%" stop-color="#655d4e"/>
+  </radialGradient>
+  <radialGradient id="stoneTop" cx="32%" cy="24%" r="86%">
+    <stop offset="0%" stop-color="#e3ddd1"/>
+    <stop offset="46%" stop-color="#c7bfae"/>
+    <stop offset="100%" stop-color="#a19885"/>
+  </radialGradient>
+  <filter id="softShadow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="2.2"/>
+  </filter>
+  <filter id="groundShadow" x="-60%" y="-120%" width="220%" height="340%">
+    <feGaussianBlur stdDeviation="3.4"/>
+  </filter>`;
+
+/* 돌 하나 — 납작한 조약돌을 위에서 비스듬히 본 모습.
+ * 같은 타원을 두께(t)만큼 아래에 한 번 더 깔아 측면이 초승달처럼 드러나게 하고,
+ * 그 위에 밝은 윗면을 얹는다. 이 두께가 있어야 쌓인 것으로 보인다. */
+function stonePiece(cx, cy, rx, ry, tilt) {
+  const t = ry * 0.66;
+  const rot = `rotate(${tilt} ${cx} ${cy})`;
+  return `<g transform="${rot}">
+    <ellipse cx="${(cx + rx * 0.09).toFixed(1)}" cy="${(cy + t + ry * 0.42).toFixed(1)}"
+      rx="${(rx * 0.95).toFixed(1)}" ry="${(ry * 0.52).toFixed(1)}"
+      fill="rgba(52,44,33,0.38)" filter="url(#softShadow)"/>
+    <ellipse cx="${cx.toFixed(1)}" cy="${(cy + t).toFixed(1)}"
+      rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="url(#stoneSide)"/>
+    <ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}"
+      rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="url(#stoneTop)"/>
+    <ellipse cx="${(cx - rx * 0.26).toFixed(1)}" cy="${(cy - ry * 0.32).toFixed(1)}"
+      rx="${(rx * 0.28).toFixed(1)}" ry="${(ry * 0.24).toFixed(1)}"
+      fill="rgba(255,252,244,0.26)"/>
+  </g>`;
+}
 
 /* ── 돌탑 정원 ────────────────────────
  * 작심 하나가 탑 하나. 홈에는 그 탑들이 원근을 두고 함께 서 있다.
@@ -196,20 +229,33 @@ const STONE_GRADIENT = `<radialGradient id="stone" cx="38%" cy="26%" r="85%">
  */
 
 /* 바닥 중심을 원점으로 위로 쌓는 돌 무더기 */
-function stoneStack(stones, building, max = MAX_STONES) {
+function stoneStack(stones, building, max = MAX_STONES, ghost = 0) {
   const shown = Math.min(stones, max);
   let y = -4;
   let rx = 40;
   let ry = 13.5;
   let top = 0;
-  const parts = [`<ellipse cx="0" cy="0" rx="46" ry="6" fill="rgba(90,80,60,0.09)"/>`];
+  // 바닥에 드리운 그림자는 빛 반대쪽(오른쪽 아래)으로 살짝 밀어 둔다
+  const parts = [
+    `<ellipse cx="4" cy="2" rx="47" ry="8" fill="rgba(74,64,48,0.20)" filter="url(#groundShadow)"/>`,
+  ];
 
   for (let i = 0; i < shown; i++) {
     y -= ry * 1.5;
     const tilt = i % 2 === 0 ? -1.6 : 1.7;
     const cx = i % 2 === 0 ? -1.5 : 1.5;
+    parts.push(stonePiece(cx, y, rx, ry, tilt));
+    top = Math.min(top, y - ry);
+    y -= ry * 0.4;
+    rx *= 0.85;
+    ry *= 0.93;
+  }
+
+  for (let i = 0; i < ghost; i++) {
+    y -= ry * 1.5;
     parts.push(
-      `<ellipse cx="${cx}" cy="${y}" rx="${rx}" ry="${ry}" fill="url(#stone)" transform="rotate(${tilt} ${cx} ${y})"/>`
+      `<ellipse class="ghost-stone" style="animation-delay:${i * 0.5}s"
+        cx="0" cy="${y.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="rgba(168,159,142,0.14)"/>`
     );
     top = Math.min(top, y - ry);
     y -= ry * 0.4;
@@ -279,8 +325,20 @@ function gardenSVG(goals) {
       opacity="${opacity}"><g class="tower-inner">${markup}</g></g>`;
   });
 
+  // 탑들이 허공이 아니라 땅 위에 선 것처럼 보이도록 옅은 지면을 깔아 둔다
+  // 뒤쪽 탑의 발까지 덮도록 세로로 넉넉하게, 경계가 드러나지 않을 만큼 옅게
+  const ground = `<ellipse cx="${W / 2}" cy="${groundY - 8}" rx="${W * 0.64}" ry="46" fill="url(#gardenGround)"/>`;
+
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
-    <defs>${STONE_GRADIENT}</defs>
+    <defs>
+      ${STONE_GRADIENT}
+      <radialGradient id="gardenGround" cx="50%" cy="46%" r="60%">
+        <stop offset="0%" stop-color="#ece5d7" stop-opacity="0.5"/>
+        <stop offset="55%" stop-color="#ece5d7" stop-opacity="0.26"/>
+        <stop offset="100%" stop-color="#ece5d7" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    ${ground}
     ${groups.join("\n")}
   </svg>`;
 }
@@ -290,54 +348,13 @@ function stoneCount(goal) {
 }
 
 function cairnSVG(stones, building, ghost = 0, max = MAX_STONES) {
-  const shown = Math.min(stones, max);
-  const groundY = 122;
-  let y = groundY - 4;
-  let rx = 40;
-  let ry = 13.5;
-  let minY = groundY;
-  const parts = [`<ellipse cx="60" cy="${groundY}" rx="46" ry="6" fill="rgba(90,80,60,0.09)"/>`];
-
-  for (let i = 0; i < shown; i++) {
-    y -= ry * 1.5;
-    const tilt = i % 2 === 0 ? -1.6 : 1.7;
-    const cx = 60 + (i % 2 === 0 ? -1.5 : 1.5);
-    parts.push(
-      `<ellipse cx="${cx}" cy="${y}" rx="${rx}" ry="${ry}" fill="url(#stone)" transform="rotate(${tilt} ${cx} ${y})"/>`
-    );
-    minY = Math.min(minY, y - ry);
-    y -= ry * 0.4;
-    rx *= 0.85;
-    ry *= 0.93;
-  }
-
-  for (let i = 0; i < ghost; i++) {
-    y -= ry * 1.5;
-    parts.push(
-      `<ellipse class="ghost-stone" style="animation-delay:${i * 0.5}s"
-        cx="60" cy="${y}" rx="${rx}" ry="${ry}" fill="rgba(168,159,142,0.12)"/>`
-    );
-    minY = Math.min(minY, y - ry);
-    y -= ry * 0.4;
-    rx *= 0.85;
-    ry *= 0.93;
-  }
-
-  if (building) {
-    const by = y - ry * 1.3;
-    const brx = Math.max(rx * 0.92, 15);
-    const bry = Math.max(ry * 0.88, 6);
-    parts.push(
-      `<ellipse class="building-stone" cx="60" cy="${by}" rx="${brx}" ry="${bry}"
-        fill="rgba(232,93,61,0.10)" stroke="#e85d3d" stroke-width="1.6" stroke-dasharray="4.5 3.5"/>`
-    );
-    minY = Math.min(minY, by - bry);
-  }
-
-  const top = minY - 7;
-  return `<svg viewBox="0 ${top} 120 ${groundY + 10 - top}" xmlns="http://www.w3.org/2000/svg">
+  // 정원의 탑과 같은 돌을 쓴다 — 축하 화면과 홈이 같은 재질로 보이도록
+  const { markup, top } = stoneStack(stones, building, max, ghost);
+  const pad = 12;
+  const height = pad - (top - pad);
+  return `<svg viewBox="-58 ${(top - pad).toFixed(1)} 116 ${height.toFixed(1)}" xmlns="http://www.w3.org/2000/svg">
     <defs>${STONE_GRADIENT}</defs>
-    ${parts.join("\n")}
+    ${markup}
   </svg>`;
 }
 
