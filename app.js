@@ -54,7 +54,7 @@ function checkedToday(goal) {
 /* ── 액션 ─────────────────────────── */
 
 function addGoal(title, emoji) {
-  state.goals.push({
+  const goal = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     title,
     emoji,
@@ -64,30 +64,48 @@ function addGoal(title, emoji) {
     totalDays: 0,
     completedCycles: 0,
     restarts: 0,
-  });
+  };
+  state.goals.push(goal);
+  newGoalId = goal.id;
   save();
   render();
+  haptic(10);
+  toast(emoji, "약속했어요. 딱 3일만 가봐요!");
 }
 
-function checkToday(goal) {
+function checkToday(goal, opts = {}) {
   if (checkedToday(goal) || goal.checks.length >= 3) return;
   goal.checks.push(todayStr());
   goal.lastCheckDate = todayStr();
   goal.totalDays += 1;
+
+  // 방금 채워진 칸과 완주 여부를 렌더 후 애니메이션에 넘긴다
+  const completed = goal.checks.length === 3;
+  pendingAnim = {
+    goalId: goal.id,
+    dotIndex: goal.checks.length - 1,
+    completed,
+    silent: !!opts.silent,
+  };
+  if (completed && !reduceMotion) heroStoneHeld = true;
+
   save();
   render();
-  if (goal.checks.length === 3) celebrate();
 }
 
 /* 돌 하나 완성 후 다음 3일 시작 */
 function nextCycle(goal) {
   goal.completedCycles += 1;
   goal.checks = [];
+  haptic(10);
   // 완성한 날 바로 누르면 오늘은 이미 카운트됐으므로 내일부터 첫째 날
-  if (!checkedToday(goal)) checkToday(goal);
-  else {
+  if (!checkedToday(goal)) {
+    checkToday(goal, { silent: true });
+    toast("🪨", "또 하나 쌓기 시작!");
+  } else {
     save();
     render();
+    toast("🌙", "내일 첫 돌에서 만나요");
   }
 }
 
@@ -95,11 +113,14 @@ function nextCycle(goal) {
 function restart(goal) {
   goal.restarts += 1;
   goal.checks = [];
-  if (!checkedToday(goal)) checkToday(goal);
-  else {
+  haptic(10);
+  if (!checkedToday(goal)) {
+    checkToday(goal, { silent: true });
+  } else {
     save();
     render();
   }
+  toast("💪", `다시 쌓기 ${goal.restarts}번째. 이게 진짜 실력이에요`);
 }
 
 function removeGoal(goal) {
@@ -144,7 +165,8 @@ function cairnSVG(stones, building, ghost = 0) {
   for (let i = 0; i < ghost; i++) {
     y -= ry * 1.5;
     parts.push(
-      `<ellipse cx="60" cy="${y}" rx="${rx}" ry="${ry}" fill="rgba(168,159,142,0.12)"/>`
+      `<ellipse class="ghost-stone" style="animation-delay:${i * 0.5}s"
+        cx="60" cy="${y}" rx="${rx}" ry="${ry}" fill="rgba(168,159,142,0.12)"/>`
     );
     minY = Math.min(minY, y - ry);
     y -= ry * 0.4;
@@ -157,7 +179,7 @@ function cairnSVG(stones, building, ghost = 0) {
     const brx = Math.max(rx * 0.92, 15);
     const bry = Math.max(ry * 0.88, 6);
     parts.push(
-      `<ellipse cx="60" cy="${by}" rx="${brx}" ry="${bry}"
+      `<ellipse class="building-stone" cx="60" cy="${by}" rx="${brx}" ry="${bry}"
         fill="rgba(232,93,61,0.10)" stroke="#e85d3d" stroke-width="1.6" stroke-dasharray="4.5 3.5"/>`
     );
     minY = Math.min(minY, by - bry);
@@ -183,6 +205,7 @@ const $ = (id) => document.getElementById(id);
 function render() {
   renderStats();
   renderGoals();
+  runPendingAnim();
 }
 
 function renderStats() {
@@ -192,10 +215,18 @@ function renderStats() {
     goals.reduce((s, g) => s + g.completedCycles, 0) +
     goals.filter((g) => g.checks.length >= 3).length;
   const restarts = goals.reduce((s, g) => s + g.restarts, 0);
-  const building = goals.some((g) => {
+  let building = goals.some((g) => {
     const st = goalStatus(g);
     return st === "fresh" || st === "active";
   });
+
+  // 돌이 날아가는 동안 탑은 아직 자라지 않은 상태로 두고, 빈 점선 자리를 남겨둔다.
+  // 돌이 착지하는 순간 그 자리에 진짜 돌이 채워지며 탑이 한 칸 자란다.
+  let drawnStones = cycles;
+  if (heroStoneHeld) {
+    drawnStones = Math.max(0, cycles - 1);
+    building = true;
+  }
 
   const hasGoals = goals.length > 0;
   $("stats").hidden = !hasGoals;
@@ -205,7 +236,7 @@ function renderStats() {
   $("stat-total-days").textContent = totalDays;
   $("stat-cycles").textContent = cycles;
   $("stat-restarts").textContent = restarts;
-  $("hero-cairn").innerHTML = cairnSVG(cycles, building);
+  $("hero-cairn").innerHTML = cairnSVG(drawnStones, building);
 
   const emptyCairn = document.querySelector(".empty-cairn");
   if (emptyCairn && !hasGoals) emptyCairn.innerHTML = cairnSVG(0, true, 2);
@@ -267,6 +298,11 @@ function renderGoalCard(goal) {
   const status = goalStatus(goal);
   const card = document.createElement("article");
   card.className = `goal-card state-${status}`;
+  card.dataset.goalId = goal.id;
+  if (goal.id === newGoalId) {
+    card.classList.add("appear");
+    newGoalId = null;
+  }
 
   const top = document.createElement("div");
   top.className = "goal-top";
@@ -335,21 +371,148 @@ function renderGoalCard(goal) {
   return card;
 }
 
-/* ── 축하 색종이 ────────────────────── */
+/* ── 손맛: 진동 · 토스트 · 돌 얹기 애니메이션 ── */
 
-function celebrate() {
-  const layer = $("confetti");
-  const colors = ["#e85d3d", "#f0a05a", "#5f7d54", "#a89f8e", "#1b1a18"];
-  for (let i = 0; i < 50; i++) {
-    const p = document.createElement("div");
-    p.className = "confetti-piece";
-    p.style.left = Math.random() * 100 + "vw";
-    p.style.background = colors[i % colors.length];
-    p.style.animationDuration = 1.8 + Math.random() * 1.5 + "s";
-    p.style.animationDelay = Math.random() * 0.4 + "s";
-    layer.appendChild(p);
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function haptic(ms) {
+  if (navigator.vibrate) navigator.vibrate(ms);
+}
+
+let toastTimer = null;
+
+function toast(emoji, text) {
+  const el = $("toast");
+  el.innerHTML = `<span class="toast-emoji"></span><span class="toast-text"></span>`;
+  el.querySelector(".toast-emoji").textContent = emoji;
+  el.querySelector(".toast-text").textContent = text;
+  el.hidden = false;
+  // 재생 중이던 애니메이션을 끊고 처음부터 다시
+  el.classList.remove("show");
+  void el.offsetWidth;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    el.classList.remove("show");
+    toastTimer = setTimeout(() => (el.hidden = true), 300);
+  }, 2200);
+}
+
+/* 렌더 직후 실행할 애니메이션 예약 */
+let pendingAnim = null;
+let newGoalId = null;
+/* 돌이 공중에 떠 있는 동안 true — 그동안 히어로 돌탑은 자라지 않고 기다린다 */
+let heroStoneHeld = false;
+
+function runPendingAnim() {
+  const job = pendingAnim;
+  pendingAnim = null;
+  if (!job) return;
+
+  const card = document.querySelector(`.goal-card[data-goal-id="${job.goalId}"]`);
+  const dot = card && card.querySelectorAll(".dot")[job.dotIndex];
+
+  if (dot) {
+    dot.classList.add("just-done");
+    dot.addEventListener("animationend", () => dot.classList.remove("just-done"), { once: true });
   }
-  setTimeout(() => (layer.innerHTML = ""), 4000);
+
+  if (job.completed) {
+    haptic([12, 60, 24]);
+    flyStoneToTower(dot);
+    if (!job.silent) {
+      setTimeout(() => toast("🎉", "돌 하나 완성! 3일을 해냈어요"), 620);
+    }
+  } else {
+    haptic(12);
+    if (!job.silent) {
+      const left = 3 - job.dotIndex - 1;
+      const msg = left === 1 ? "하루만 더 하면 돌 하나 완성" : "좋아요, 오늘도 해냈어요";
+      setTimeout(() => toast("✨", msg), 180);
+    }
+  }
+}
+
+/* 완주한 돌이 카드에서 히어로 돌탑으로 날아가 얹힌다 */
+function flyStoneToTower(fromEl) {
+  const hero = $("hero-cairn");
+  const cairnSvg = hero && hero.querySelector("svg");
+  // 착지점 = 탑 꼭대기에 비어 있는 점선 자리
+  const slot = cairnSvg && cairnSvg.querySelector(".building-stone");
+  if (!fromEl || !hero || !slot || reduceMotion) {
+    landStone();
+    return;
+  }
+
+  const from = fromEl.getBoundingClientRect();
+  const to = slot.getBoundingClientRect();
+  const dx = to.left + to.width / 2 - (from.left + from.width / 2);
+  const dy = to.top + to.height / 2 - (from.top + from.height / 2);
+
+  const stone = document.createElement("div");
+  stone.className = "flying-stone";
+  stone.style.left = from.left + from.width / 2 + "px";
+  stone.style.top = from.top + from.height / 2 + "px";
+  document.body.appendChild(stone);
+
+  const anim = stone.animate(
+    [
+      { transform: "translate(-50%, -50%) scale(0.5) rotate(0deg)", opacity: 0.2 },
+      {
+        transform: `translate(calc(-50% + ${dx * 0.5}px), calc(-50% + ${dy * 0.45 - 54}px)) scale(1.15) rotate(-8deg)`,
+        opacity: 1,
+        offset: 0.5,
+      },
+      {
+        transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.85) rotate(3deg)`,
+        opacity: 1,
+      },
+    ],
+    { duration: 640, easing: "cubic-bezier(.36,.7,.35,1)", fill: "forwards" }
+  );
+
+  anim.onfinish = () => {
+    stone.remove();
+    landStone(to.left + to.width / 2, to.top + to.height / 2);
+  };
+}
+
+/* 돌이 닿는 순간: 점선 자리가 진짜 돌로 바뀌고, 탑이 한 번 눌렸다 편다 */
+function landStone(x, y) {
+  heroStoneHeld = false;
+  renderStats();
+  bumpTower();
+  if (x != null) stoneDust(x, y);
+  haptic(18);
+}
+
+/* 돌이 얹힐 때 탑 전체가 한 번 눌렸다 펴진다 */
+function bumpTower() {
+  const hero = $("hero-cairn");
+  if (!hero) return;
+  hero.classList.remove("bump");
+  void hero.offsetWidth;
+  hero.classList.add("bump");
+}
+
+/* 착지 지점에서 흙먼지가 짧게 퍼진다 */
+function stoneDust(x, y) {
+  if (reduceMotion) return;
+  const layer = $("confetti");
+  for (let i = 0; i < 14; i++) {
+    const p = document.createElement("span");
+    p.className = "dust";
+    const angle = (Math.PI * (i / 14)) + Math.PI; // 위쪽 반원으로 퍼짐
+    const dist = 22 + Math.random() * 30;
+    p.style.left = x + "px";
+    p.style.top = y + "px";
+    p.style.setProperty("--dx", Math.cos(angle) * dist + "px");
+    p.style.setProperty("--dy", Math.sin(angle) * dist * 0.7 + "px");
+    p.style.animationDelay = Math.random() * 0.08 + "s";
+    if (i % 4 === 0) p.classList.add("spark");
+    layer.appendChild(p);
+    setTimeout(() => p.remove(), 900);
+  }
 }
 
 /* ── 바텀시트 ─────────────────────── */

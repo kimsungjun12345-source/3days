@@ -268,12 +268,18 @@ body {
 }
 
 .btn:active {
-  transform: scale(0.98);
+  transform: scale(0.975);
 }
 
 .btn-primary {
   background: var(--accent);
   color: #fff;
+  box-shadow: 0 4px 14px rgba(232, 93, 61, 0.28);
+}
+
+/* 누르는 순간 버튼이 바닥에 눌리듯 그림자가 줄어든다 */
+.btn-primary:active {
+  box-shadow: 0 1px 5px rgba(232, 93, 61, 0.22);
 }
 
 .btn-success {
@@ -441,7 +447,76 @@ body {
   flex: 2;
 }
 
-/* ── 색종이 ───────────────────────── */
+/* ── 손맛: 돌 얹는 순간 ───────────────
+ * 체크한 칸이 톡 튀고, 3일을 채우면 돌이 카드에서 돌탑으로 날아가 얹힌다.
+ */
+
+/* 방금 채워진 칸 */
+.dot.just-done {
+  animation: dot-pop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes dot-pop {
+  0% { transform: scale(0.4); }
+  55% { transform: scale(1.28); }
+  100% { transform: scale(1); }
+}
+
+/* 채워지는 순간 퍼지는 링 */
+.dot.just-done::after {
+  content: "";
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  animation: dot-ring 0.6s ease-out forwards;
+}
+
+@keyframes dot-ring {
+  0% { transform: scale(1); opacity: 0.7; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+.dot {
+  position: relative;
+}
+
+/* 오늘 채울 칸은 조용히 숨을 쉰다 */
+.dot.today {
+  animation: today-breathe 2.6s ease-in-out infinite;
+}
+
+@keyframes today-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 93, 61, 0.28); }
+  50% { box-shadow: 0 0 0 5px rgba(232, 93, 61, 0); }
+}
+
+/* 날아가는 돌 */
+.flying-stone {
+  position: fixed;
+  width: 30px;
+  height: 22px;
+  border-radius: 50% 50% 46% 54% / 60% 58% 42% 40%;
+  background: radial-gradient(ellipse at 36% 28%, #cdc6b8, #a89f8e 62%, #8d8371);
+  box-shadow: 0 4px 10px rgba(90, 80, 60, 0.32);
+  pointer-events: none;
+  z-index: 40;
+}
+
+/* 돌이 얹히는 순간 탑이 한 번 눌린다 */
+.hero-cairn.bump {
+  animation: tower-bump 0.5s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+@keyframes tower-bump {
+  0% { transform: translateY(0) scaleY(1); }
+  28% { transform: translateY(2px) scaleY(0.93); }
+  60% { transform: translateY(-1px) scaleY(1.03); }
+  100% { transform: translateY(0) scaleY(1); }
+}
+
+/* 착지 먼지 */
 .confetti-layer {
   position: fixed;
   inset: 0;
@@ -450,18 +525,99 @@ body {
   z-index: 30;
 }
 
-.confetti-piece {
+.dust {
   position: absolute;
-  top: -12px;
-  width: 9px;
-  height: 9px;
-  border-radius: 2px;
-  animation: confetti-fall linear forwards;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #b8ae9c;
+  animation: dust-out 0.75s ease-out forwards;
 }
 
-@keyframes confetti-fall {
-  to {
-    transform: translateY(110vh) rotate(720deg);
-    opacity: 0.6;
+.dust.spark {
+  width: 4px;
+  height: 4px;
+  background: var(--accent);
+}
+
+@keyframes dust-out {
+  0% { transform: translate(0, 0) scale(1); opacity: 0.85; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0.2); opacity: 0; }
+}
+
+/* 아직 아무것도 없는 자리에서 흐린 돌이 천천히 떠 있는다 */
+.ghost-stone {
+  animation: ghost-float 3.4s ease-in-out infinite;
+}
+
+@keyframes ghost-float {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+/* 쌓는 중인 돌 자리 */
+.building-stone {
+  animation: building-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes building-pulse {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+/* 새로 만든 작심 카드가 스르륵 나타난다 */
+.goal-card.appear {
+  animation: card-appear 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes card-appear {
+  from { transform: translateY(14px) scale(0.97); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* ── 토스트 ───────────────────────── */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(28px + env(safe-area-inset-bottom));
+  transform: translate(-50%, 20px);
+  background: rgba(27, 26, 24, 0.94);
+  color: #fdfcfa;
+  padding: 11px 18px;
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 40px);
+  box-shadow: 0 8px 24px rgba(27, 26, 24, 0.28);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 50;
+  word-break: keep-all;
+}
+
+.toast.show {
+  animation: toast-in 0.34s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+}
+
+@keyframes toast-in {
+  from { transform: translate(-50%, 20px) scale(0.94); opacity: 0; }
+  to { transform: translate(-50%, 0) scale(1); opacity: 1; }
+}
+
+.toast-emoji {
+  font-size: 1.05rem;
+}
+
+/* ── 모션 최소화 설정 존중 ───────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
