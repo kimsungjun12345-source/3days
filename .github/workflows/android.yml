@@ -25,6 +25,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # 폰에서 바로 받을 수 있게 릴리스에 APK를 올리려면 쓰기 권한이 필요하다
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -55,12 +58,40 @@ jobs:
         run: ./gradlew assembleDebug --no-daemon
         working-directory: android
 
-      - name: 디버그 APK 올리기
+      - name: APK 이름 붙이기
+        run: |
+          mkdir -p dist
+          cp android/app/build/outputs/apk/debug/app-debug.apk \
+             "dist/jaksimsamil-$(date +%m%d)-${GITHUB_SHA::7}.apk"
+          ls -lh dist/
+
+      - name: 디버그 APK 올리기 (PC에서 받을 때)
         uses: actions/upload-artifact@v4
         with:
           name: jaksimsamil-debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: dist/*.apk
           if-no-files-found: error
+
+      # 깃허브 모바일 앱과 아티팩트는 궁합이 나쁘다. 앱에서는 아티팩트를
+      # 내려받을 수 없고, 브라우저로 받아도 zip을 풀어야 한다.
+      # 릴리스에 올려 두면 폰에서 파일을 눌러 바로 설치할 수 있다.
+      - name: 폰에서 바로 받도록 최신 빌드 릴리스 갱신
+        if: github.ref_name == 'claude/jaksim-samil-app-salp5o' || github.ref_name == 'main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-debug
+          name: 최신 테스트 빌드 (개발용)
+          body: |
+            폰에서 바로 설치해 볼 수 있는 최신 빌드입니다.
+            아래 `.apk` 파일을 눌러 받으세요. (처음 설치할 때
+            "이 출처의 앱 설치 허용"을 한 번 켜 주셔야 합니다.)
+
+            - 커밋: ${{ github.sha }}
+            - 내용: ${{ github.event.head_commit.message }}
+
+            서명되지 않은 개발용 빌드라 스토어 배포에는 쓰지 않습니다.
+          prerelease: true
+          files: dist/*.apk
 
       # ── 여기서부터는 스토어 업로드용 (시크릿이 있을 때만) ──
 
