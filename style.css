@@ -10,6 +10,83 @@
   --accent-soft: #fbeee9;
   --sage: #5f7d54;
   --radius: 20px;
+
+  /* 돌탑 — SVG 그라데이션이 이 값을 그대로 읽는다 */
+  --stone-side-1: #ded8cc;
+  --stone-side-2: #bdb4a2;
+  --stone-side-3: #8f8674;
+  --stone-side-4: #655d4e;
+  --stone-top-1: #e3ddd1;
+  --stone-top-2: #c7bfae;
+  --stone-top-3: #a19885;
+  --stone-shadow: rgba(52, 44, 33, 0.38);
+  --stone-shine: rgba(255, 252, 244, 0.26);
+  --ground-shadow: rgba(74, 64, 48, 0.2);
+  --garden-ground: #ece5d7;
+  --slot-fill: rgba(232, 93, 61, 0.1);
+  --ghost-stone: rgba(168, 159, 142, 0.14);
+
+  --shadow-card: 0 1px 4px rgba(40, 35, 25, 0.04);
+  --scrim: rgba(27, 26, 24, 0.4);
+
+  --on-accent: #fff;          /* 주황·초록 버튼 위 글자 */
+  --solid-bg: #1b1a18;        /* '또 작심하기' 같은 진한 버튼 */
+  --solid-fg: #fdfbf7;
+  --sage-soft: #eef3ec;
+  --dashed: #d9d3c9;
+  --dot-empty: #c6bfb4;
+  --toast-bg: rgba(27, 26, 24, 0.94);
+  --toast-fg: #fdfcfa;
+  --garden-glow: #faf8f4;
+  --accent-glow: rgba(232, 93, 61, 0.28);
+  --accent-glow-soft: rgba(232, 93, 61, 0.22);
+}
+
+/* 저녁 9시 알림을 받고 여는 앱이라 어두운 곳에서 쓸 일이 많다.
+   돌은 사라지지 않고, 달빛을 받은 것처럼 톤만 낮아진다. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161513;
+    --card: #201f1c;
+    --line: #2d2b26;
+    --ink: #f0ece4;
+    --gray: #8a837a;
+    --gray-strong: #aca496;
+    --chip: #2a2824;
+    --accent: #f4744f;
+    --accent-soft: #3a251e;
+    --sage: #86a578;
+
+    --stone-side-1: #b3ab9c;
+    --stone-side-2: #8c8474;
+    --stone-side-3: #635c4e;
+    --stone-side-4: #423c33;
+    --stone-top-1: #c2baa9;
+    --stone-top-2: #9d9584;
+    --stone-top-3: #726a5c;
+    --stone-shadow: rgba(0, 0, 0, 0.5);
+    --stone-shine: rgba(255, 250, 238, 0.16);
+    --ground-shadow: rgba(0, 0, 0, 0.42);
+    --garden-ground: #2f2c26;
+    --slot-fill: rgba(244, 116, 79, 0.12);
+    --ghost-stone: rgba(180, 172, 156, 0.14);
+
+    --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.28);
+    --scrim: rgba(8, 7, 6, 0.62);
+
+    /* 진한 버튼은 밝은 배경에 어두운 글자로 뒤집는다 */
+    --on-accent: #1c1310;
+    --solid-bg: #ece7dd;
+    --solid-fg: #1b1a18;
+    --sage-soft: #242e21;
+    --dashed: #3a3730;
+    --dot-empty: #5c564d;
+    --toast-bg: rgba(240, 236, 228, 0.95);
+    --toast-fg: #1b1a18;
+    --garden-glow: rgba(255, 250, 236, 0.05);
+    --accent-glow: rgba(244, 116, 79, 0.22);
+    --accent-glow-soft: rgba(244, 116, 79, 0.16);
+  }
 }
 
 * {
@@ -63,13 +140,13 @@ body {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
-  box-shadow: 0 1px 4px rgba(40, 35, 25, 0.04);
+  box-shadow: var(--shadow-card);
 }
 
 /* 작심마다 탑 하나 — 앞뒤로 늘어선 나의 정원 */
 .garden {
   /* 뒤쪽 탑이 놓인 바닥이 은은하게 밝아 보이도록 */
-  background: radial-gradient(120% 80% at 50% 108%, #faf8f4 0%, transparent 62%);
+  background: radial-gradient(120% 80% at 50% 108%, var(--garden-glow) 0%, transparent 62%);
 }
 
 .garden svg {
@@ -161,7 +238,7 @@ body {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 18px 18px 16px;
-  box-shadow: 0 1px 4px rgba(40, 35, 25, 0.04);
+  box-shadow: var(--shadow-card);
 }
 
 .goal-top {
@@ -189,7 +266,7 @@ body {
 }
 
 .state-broken .goal-ico {
-  background: #eef3ec;
+  background: var(--sage-soft);
   color: var(--sage);
 }
 
@@ -242,12 +319,12 @@ body {
   font-size: 0.68rem;
   font-weight: 700;
   background: var(--chip);
-  color: #c6bfb4;
+  color: var(--dot-empty);
 }
 
 .dot.done {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .dot.today {
@@ -286,23 +363,23 @@ body {
 
 .btn-primary {
   background: var(--accent);
-  color: #fff;
-  box-shadow: 0 4px 14px rgba(232, 93, 61, 0.28);
+  color: var(--on-accent);
+  box-shadow: 0 4px 14px var(--accent-glow);
 }
 
 /* 누르는 순간 버튼이 바닥에 눌리듯 그림자가 줄어든다 */
 .btn-primary:active {
-  box-shadow: 0 1px 5px rgba(232, 93, 61, 0.22);
+  box-shadow: 0 1px 5px var(--accent-glow-soft);
 }
 
 .btn-success {
-  background: var(--ink);
-  color: #fff;
+  background: var(--solid-bg);
+  color: var(--solid-fg);
 }
 
 .btn-rest {
   background: var(--sage);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .btn-done {
@@ -326,7 +403,7 @@ body {
   display: block;
   width: 100%;
   margin-top: 12px;
-  border: 1.6px dashed #d9d3c9;
+  border: 1.6px dashed var(--dashed);
   border-radius: var(--radius);
   padding: 16px;
   text-align: center;
@@ -389,7 +466,7 @@ body {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--card);
-  box-shadow: 0 1px 4px rgba(40, 35, 25, 0.04);
+  box-shadow: var(--shadow-card);
 }
 
 .notify-text {
@@ -432,8 +509,8 @@ body {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(40, 35, 25, 0.3);
+  background: var(--card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   transition: transform 0.2s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
@@ -455,7 +532,7 @@ body {
   font-family: inherit;
   text-align: left;
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(40, 35, 25, 0.04);
+  box-shadow: var(--shadow-card);
 }
 
 .install-card:active {
@@ -466,8 +543,8 @@ body {
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  background: var(--ink);
-  color: #f2ede4;
+  background: var(--solid-bg);
+  color: var(--solid-fg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -501,7 +578,7 @@ body {
   gap: 8px;
   margin-top: 26px;
   font-size: 0.78rem;
-  color: #c6bfb4;
+  color: var(--dot-empty);
 }
 
 .data-actions button {
@@ -526,14 +603,14 @@ body {
   margin-top: 40px;
   text-align: center;
   font-size: 0.78rem;
-  color: #c6bfb4;
+  color: var(--dot-empty);
 }
 
 /* ── 바텀시트 ─────────────────────── */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(27, 26, 24, 0.4);
+  background: var(--scrim);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -781,8 +858,8 @@ body {
   left: 50%;
   bottom: calc(28px + env(safe-area-inset-bottom));
   transform: translate(-50%, 20px);
-  background: rgba(27, 26, 24, 0.94);
-  color: #fdfcfa;
+  background: var(--toast-bg);
+  color: var(--toast-fg);
   padding: 11px 18px;
   border-radius: 999px;
   font-size: 0.86rem;
@@ -977,7 +1054,7 @@ body {
 .cheer-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(27, 26, 24, 0.55);
+  background: var(--scrim);
   display: flex;
   align-items: center;
   justify-content: center;

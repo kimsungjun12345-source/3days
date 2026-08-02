@@ -17,6 +17,7 @@ const CHROME =
 
 const BG = "#26241f"; // 아이콘 배경 (짙은 잉크)
 const SPLASH_BG = "#f7f6f3"; // 실행 화면 배경 (앱 배경과 같게)
+const SPLASH_BG_NIGHT = "#161513"; // 어두운 테마에서 흰 화면이 번쩍이지 않도록
 
 /* 돌탑 그림 — 웹 아이콘과 같은 규칙(두께·광원·그림자) */
 function cairnArt(shiftY) {
@@ -75,10 +76,10 @@ function foregroundSVG(size) {
 }
 
 /* 실행 화면 — 가운데 돌탑 하나 */
-function splashSVG(w, h) {
+function splashSVG(w, h, bg = SPLASH_BG) {
   const s = Math.min(w, h) * 0.34;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
-    ${DEFS}<rect width="${w}" height="${h}" fill="${SPLASH_BG}"/>
+    ${DEFS}<rect width="${w}" height="${h}" fill="${bg}"/>
     <g transform="translate(${w / 2 - s / 2} ${h / 2 - s / 2}) scale(${s / 1000})">${cairnArt(-60)}</g>
   </svg>`;
 }
@@ -145,7 +146,11 @@ const ANDROID_SPLASH = [
 
     for (const [dir, w, h] of ANDROID_SPLASH) {
       await shoot(splashSVG(w, h), w, h, path.join(androidRes, dir, "splash.png"));
-      made += 1;
+      // 어두운 테마용 — 안드로이드가 -night 한정자를 보고 알아서 골라 쓴다
+      // (한정자 순서: 방향 → night → 밀도)
+      const nightDir = dir === "drawable" ? "drawable-night" : dir.replace(/-(mdpi|hdpi|xhdpi|xxhdpi|xxxhdpi)$/, "-night-$1");
+      await shoot(splashSVG(w, h, SPLASH_BG_NIGHT), w, h, path.join(androidRes, nightDir, "splash.png"));
+      made += 2;
     }
     console.log("안드로이드 아이콘·스플래시 완료");
   } else {

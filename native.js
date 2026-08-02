@@ -176,15 +176,29 @@ async function rescheduleNotifications() {
 
 /* ── 앱 껍데기 ─────────────────────── */
 
+/* 상태바를 화면 테마에 맞춘다.
+ * Capacitor에서 Style.LIGHT는 '밝은 배경용(어두운 글자)', DARK는 그 반대다. */
+async function applyStatusBarTheme() {
+  if (!IS_NATIVE || !NP.StatusBar) return;
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  try {
+    await NP.StatusBar.setStyle({ style: dark ? "DARK" : "LIGHT" });
+    if (Cap.getPlatform && Cap.getPlatform() === "android") {
+      await NP.StatusBar.setBackgroundColor({ color: dark ? "#161513" : "#f7f6f3" });
+    }
+  } catch (e) {
+    /* 무시 */
+  }
+}
+
 async function setupNativeShell() {
   if (!IS_NATIVE) return;
   try {
-    if (NP.StatusBar) {
-      await NP.StatusBar.setStyle({ style: "LIGHT" }); // 밝은 배경 → 어두운 글자
-      if (Cap.getPlatform && Cap.getPlatform() === "android") {
-        await NP.StatusBar.setBackgroundColor({ color: "#f7f6f3" });
-      }
-    }
+    await applyStatusBarTheme();
+    // 설정에서 테마를 바꾸면 상태바도 따라가야 한다
+    window
+      .matchMedia("(prefers-color-scheme: dark)")
+      .addEventListener("change", applyStatusBarTheme);
     if (NP.SplashScreen) await NP.SplashScreen.hide();
   } catch (e) {
     /* 무시 */

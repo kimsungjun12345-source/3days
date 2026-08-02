@@ -314,6 +314,59 @@ function dstr(offset) {
     "with nothing open the back button falls through so android can exit"
   );
 
+  // 18. 어두운 테마 — 색이 뒤집혀도 읽을 수 있어야 한다
+  const dark = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    colorScheme: "dark",
+  });
+  const darkPage = await dark.newPage();
+  darkPage.on("pageerror", (e) => errors.push("dark pageerror: " + e.message));
+  await darkPage.goto(APP);
+  await darkPage.evaluate((d1) => {
+    localStorage.setItem("jaksim3.v1", JSON.stringify({ goals: [
+      { id: "dk", title: "아침에 물 한 잔", icon: "water", createdAt: "",
+        checks: [d1], history: [d1], lastCheckDate: d1,
+        totalDays: 9, completedCycles: 3, restarts: 1 }]}));
+  }, dstr(-1));
+  await darkPage.reload();
+  await darkPage.waitForTimeout(300);
+
+  const theme = await darkPage.evaluate(() => {
+    const css = getComputedStyle(document.documentElement);
+    const btn = document.querySelector(".goal-card .btn");
+    const btnStyle = getComputedStyle(btn);
+    return {
+      bg: getComputedStyle(document.body).backgroundColor,
+      stone: css.getPropertyValue("--stone-top-1").trim(),
+      btnBg: btnStyle.backgroundColor,
+      btnFg: btnStyle.color,
+    };
+  });
+  assert(theme.bg === "rgb(22, 21, 19)", "dark theme paints a dark page, got: " + theme.bg);
+  assert(theme.stone === "#c2baa9", "stones switch to their night tone, got: " + theme.stone);
+
+  // 버튼 배경과 글자가 충분히 대비되는지 (밝은 버튼 위 흰 글자 같은 사고 방지)
+  const lum = (rgb) => {
+    const [r, g, b] = rgb.match(/\d+/g).map(Number).map((v) => {
+      const c = v / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contrast = (a, b) => {
+    const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m);
+    return (x + 0.05) / (y + 0.05);
+  };
+  const ratio = contrast(theme.btnBg, theme.btnFg);
+  assert(ratio >= 4.5, "primary button text stays readable in dark (contrast " + ratio.toFixed(1) + ":1)");
+
+  // 돌탑이 어두운 화면에서도 그려지는지
+  assert(
+    (await darkPage.locator("#hero-garden .tower").count()) === 1,
+    "garden still renders in dark theme"
+  );
+  await dark.close();
+
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 
   await page.screenshot({ path: __dirname + "/screenshot.png", fullPage: true });

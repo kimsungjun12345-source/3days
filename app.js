@@ -184,16 +184,17 @@ function removeGoal(goal) {
 const MAX_STONES = 5;
 
 /* 빛은 왼쪽 위에서 온다는 전제로, 돌마다 측면·윗면·그림자를 나눠 그린다 */
+/* 돌 색은 CSS 변수로 받는다 — 어두운 화면에서는 같은 돌이 밤빛으로 바뀐다 */
 const STONE_GRADIENT = `<radialGradient id="stoneSide" cx="33%" cy="20%" r="92%">
-    <stop offset="0%" stop-color="#ded8cc"/>
-    <stop offset="34%" stop-color="#bdb4a2"/>
-    <stop offset="72%" stop-color="#8f8674"/>
-    <stop offset="100%" stop-color="#655d4e"/>
+    <stop offset="0%" stop-color="var(--stone-side-1)"/>
+    <stop offset="34%" stop-color="var(--stone-side-2)"/>
+    <stop offset="72%" stop-color="var(--stone-side-3)"/>
+    <stop offset="100%" stop-color="var(--stone-side-4)"/>
   </radialGradient>
   <radialGradient id="stoneTop" cx="32%" cy="24%" r="86%">
-    <stop offset="0%" stop-color="#e3ddd1"/>
-    <stop offset="46%" stop-color="#c7bfae"/>
-    <stop offset="100%" stop-color="#a19885"/>
+    <stop offset="0%" stop-color="var(--stone-top-1)"/>
+    <stop offset="46%" stop-color="var(--stone-top-2)"/>
+    <stop offset="100%" stop-color="var(--stone-top-3)"/>
   </radialGradient>
   <filter id="softShadow" x="-60%" y="-60%" width="220%" height="220%">
     <feGaussianBlur stdDeviation="2.2"/>
@@ -211,14 +212,14 @@ function stonePiece(cx, cy, rx, ry, tilt) {
   return `<g transform="${rot}">
     <ellipse cx="${(cx + rx * 0.09).toFixed(1)}" cy="${(cy + t + ry * 0.42).toFixed(1)}"
       rx="${(rx * 0.95).toFixed(1)}" ry="${(ry * 0.52).toFixed(1)}"
-      fill="rgba(52,44,33,0.38)" filter="url(#softShadow)"/>
+      fill="var(--stone-shadow)" filter="url(#softShadow)"/>
     <ellipse cx="${cx.toFixed(1)}" cy="${(cy + t).toFixed(1)}"
       rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="url(#stoneSide)"/>
     <ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}"
       rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="url(#stoneTop)"/>
     <ellipse cx="${(cx - rx * 0.26).toFixed(1)}" cy="${(cy - ry * 0.32).toFixed(1)}"
       rx="${(rx * 0.28).toFixed(1)}" ry="${(ry * 0.24).toFixed(1)}"
-      fill="rgba(255,252,244,0.26)"/>
+      fill="var(--stone-shine)"/>
   </g>`;
 }
 
@@ -237,7 +238,7 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0) {
   let top = 0;
   // 바닥에 드리운 그림자는 빛 반대쪽(오른쪽 아래)으로 살짝 밀어 둔다
   const parts = [
-    `<ellipse cx="4" cy="2" rx="47" ry="8" fill="rgba(74,64,48,0.20)" filter="url(#groundShadow)"/>`,
+    `<ellipse cx="4" cy="2" rx="47" ry="8" fill="var(--ground-shadow)" filter="url(#groundShadow)"/>`,
   ];
 
   for (let i = 0; i < shown; i++) {
@@ -255,7 +256,7 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0) {
     y -= ry * 1.5;
     parts.push(
       `<ellipse class="ghost-stone" style="animation-delay:${i * 0.5}s"
-        cx="0" cy="${y.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="rgba(168,159,142,0.14)"/>`
+        cx="0" cy="${y.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="var(--ghost-stone)"/>`
     );
     top = Math.min(top, y - ry);
     y -= ry * 0.4;
@@ -269,7 +270,7 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0) {
     const bry = Math.max(ry * 0.88, 6);
     parts.push(
       `<ellipse class="building-stone" cx="0" cy="${by}" rx="${brx}" ry="${bry}"
-        fill="rgba(232,93,61,0.10)" stroke="#e85d3d" stroke-width="1.6" stroke-dasharray="4.5 3.5"/>`
+        fill="var(--slot-fill)" stroke="var(--accent)" stroke-width="1.6" stroke-dasharray="4.5 3.5"/>`
     );
     top = Math.min(top, by - bry);
   }
@@ -333,9 +334,9 @@ function gardenSVG(goals) {
     <defs>
       ${STONE_GRADIENT}
       <radialGradient id="gardenGround" cx="50%" cy="46%" r="60%">
-        <stop offset="0%" stop-color="#ece5d7" stop-opacity="0.5"/>
-        <stop offset="55%" stop-color="#ece5d7" stop-opacity="0.26"/>
-        <stop offset="100%" stop-color="#ece5d7" stop-opacity="0"/>
+        <stop offset="0%" stop-color="var(--garden-ground)" stop-opacity="0.5"/>
+        <stop offset="55%" stop-color="var(--garden-ground)" stop-opacity="0.26"/>
+        <stop offset="100%" stop-color="var(--garden-ground)" stop-opacity="0"/>
       </radialGradient>
     </defs>
     ${ground}
