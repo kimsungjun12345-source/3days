@@ -118,15 +118,12 @@
         <div class="row-card" id="notify-hour-row" hidden>
           <span class="row-text">
             <b>알림 시간</b>
-            <span>하루를 정리하며 아직 만회할 수 있는 시간이 좋아요</span>
+            <span id="notify-hour-sub">아직 만회할 수 있는 시각이 좋아요</span>
           </span>
-          <select id="notify-hour" class="hour-select" aria-label="알림 시간">
-            <option value="19">저녁 7시</option>
-            <option value="20">저녁 8시</option>
-            <option value="21" selected>저녁 9시</option>
-            <option value="22">저녁 10시</option>
-            <option value="23">저녁 11시</option>
-          </select>
+          <label class="time-pick">
+            <span id="notify-hour-label">저녁 9시</span>
+            <input type="time" id="notify-hour" value="21:00" aria-label="알림 시간" />
+          </label>
         </div>
 
         <button type="button" class="row-card row-btn" id="btn-show-onboard">
@@ -225,25 +222,43 @@
       </div>
     </div>
 
-    <!-- 새 작심 바텀시트 -->
-    <div class="modal-backdrop" id="modal" hidden>
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-        <h2 id="modal-title">새 작심</h2>
-        <p class="modal-sub">거창할 필요 없어요. 딱 3일만 해볼 것 하나.</p>
+    <!-- 새 작심 — 키보드와 다투지 않도록 한 화면을 통째로 쓴다 -->
+    <div class="modal-backdrop sheet-full" id="modal" hidden>
+      <div class="modal sheet-page" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <header class="sheet-head">
+          <button type="button" class="sheet-close" id="btn-cancel" aria-label="닫기">✕</button>
+          <h2 id="modal-title">새 작심</h2>
+        </header>
+
         <form id="form-add">
-          <input
-            type="text"
-            id="input-title"
-            maxlength="30"
-            placeholder="예: 아침에 물 한 잔 마시기"
-            autocomplete="off"
-            required
-          />
-          <div class="suggest-row" id="suggest-row"></div>
-          <div class="icon-row" id="icon-row"></div>
-          <div class="modal-actions">
-            <button type="button" class="btn btn-ghost" id="btn-cancel">다음에</button>
-            <button type="submit" class="btn btn-primary">3일 약속하기</button>
+          <div class="sheet-scroll" id="sheet-scroll">
+            <p class="modal-sub">거창할 필요 없어요. 딱 3일만 해볼 것 하나.</p>
+
+            <p class="field-label">골라 볼까요</p>
+            <div class="suggest-row" id="suggest-row"></div>
+
+            <p class="field-label">
+              직접 쓰기
+              <span class="field-hint" id="title-count">0/30</span>
+            </p>
+            <input
+              type="text"
+              id="input-title"
+              maxlength="30"
+              placeholder="예: 아침에 물 한 잔 마시기"
+              autocomplete="off"
+              enterkeyhint="done"
+              required
+            />
+
+            <p class="field-label">아이콘</p>
+            <div class="icon-row" id="icon-row"></div>
+          </div>
+
+          <div class="sheet-foot">
+            <button type="submit" class="btn btn-primary" id="btn-submit-goal" disabled>
+              3일 약속하기
+            </button>
           </div>
         </form>
       </div>

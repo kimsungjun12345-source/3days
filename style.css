@@ -730,6 +730,129 @@ body {
   flex: 2;
 }
 
+/* ── 새 작심: 한 화면 ─────────────────
+ * 아래에 붙은 시트 위에서 글을 쓰면 키보드가 올라올 때마다 시트가 통째로
+ * 밀려 화면이 덜컹인다. 이 화면만 시트를 걷어내고 한 장을 다 쓴다.
+ * 머리말·본문·바닥 세 칸으로 나눠 두면 키보드가 올라와도 움직이는 것은
+ * 가운데 본문의 스크롤뿐이고, 약속 버튼은 늘 키보드 바로 위에 남는다.
+ */
+.sheet-full {
+  align-items: stretch;
+  background: var(--bg);
+}
+
+.sheet-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  max-width: 100%;
+  border-radius: 0;
+  padding: 0;
+  background: var(--bg);
+  animation: sheet-rise 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes sheet-rise {
+  from { transform: translateY(22px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: calc(8px + env(safe-area-inset-top)) 14px 8px;
+}
+
+.sheet-head h2 {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.sheet-close {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--gray-strong);
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.sheet-close:active {
+  background: var(--chip);
+}
+
+#form-add {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.sheet-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px 22px 22px;
+}
+
+.sheet-foot {
+  flex-shrink: 0;
+  padding: 12px 22px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.sheet-foot .btn {
+  width: 100%;
+}
+
+.sheet-foot .btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.field-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 20px 0 9px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--gray-strong);
+}
+
+.field-hint {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--dot-empty);
+}
+
+.sheet-scroll .modal-sub {
+  margin: 0;
+}
+
+.sheet-scroll .suggest-row,
+.sheet-scroll .icon-row {
+  margin: 0;
+}
+
+/* 고른 칩은 눈에 띄게 — 키보드를 열지 않고도 뭘 골랐는지 보인다 */
+.suggest-chip.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+}
+
 /* ── 손맛: 돌 얹는 순간 ───────────────
  * 체크한 칸이 톡 튀고, 3일을 채우면 돌이 카드에서 돌탑으로 날아가 얹힌다.
  */
@@ -1483,15 +1606,42 @@ body {
   border-style: dashed;
 }
 
-.hour-select {
+/* 시각 고르기 — 보이는 건 '밤 9시 30분'이라는 한국어 알약이고,
+ * 누르면 그 자리에 있던 <input type="time">이 OS 시계 다이얼을 띄운다.
+ * 입력창 자체를 투명하게 겹쳐 두는 이유는, 브라우저마다 제각각인
+ * 기본 시각 입력 모양을 화면에 드러내지 않기 위해서다. */
+.time-pick {
+  position: relative;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 999px;
   background: var(--bg);
   color: var(--ink);
-  font-family: inherit;
   font-size: 0.85rem;
-  padding: 8px 10px;
+  font-weight: 600;
+  padding: 9px 14px;
+  cursor: pointer;
+}
+
+.time-pick:active {
+  background: var(--chip);
+}
+
+.time-pick input[type="time"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  font-size: 16px; /* iOS가 확대하지 않도록 */
+  background: none;
+  cursor: pointer;
 }
 
 #notify-hour-row.off {
@@ -1546,24 +1696,37 @@ body {
   to { opacity: 1; transform: translateX(0); }
 }
 
+/* 모든 장이 같은 크기의 무대를 쓴다. 비율(116:160)은 돌탑 그림의
+ * viewBox와 맞춰 둔 값이라, svg가 무대를 정확히 채우고 여백이 남지 않는다.
+ * 장마다 무대가 달라지면 같은 돌이 장마다 다른 크기로 보인다. */
 .ob-art {
   width: 150px;
-  min-height: 150px;
+  height: 207px;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  margin-bottom: 22px;
+  margin-bottom: 20px;
 }
 
-.ob-art svg {
+.ob-art > svg {
   display: block;
   width: 100%;
-  height: auto;
-  max-height: 190px;
+  height: 100%;
 }
 
-.ob-art-dots {
+.ob-art-dots,
+.ob-art-rule {
   align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+
+.ob-demo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
 
 .ob-dots-demo {
@@ -1572,14 +1735,38 @@ body {
 }
 
 .ob-dots-demo .dot {
-  width: 44px;
-  height: 44px;
-  font-size: 0.95rem;
+  width: 46px;
+  height: 46px;
+  font-size: 1rem;
 }
 
-/* 무너진 뒤를 보여 주는 장 — 탑 위에 빈 자리를 남긴다 */
-.ob-art-broken {
-  position: relative;
+.ob-cap {
+  font-size: 0.78rem;
+  color: var(--gray);
+  white-space: nowrap;
+}
+
+/* 칸 세 개 → 돌 하나 */
+.ob-art-rule .ob-dots-demo .dot {
+  width: 38px;
+  height: 38px;
+  font-size: 0.88rem;
+}
+
+.ob-arrow {
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--dot-empty);
+}
+
+.ob-rule-stone {
+  width: 104px;
+}
+
+.ob-rule-stone svg {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .ob-title {

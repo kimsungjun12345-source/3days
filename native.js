@@ -10,15 +10,46 @@ const NP = (Cap && Cap.Plugins) || {};
 
 const NOTIFY_PREF_KEY = "jaksim3.notify";
 const NOTIFY_HOUR_KEY = "jaksim3.notifyHour";
+const NOTIFY_MIN_KEY = "jaksim3.notifyMin";
 const NOTIFY_HOUR_DEFAULT = 21; // 저녁 9시 — 하루를 정리하며 아직 만회할 수 있는 시간
+const NOTIFY_MIN_DEFAULT = 0;
 
 function notifyHour() {
   const v = Number(localStorage.getItem(NOTIFY_HOUR_KEY));
-  return Number.isFinite(v) && v >= 0 && v <= 23 ? v : NOTIFY_HOUR_DEFAULT;
+  return Number.isFinite(v) && v >= 0 && v <= 23 ? Math.floor(v) : NOTIFY_HOUR_DEFAULT;
 }
 
-function setNotifyHour(h) {
+function notifyMinute() {
+  const v = Number(localStorage.getItem(NOTIFY_MIN_KEY));
+  return Number.isFinite(v) && v >= 0 && v <= 59 ? Math.floor(v) : NOTIFY_MIN_DEFAULT;
+}
+
+/* 시각은 사용자가 분 단위로 자유롭게 고른다.
+ * 기본값만 저녁 9시로 두고, 나머지는 전부 취향에 맡긴다. */
+function setNotifyTime(h, m) {
   localStorage.setItem(NOTIFY_HOUR_KEY, String(h));
+  localStorage.setItem(NOTIFY_MIN_KEY, String(m));
+}
+
+/* '21:05' → { h: 21, m: 5 } · 잘못된 값이면 null */
+function parseTimeValue(str) {
+  const mt = /^(\d{1,2}):(\d{2})$/.exec(String(str || "").trim());
+  if (!mt) return null;
+  const h = Number(mt[1]);
+  const m = Number(mt[2]);
+  if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+  return { h, m };
+}
+
+function timeValue(h, m) {
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/* 기계식 '21:05' 대신 사람이 말하는 '밤 9시 5분'으로 보여 준다 */
+function friendlyTime(h, m) {
+  const part = h < 6 ? "새벽" : h < 12 ? "아침" : h < 18 ? "낮" : h < 21 ? "저녁" : "밤";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return m === 0 ? `${part} ${h12}시` : `${part} ${h12}시 ${m}분`;
 }
 
 /* ── 촉감 ─────────────────────────── */
@@ -119,10 +150,10 @@ async function clearNotifications() {
   }
 }
 
-function atHour(daysFromNow, hour) {
+function atHour(daysFromNow, hour, minute = 0) {
   const d = new Date();
   d.setDate(d.getDate() + daysFromNow);
-  d.setHours(hour, 0, 0, 0);
+  d.setHours(hour, minute, 0, 0);
   return d;
 }
 
@@ -145,7 +176,9 @@ async function rescheduleNotifications() {
 
   // 오늘 아직 남은 일이 있고 알림 시간이 지나지 않았다면 오늘 저녁에 한 번
   const hour = notifyHour();
-  if (todo.length && now.getHours() < hour) {
+  const minute = notifyMinute();
+  const passed = now.getHours() * 60 + now.getMinutes() >= hour * 60 + minute;
+  if (todo.length && !passed) {
     const near = todo.find((g) => g.checks.length === 2);
     items.push({
       id: id++,
@@ -155,7 +188,7 @@ async function rescheduleNotifications() {
         : todo.length === 1
           ? `'${todo[0].title}', 아직 오늘 돌을 안 얹었어요`
           : `오늘 얹을 돌이 ${todo.length}개 남았어요`,
-      schedule: { at: atHour(0, hour) },
+      schedule: { at: atHour(0, hour, minute) },
     });
   }
 
@@ -165,7 +198,7 @@ async function rescheduleNotifications() {
       id: id++,
       title: "작심삼일",
       body: "오늘의 돌, 하나 얹어 볼까요?",
-      schedule: { at: atHour(d, hour) },
+      schedule: { at: atHour(d, hour, minute) },
     });
   }
 
@@ -188,7 +221,7 @@ async function rescheduleNotifications() {
         id: id++,
         title: "작심삼일",
         body: c.body,
-        schedule: { at: atHour(c.after, hour) },
+        schedule: { at: atHour(c.after, hour, minute) },
       });
     }
   }

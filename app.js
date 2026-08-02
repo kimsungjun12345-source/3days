@@ -185,38 +185,52 @@ const MAX_STONES = 5;
 
 /* 빛은 왼쪽 위에서 온다는 전제로, 돌마다 측면·윗면·그림자를 나눠 그린다 */
 /* 돌 색은 CSS 변수로 받는다 — 어두운 화면에서는 같은 돌이 밤빛으로 바뀐다 */
-const STONE_GRADIENT = `<radialGradient id="stoneSide" cx="33%" cy="20%" r="92%">
+
+/* 그라디언트·필터 id는 그림마다 새로 뽑는다.
+ *
+ * 한때 모든 돌탑이 'stoneTop' 같은 고정 id를 함께 썼다. 문서에 같은 id가
+ * 여럿이면 url(#stoneTop)은 무조건 맨 앞의 것을 가리키는데, 그게 하필
+ * 숨어 있는 그림의 것이면 크롬은 그 물감을 칠하지 않는다. 그 결과 첫 실행
+ * 화면에서 — 작심이 하나도 없어 홈의 정원(#stats)이 hidden인 바로 그때 —
+ * 안내에 뜬 돌탑이 그림자만 남고 통째로 사라졌다.
+ *
+ * 그림마다 id를 따로 가지면 남의 그림이 숨어 있든 말든 상관이 없다. */
+let stoneDefsSeq = 0;
+
+function stoneDefs(uid) {
+  return `<radialGradient id="stoneSide-${uid}" cx="33%" cy="20%" r="92%">
     <stop offset="0%" stop-color="var(--stone-side-1)"/>
     <stop offset="34%" stop-color="var(--stone-side-2)"/>
     <stop offset="72%" stop-color="var(--stone-side-3)"/>
     <stop offset="100%" stop-color="var(--stone-side-4)"/>
   </radialGradient>
-  <radialGradient id="stoneTop" cx="32%" cy="24%" r="86%">
+  <radialGradient id="stoneTop-${uid}" cx="32%" cy="24%" r="86%">
     <stop offset="0%" stop-color="var(--stone-top-1)"/>
     <stop offset="46%" stop-color="var(--stone-top-2)"/>
     <stop offset="100%" stop-color="var(--stone-top-3)"/>
   </radialGradient>
-  <filter id="softShadow" x="-60%" y="-60%" width="220%" height="220%">
+  <filter id="softShadow-${uid}" x="-60%" y="-60%" width="220%" height="220%">
     <feGaussianBlur stdDeviation="2.2"/>
   </filter>
-  <filter id="groundShadow" x="-60%" y="-120%" width="220%" height="340%">
+  <filter id="groundShadow-${uid}" x="-60%" y="-120%" width="220%" height="340%">
     <feGaussianBlur stdDeviation="3.4"/>
   </filter>`;
+}
 
 /* 돌 하나 — 납작한 조약돌을 위에서 비스듬히 본 모습.
  * 같은 타원을 두께(t)만큼 아래에 한 번 더 깔아 측면이 초승달처럼 드러나게 하고,
  * 그 위에 밝은 윗면을 얹는다. 이 두께가 있어야 쌓인 것으로 보인다. */
-function stonePiece(cx, cy, rx, ry, tilt) {
+function stonePiece(cx, cy, rx, ry, tilt, uid) {
   const t = ry * 0.66;
   const rot = `rotate(${tilt} ${cx} ${cy})`;
   return `<g transform="${rot}">
     <ellipse cx="${(cx + rx * 0.09).toFixed(1)}" cy="${(cy + t + ry * 0.42).toFixed(1)}"
       rx="${(rx * 0.95).toFixed(1)}" ry="${(ry * 0.52).toFixed(1)}"
-      fill="var(--stone-shadow)" filter="url(#softShadow)"/>
+      fill="var(--stone-shadow)" filter="url(#softShadow-${uid})"/>
     <ellipse cx="${cx.toFixed(1)}" cy="${(cy + t).toFixed(1)}"
-      rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="url(#stoneSide)"/>
+      rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="url(#stoneSide-${uid})"/>
     <ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}"
-      rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="url(#stoneTop)"/>
+      rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="url(#stoneTop-${uid})"/>
     <ellipse cx="${(cx - rx * 0.26).toFixed(1)}" cy="${(cy - ry * 0.32).toFixed(1)}"
       rx="${(rx * 0.28).toFixed(1)}" ry="${(ry * 0.24).toFixed(1)}"
       fill="var(--stone-shine)"/>
@@ -230,7 +244,7 @@ function stonePiece(cx, cy, rx, ry, tilt) {
  */
 
 /* 바닥 중심을 원점으로 위로 쌓는 돌 무더기 */
-function stoneStack(stones, building, max = MAX_STONES, ghost = 0) {
+function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0) {
   const shown = Math.min(stones, max);
   let y = -4;
   let rx = 40;
@@ -238,14 +252,14 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0) {
   let top = 0;
   // 바닥에 드리운 그림자는 빛 반대쪽(오른쪽 아래)으로 살짝 밀어 둔다
   const parts = [
-    `<ellipse cx="4" cy="2" rx="47" ry="8" fill="var(--ground-shadow)" filter="url(#groundShadow)"/>`,
+    `<ellipse cx="4" cy="2" rx="47" ry="8" fill="var(--ground-shadow)" filter="url(#groundShadow-${uid})"/>`,
   ];
 
   for (let i = 0; i < shown; i++) {
     y -= ry * 1.5;
     const tilt = i % 2 === 0 ? -1.6 : 1.7;
     const cx = i % 2 === 0 ? -1.5 : 1.5;
-    parts.push(stonePiece(cx, y, rx, ry, tilt));
+    parts.push(stonePiece(cx, y, rx, ry, tilt, uid));
     top = Math.min(top, y - ry);
     y -= ry * 0.4;
     rx *= 0.85;
@@ -294,6 +308,7 @@ function gardenSVG(goals) {
   const W = 340;
   const H = 152;
   const groundY = 132;
+  const uid = ++stoneDefsSeq;
 
   // 큰 탑이 앞에 오도록 — 가장 많이 쌓은 작심이 정원의 주인공이 된다
   const towers = goals
@@ -312,7 +327,7 @@ function gardenSVG(goals) {
     const waiting = (st === "fresh" || st === "active") && !checkedToday(goal);
     const building = held || waiting;
     const drawn = held ? Math.max(0, stones - 1) : stones;
-    const { markup } = stoneStack(drawn, building, 4);
+    const { markup } = stoneStack(drawn, building, 4, 0, uid);
 
     const scale = (1 - 0.44 * spot.depth) * 0.62;
     const x = spot.x * W;
@@ -328,12 +343,12 @@ function gardenSVG(goals) {
 
   // 탑들이 허공이 아니라 땅 위에 선 것처럼 보이도록 옅은 지면을 깔아 둔다
   // 뒤쪽 탑의 발까지 덮도록 세로로 넉넉하게, 경계가 드러나지 않을 만큼 옅게
-  const ground = `<ellipse cx="${W / 2}" cy="${groundY - 8}" rx="${W * 0.64}" ry="46" fill="url(#gardenGround)"/>`;
+  const ground = `<ellipse cx="${W / 2}" cy="${groundY - 8}" rx="${W * 0.64}" ry="46" fill="url(#gardenGround-${uid})"/>`;
 
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      ${STONE_GRADIENT}
-      <radialGradient id="gardenGround" cx="50%" cy="46%" r="60%">
+      ${stoneDefs(uid)}
+      <radialGradient id="gardenGround-${uid}" cx="50%" cy="46%" r="60%">
         <stop offset="0%" stop-color="var(--garden-ground)" stop-opacity="0.5"/>
         <stop offset="55%" stop-color="var(--garden-ground)" stop-opacity="0.26"/>
         <stop offset="100%" stop-color="var(--garden-ground)" stop-opacity="0"/>
@@ -348,13 +363,20 @@ function stoneCount(goal) {
   return goal.completedCycles + (goal.checks.length >= 3 ? 1 : 0);
 }
 
-function cairnSVG(stones, building, ghost = 0, max = MAX_STONES) {
+/* frameTop을 주면 실제 탑 높이와 상관없이 그 높이의 틀로 그린다.
+ * 안내 화면처럼 여러 장을 넘겨 보는 곳에서는 이게 필요하다. 틀을 탑에
+ * 딱 맞추면 돌 한 개짜리 장과 다섯 개짜리 장의 확대율이 달라져서,
+ * 같은 돌인데도 장마다 크기가 널뛰고 돌 하나짜리 장은 바닥 그림자만
+ * 커다랗게 보인다. */
+function cairnSVG(stones, building, ghost = 0, max = MAX_STONES, frameTop = 0) {
   // 정원의 탑과 같은 돌을 쓴다 — 축하 화면과 홈이 같은 재질로 보이도록
-  const { markup, top } = stoneStack(stones, building, max, ghost);
+  const uid = ++stoneDefsSeq;
+  const { markup, top } = stoneStack(stones, building, max, ghost, uid);
   const pad = 12;
-  const height = pad - (top - pad);
-  return `<svg viewBox="-58 ${(top - pad).toFixed(1)} 116 ${height.toFixed(1)}" xmlns="http://www.w3.org/2000/svg">
-    <defs>${STONE_GRADIENT}</defs>
+  const y = Math.min(top, frameTop) - pad;
+  const height = pad - y;
+  return `<svg viewBox="-58 ${y.toFixed(1)} 116 ${height.toFixed(1)}" xmlns="http://www.w3.org/2000/svg">
+    <defs>${stoneDefs(uid)}</defs>
     ${markup}
   </svg>`;
 }
@@ -1053,9 +1075,19 @@ function stoneDust(x, y) {
 /* ── 처음 만나는 안내 ─────────────────
  * 실사용에서 "체크 칸 3개가 곧 돌 3개인 줄 알았다"는 오해가 나왔다.
  * 규칙을 글로만 적지 않고, 각 장에 실제와 같은 그림을 그려 보여 준다.
+ *
+ * 다섯 장이 한 줄기로 읽히도록 짰다.
+ *   3일을 약속한다 → 하루에 한 칸 → 세 칸이 모여 돌 하나 → 돌이 쌓여 탑
+ *   → 멈춰도 돌은 남는다
+ * 마지막 두 장은 같은 탑(돌 5개)을 같은 자리·같은 크기로 다시 보여 준다.
+ * 달라지는 건 '다음 3일' 점선 자리 하나뿐이라, 멈춰도 쌓아 둔 것은
+ * 그대로라는 말이 글이 아니라 그림으로 전해진다.
  */
 
 const ONBOARD_SEEN_KEY = "jaksim3.onboarded";
+
+// 안내의 모든 돌탑이 같은 크기로 보이도록 쓰는 공통 틀 (돌 5개 + 점선 자리 높이)
+const OB_FRAME_TOP = -136;
 
 function obDots(filled, todayIdx) {
   return (
@@ -1070,31 +1102,56 @@ function obDots(filled, todayIdx) {
   );
 }
 
+function obDotsArt(filled, todayIdx, cap) {
+  return `<div class="ob-art ob-art-dots">
+    <div class="ob-demo">
+      ${obDots(filled, todayIdx)}
+      <span class="ob-cap">${cap}</span>
+    </div>
+  </div>`;
+}
+
+/* '칸 세 개 → 돌 하나'를 한 장의 그림으로. 이 앱에서 가장 헷갈리는
+ * 규칙이라 글로 설명하지 않고 위아래로 나란히 놓아 보여 준다. */
+function obRuleArt() {
+  return `<div class="ob-art ob-art-rule">
+    <div class="ob-demo">
+      ${obDots(3, -1)}
+      <span class="ob-cap">3일을 다 채우면</span>
+    </div>
+    <span class="ob-arrow" aria-hidden="true">↓</span>
+    <div class="ob-demo">
+      <div class="ob-rule-stone">${cairnSVG(1, false, 0, 9)}</div>
+      <span class="ob-cap">돌 하나</span>
+    </div>
+  </div>`;
+}
+
 const ONBOARD = [
   {
-    art: () => `<div class="ob-art">${cairnSVG(0, true, 2)}</div>`,
-    title: "약속은 딱 3일",
-    body: "거창한 목표 대신 사흘만 약속해요.\n3일이면 누구나 해볼 만하니까요.",
+    art: () => obDotsArt(0, 0, "3일짜리 약속 하나"),
+    title: "약속은 3일치만",
+    body: "한 달 계획은 쉽게 무너지지만\n3일은 누구나 해볼 만하니까요.",
   },
   {
-    art: () => `<div class="ob-art ob-art-dots">${obDots(1, 1)}</div>`,
-    title: "하루 하나씩, 세 칸",
-    body: "오늘 해내면 칸 하나가 채워져요.\n이 세 칸은 <b>이번 3일의 진행 상황</b>이에요.",
+    art: () => obDotsArt(2, 2, "이틀째 · 한 칸 남았어요"),
+    title: "하루에 한 칸씩",
+    body: "오늘 해내면 칸이 하나 채워져요.\n이 <b>세 칸이 이번 3일</b>이에요.",
   },
   {
-    art: () => `<div class="ob-art">${cairnSVG(1, false, 0, 9)}</div>`,
-    title: "세 칸을 다 채우면 돌 하나",
-    body: "칸 세 개가 곧 돌 세 개가 아니라,\n<b>3일을 완주해야 돌 하나</b>가 쌓여요.",
+    art: obRuleArt,
+    title: "3일을 채워야 돌 하나",
+    body: "칸 세 개는 돌 세 개가 아니라 <b>돌 하나</b>예요.\n3일을 끝낸 날에만 탑이 한 칸 높아져요.",
   },
   {
-    art: () => `<div class="ob-art">${cairnSVG(5, true, 0, 9)}</div>`,
-    title: "돌이 모여 나의 탑이",
-    body: "작심 하나가 탑 하나예요.\n작심삼일 120번이면 1년이 됩니다.",
+    art: () => `<div class="ob-art">${cairnSVG(5, true, 0, 9, OB_FRAME_TOP)}</div>`,
+    title: "끝나면 또 3일",
+    body: "완주하면 바로 다음 3일이 열려요.\n이렇게 <b>120번이면 1년</b>이 됩니다.",
   },
   {
-    art: () => `<div class="ob-art ob-art-broken">${cairnSVG(3, false, 0, 9)}</div>`,
-    title: "무너져도 사라지지 않아요",
-    body: "하루 빠뜨려도 쌓아 둔 돌은 그대로예요.\n돌탑은 원래 <b>무너지면 다시 쌓는 것</b>이니까요.",
+    art: () => `<div class="ob-art">${cairnSVG(5, false, 0, 9, OB_FRAME_TOP)}</div>`,
+    title: "쉬어도 돌은 그대로",
+    body: "며칠 빠뜨려도 쌓아 둔 돌은 없어지지 않아요.\n<b>다시 3일부터 시작하면 돼요.</b>",
     last: true,
   },
 ];
@@ -1130,9 +1187,11 @@ function closeOnboard() {
   localStorage.setItem(ONBOARD_SEEN_KEY, "1");
 }
 
+/* 안내에서는 진동을 쓰지 않는다. 아직 아무것도 해내지 않은 사람에게
+ * 손끝 반응부터 주면 촉감이 '해냈다'는 신호가 아니라 그냥 소음이 된다.
+ * 진동은 돌을 얹는 순간을 위해 아껴 둔다. */
 function setupOnboard() {
   $("ob-next").addEventListener("click", () => {
-    haptic(8);
     if (obIndex >= ONBOARD.length - 1) {
       closeOnboard();
       return;
@@ -1140,10 +1199,7 @@ function setupOnboard() {
     obIndex += 1;
     paintOnboard();
   });
-  $("ob-skip").addEventListener("click", () => {
-    haptic(6);
-    closeOnboard();
-  });
+  $("ob-skip").addEventListener("click", closeOnboard);
   $("btn-show-onboard").addEventListener("click", () => {
     switchView("home");
     openOnboard();
@@ -1182,18 +1238,20 @@ function setupModal() {
     b.className = "suggest-chip";
     b.textContent = s.title;
     b.addEventListener("click", () => {
-      $("input-title").value = s.title;
-      selectIcon(s.icon);
+      // 한 번 더 누르면 선택이 풀린다 — 잘못 눌렀을 때 지우러 갈 곳이 없으면 답답하다
+      const already = $("input-title").value.trim() === s.title;
+      $("input-title").value = already ? "" : s.title;
+      if (!already) selectIcon(s.icon);
+      syncTitleState();
       haptic(6);
     });
     sug.appendChild(b);
   }
 
+  $("input-title").addEventListener("input", syncTitleState);
+
   $("btn-add").addEventListener("click", openModal);
   $("btn-cancel").addEventListener("click", closeModal);
-  $("modal").addEventListener("click", (ev) => {
-    if (ev.target === $("modal")) closeModal();
-  });
 
   $("form-add").addEventListener("submit", (ev) => {
     ev.preventDefault();
@@ -1201,6 +1259,7 @@ function setupModal() {
     if (!title) return;
     addGoal(title, selectedIcon);
     $("input-title").value = "";
+    syncTitleState();
     closeModal();
   });
 
@@ -1256,25 +1315,31 @@ function setupModal() {
 }
 
 /* 알림은 앱으로 감쌌을 때만 의미가 있으므로 그때만 노출한다 */
+/* 알림 시각은 몇 개 중에 고르는 게 아니라 분 단위로 자유롭게 정한다.
+ * 사람마다 하루가 끝나는 시각이 다르고(교대 근무, 새벽형), 알림은 그
+ * 시각에 맞아야만 잔소리가 아니라 도움이 된다. 입력은 OS 시계 다이얼을
+ * 그대로 띄우는 <input type="time">에 맡기고, 화면에는 '밤 9시 30분'처럼
+ * 사람 말로 적어 둔다. */
 function setupNotifyToggle() {
   const row = $("notify-row");
   const btn = $("btn-notify");
   const hourRow = $("notify-hour-row");
-  const hourSel = $("notify-hour");
+  const timeInput = $("notify-hour");
   if (!row || !btn || typeof IS_NATIVE === "undefined" || !IS_NATIVE) return;
 
   row.hidden = false;
   hourRow.hidden = false;
-  hourSel.value = String(notifyHour());
+  timeInput.value = timeValue(notifyHour(), notifyMinute());
 
-  const hourLabel = () => hourSel.options[hourSel.selectedIndex].textContent;
+  const label = () => friendlyTime(notifyHour(), notifyMinute());
   const paint = () => {
     const on = notifyEnabled();
     btn.classList.toggle("on", on);
     btn.setAttribute("aria-checked", on ? "true" : "false");
     hourRow.classList.toggle("off", !on);
+    $("notify-hour-label").textContent = label();
     $("notify-sub").textContent = on
-      ? `${hourLabel()}에 조용히 알려드려요`
+      ? `${label()}에 조용히 알려드려요`
       : "쉬는 동안에도 돌아올 자리를 남겨둡니다";
   };
   paint();
@@ -1286,16 +1351,32 @@ function setupNotifyToggle() {
     if (turningOn && !ok) {
       toast("stone", "설정에서 알림을 허용해 주세요");
     } else if (turningOn) {
-      toast("stone", `${hourLabel()}에 알려드릴게요`);
+      toast("stone", `${label()}에 알려드릴게요`);
     }
   });
 
-  hourSel.addEventListener("change", async () => {
-    setNotifyHour(Number(hourSel.value));
+  // 투명하게 겹쳐 둔 입력창을 눌렀을 때 시계가 확실히 열리도록
+  hourRow.querySelector(".time-pick").addEventListener("click", () => {
+    if (typeof timeInput.showPicker !== "function") return;
+    try {
+      timeInput.showPicker();
+    } catch (e) {
+      /* 브라우저가 막으면 기본 동작에 맡긴다 */
+    }
+  });
+
+  timeInput.addEventListener("change", async () => {
+    const t = parseTimeValue(timeInput.value);
+    // 시계를 열었다가 비운 채로 닫으면 빈 값이 온다 — 쓰던 시각을 지킨다
+    if (!t) {
+      timeInput.value = timeValue(notifyHour(), notifyMinute());
+      return;
+    }
+    setNotifyTime(t.h, t.m);
     paint();
     if (notifyEnabled()) {
       await rescheduleNotifications();
-      toast("stone", `${hourLabel()}로 옮겼어요`);
+      toast("stone", `${label()}로 옮겼어요`);
     }
   });
 }
@@ -1342,18 +1423,42 @@ function closeTopLayer() {
   return false;
 }
 
+/* 열자마자 키보드를 올리지 않는다.
+ *
+ * 예전에는 시트가 올라온 뒤 키보드를 자동으로 띄웠는데, 화면 아래에
+ * 붙어 있는 시트가 키보드에 밀려 다시 튀어 오르면서 열 때마다 화면이
+ * 두 번 덜컹였다. 게다가 첫 화면이 빈 입력창과 커서라 '뭐라고 써야 하지'
+ * 앞에서 멈추게 된다.
+ *
+ * 그래서 두 가지를 바꿨다. 하나, 이 화면은 바텀시트가 아니라 한 화면을
+ * 통째로 쓴다 — 키보드가 올라와도 밀려날 시트가 없다. 둘, 추천 칩을 먼저
+ * 둔다. 칩 하나를 누르면 제목과 아이콘이 함께 채워져서 키보드를 아예
+ * 만나지 않고도 작심을 만들 수 있다. 직접 쓰고 싶은 사람만 입력창을
+ * 누르면 된다. */
 function openModal() {
   selectIcon(ICON_KEYS[0]);
+  $("input-title").value = "";
+  syncTitleState();
   $("modal").hidden = false;
   document.body.classList.add("sheet-open");
-  // 시트가 자리를 잡은 뒤에 키보드를 올려야 덜컹거리지 않는다
-  setTimeout(() => $("input-title").focus({ preventScroll: true }), 260);
+  $("sheet-scroll") && ($("sheet-scroll").scrollTop = 0);
 }
 
 function closeModal() {
   $("input-title").blur();
   $("modal").hidden = true;
   document.body.classList.remove("sheet-open");
+}
+
+/* 제목이 있어야 약속 버튼이 열린다 — 빈 채로 눌러 아무 일도 안 일어나는
+ * 경험보다, 버튼이 조용히 살아나는 편이 낫다. */
+function syncTitleState() {
+  const value = $("input-title").value.trim();
+  $("btn-submit-goal").disabled = !value;
+  $("title-count").textContent = `${$("input-title").value.length}/30`;
+  $("suggest-row")
+    .querySelectorAll(".suggest-chip")
+    .forEach((el) => el.classList.toggle("on", el.textContent === value));
 }
 
 /* ── 시작 ─────────────────────────── */

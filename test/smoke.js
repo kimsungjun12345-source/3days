@@ -493,12 +493,109 @@ function dstr(offset) {
     "walkthrough is not shown again"
   );
 
+  // 안내는 홈에서 시작하므로, 다시 열려면 설정으로 돌아가야 한다
+  assert(await page.locator("#view-home").isVisible(), "walkthrough drops you on the home tab");
+
   // 뒤로가기로도 안내를 닫을 수 있어야 한다
+  await page.click('.tab[data-view="settings"]');
+  await page.waitForTimeout(200);
   await page.click("#btn-show-onboard");
   await page.waitForTimeout(300);
   assert(await page.evaluate(() => closeTopLayer()), "back button closes the walkthrough");
   await page.waitForTimeout(200);
   assert(await page.locator("#onboard").isHidden(), "and it really closed");
+
+  // 21. 안내는 손끝을 건드리지 않는다
+  // 아직 아무것도 해내지 않은 사람에게 진동부터 주면 촉감이 '해냈다'는
+  // 신호가 아니라 소음이 된다. 진동은 돌을 얹는 순간에만 쓴다.
+  await page.click('.tab[data-view="settings"]');
+  await page.waitForTimeout(200);
+  await page.click("#btn-show-onboard");
+  await page.waitForTimeout(300);
+  // 안내가 뜬 뒤부터 센다 — 탭을 옮길 때의 딸깍은 안내의 몫이 아니다
+  await page.evaluate(() => {
+    window.__buzz = 0;
+    navigator.vibrate = () => {
+      window.__buzz += 1;
+      return true;
+    };
+  });
+  await page.click("#ob-next");
+  await page.waitForTimeout(300);
+  await page.click("#ob-skip");
+  await page.waitForTimeout(200);
+  assert((await page.evaluate(() => window.__buzz)) === 0, "walkthrough never buzzes");
+
+  // 22. 돌탑 그림은 저마다 물감을 따로 가진다
+  // 예전에는 모든 돌탑이 'stoneTop' 같은 같은 id를 함께 썼다. 문서에 같은
+  // id가 여럿이면 url(#stoneTop)은 맨 앞 것을 가리키는데, 그게 숨어 있는
+  // 그림의 것이면 크롬은 물감을 칠하지 않는다. 그래서 첫 실행 — 작심이
+  // 없어 홈의 정원이 hidden인 바로 그때 — 안내의 돌탑이 그림자만 남고
+  // 사라졌다. id가 겹치지 않는 한 이 일은 다시 일어나지 않는다.
+  const dupIds = await page.evaluate(() => {
+    const seen = new Set();
+    const dup = [];
+    for (const el of document.querySelectorAll("svg [id]")) {
+      if (seen.has(el.id)) dup.push(el.id);
+      seen.add(el.id);
+    }
+    return dup;
+  });
+  assert(dupIds.length === 0, "every cairn owns its own gradients" + (dupIds.length ? " → " + dupIds.join(", ") : ""));
+
+  // 첫 실행 그대로 — 작심이 하나도 없어 홈의 정원이 숨은 그 상태에서
+  await page.evaluate(() => {
+    state.goals = [];
+    save();
+    render();
+    openOnboard();
+    for (let i = 0; i < 3; i++) document.getElementById("ob-next").click();
+  });
+  await page.waitForTimeout(200);
+  assert(await page.locator("#stats").isHidden(), "the garden really is hidden with no goals");
+
+  const paint = await page.evaluate(() => {
+    const stone = document.querySelector(".ob-art svg ellipse[fill^='url(#stoneTop']");
+    if (!stone) return "그릴 돌이 없다";
+    const ref = /url\(#(.+?)\)/.exec(stone.getAttribute("fill"))[1];
+    const def = document.getElementById(ref);
+    if (!def) return "물감을 찾지 못했다";
+    // 숨은 가지에 있는 그라디언트는 크롬이 칠하지 않는다
+    return def.closest("[hidden]") ? "숨은 물감을 가리킨다" : "ok";
+  });
+  assert(paint === "ok", "walkthrough stones paint on a fresh install → " + paint);
+  await page.click("#ob-skip");
+  await page.waitForTimeout(200);
+
+  // 23. 새 작심 — 키보드 없이도 만들 수 있어야 한다
+  await page.click("#btn-add");
+  await page.waitForTimeout(300);
+  assert(
+    (await page.evaluate(() => document.activeElement.id)) !== "input-title",
+    "opening the sheet does not summon the keyboard"
+  );
+  assert(await page.locator("#btn-submit-goal").isDisabled(), "cannot promise an empty goal");
+
+  await page.click(".suggest-chip:nth-child(3)");
+  await page.waitForTimeout(150);
+  assert((await page.inputValue("#input-title")) === "자기 전 스트레칭", "a chip fills the title");
+  assert((await page.locator(".suggest-chip.on").count()) === 1, "the chosen chip stays lit");
+  assert(await page.locator("#btn-submit-goal").isEnabled(), "the promise button wakes up");
+  assert(
+    (await page.evaluate(() => document.activeElement.id)) !== "input-title",
+    "choosing a chip still keeps the keyboard away"
+  );
+
+  await page.click(".suggest-chip:nth-child(3)");
+  await page.waitForTimeout(150);
+  assert((await page.inputValue("#input-title")) === "", "tapping the same chip undoes it");
+  assert(await page.locator("#btn-submit-goal").isDisabled(), "and the button goes back to sleep");
+
+  await page.click(".suggest-chip:nth-child(3)");
+  await page.click("#btn-submit-goal");
+  await page.waitForTimeout(200);
+  assert((await page.locator(".goal-card").count()) === 1, "a goal is made without ever typing");
+  assert(await page.locator("#modal").isHidden(), "and the sheet closes itself");
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 
