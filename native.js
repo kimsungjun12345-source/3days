@@ -9,17 +9,42 @@ const IS_NATIVE = !!(Cap && typeof Cap.isNativePlatform === "function" && Cap.is
 const NP = (Cap && Cap.Plugins) || {};
 
 const NOTIFY_PREF_KEY = "jaksim3.notify";
-const NOTIFY_HOUR = 21; // 저녁 9시 — 하루를 정리하며 아직 만회할 수 있는 시간
+const NOTIFY_HOUR_KEY = "jaksim3.notifyHour";
+const NOTIFY_HOUR_DEFAULT = 21; // 저녁 9시 — 하루를 정리하며 아직 만회할 수 있는 시간
+
+function notifyHour() {
+  const v = Number(localStorage.getItem(NOTIFY_HOUR_KEY));
+  return Number.isFinite(v) && v >= 0 && v <= 23 ? v : NOTIFY_HOUR_DEFAULT;
+}
+
+function setNotifyHour(h) {
+  localStorage.setItem(NOTIFY_HOUR_KEY, String(h));
+}
 
 /* ── 촉감 ─────────────────────────── */
 
-/* 네이티브에서는 OS 햅틱 엔진을 쓴다. 진동보다 훨씬 부드럽다. */
+/* 네이티브에서는 OS 햅틱 엔진을 쓴다. 진동 모터를 그냥 돌리는 것보다
+ * 훨씬 짧고 단단한 촉감이 나온다.
+ *
+ * 세기를 상황별로 나눈 이유: 탭 전환이나 칩 선택까지 돌 얹을 때와 같은
+ * 세기로 울리면 전체가 '투박한 진동기'처럼 느껴진다. 가장 약한 것은
+ * selection(딸깍), 일상 체크는 light, 돌이 착지할 때만 medium을 쓴다. */
 function nativeHaptic(kind) {
   if (!IS_NATIVE || !NP.Haptics) return false;
   try {
-    if (kind === "heavy") NP.Haptics.impact({ style: "HEAVY" });
-    else if (kind === "success") NP.Haptics.notification({ type: "SUCCESS" });
-    else NP.Haptics.impact({ style: "LIGHT" });
+    switch (kind) {
+      case "select":
+        NP.Haptics.selectionChanged();
+        break;
+      case "success":
+        NP.Haptics.notification({ type: "SUCCESS" });
+        break;
+      case "land":
+        NP.Haptics.impact({ style: "MEDIUM" });
+        break;
+      default:
+        NP.Haptics.impact({ style: "LIGHT" });
+    }
     return true;
   } catch (e) {
     return false;
@@ -119,7 +144,8 @@ async function rescheduleNotifications() {
   });
 
   // 오늘 아직 남은 일이 있고 알림 시간이 지나지 않았다면 오늘 저녁에 한 번
-  if (todo.length && now.getHours() < NOTIFY_HOUR) {
+  const hour = notifyHour();
+  if (todo.length && now.getHours() < hour) {
     const near = todo.find((g) => g.checks.length === 2);
     items.push({
       id: id++,
@@ -129,7 +155,7 @@ async function rescheduleNotifications() {
         : todo.length === 1
           ? `'${todo[0].title}', 아직 오늘 돌을 안 얹었어요`
           : `오늘 얹을 돌이 ${todo.length}개 남았어요`,
-      schedule: { at: atHour(0, NOTIFY_HOUR) },
+      schedule: { at: atHour(0, hour) },
     });
   }
 
@@ -139,7 +165,7 @@ async function rescheduleNotifications() {
       id: id++,
       title: "작심삼일",
       body: "오늘의 돌, 하나 얹어 볼까요?",
-      schedule: { at: atHour(d, NOTIFY_HOUR) },
+      schedule: { at: atHour(d, hour) },
     });
   }
 
@@ -162,7 +188,7 @@ async function rescheduleNotifications() {
         id: id++,
         title: "작심삼일",
         body: c.body,
-        schedule: { at: atHour(c.after, NOTIFY_HOUR) },
+        schedule: { at: atHour(c.after, hour) },
       });
     }
   }

@@ -20,6 +20,31 @@ function dstr(offset) {
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
   page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("Failed to load resource")) errors.push("console: " + m.text()); });
 
+
+  // 인트로와 첫 사용 안내는 실제 흐름이지만, 아래 검사들의 대상은 아니다.
+  // 프로덕션 코드를 건드리지 않고 테스트에서만 건너뛴다.
+  await page.addInitScript(() => {
+    localStorage.setItem("jaksim3.onboarded", "1");
+    const style = document.createElement("style");
+    style.textContent = ".intro{display:none !important}";
+    const put = () => document.head && document.head.appendChild(style);
+    if (document.head) put();
+    else document.addEventListener("DOMContentLoaded", put);
+  });
+
+
+  // 새로고침 뒤 첫 렌더가 끝나기를 기다린다. 시간으로 어림잡으면
+  // 기기가 느린 날 간헐적으로 깨지므로 화면 상태를 보고 판단한다.
+  const reload = async () => {
+    await page.reload();
+    await page.waitForFunction(() => {
+      const list = document.getElementById("goal-list");
+      const empty = document.getElementById("empty");
+      if (!list || !empty) return false;
+      return list.children.length > 0 || !empty.hidden;
+    }, null, { timeout: 5000 });
+  };
+
   const assert = (cond, name) => {
     console.log((cond ? "PASS" : "FAIL") + "  " + name);
     if (!cond) process.exitCode = 1;
@@ -53,8 +78,9 @@ function dstr(offset) {
     s.goals[0].totalDays = 3;
     localStorage.setItem("jaksim3.v1", JSON.stringify(s));
   }, [dstr(-2), dstr(-1), dstr(0)]);
-  await page.reload();
-  assert(await page.locator(".goal-card.state-complete").isVisible(), "complete state after 3 checks");
+  await reload();
+  const cls4 = await page.locator(".goal-card").first().getAttribute("class");
+  assert(cls4.includes("state-complete"), "complete state after 3 checks (got: " + cls4 + ")");
   assert((await page.locator("#stat-cycles").textContent()) === "1", "cycle counted while complete");
 
   // 5. 또 작심하기 (완주 당일 → 내일부터 Day 1)
@@ -71,7 +97,7 @@ function dstr(offset) {
     s.goals[0].history = [d5, d4, d3];
     localStorage.setItem("jaksim3.v1", JSON.stringify(s));
   }, [dstr(-3), dstr(-4), dstr(-5)]);
-  await page.reload();
+  await reload();
   assert(await page.locator(".goal-card.state-broken").isVisible(), "broken state when a day was missed");
   assert((await page.locator("#stat-total-days").textContent()) === "3", "accumulated days preserved when broken");
 
@@ -97,7 +123,7 @@ function dstr(offset) {
       { id: "z", title: "10분 걷기", icon: "run", createdAt: "",
         checks: [d2, d1], lastCheckDate: d1, totalDays: 8, completedCycles: 2, restarts: 1 }]}));
   }, [dstr(-2), dstr(-1)]);
-  await page.reload();
+  await reload();
   await page.click(".goal-card .btn-primary");
   await page.waitForTimeout(1600);
   assert(await page.locator("#cheer").isVisible(), "celebration appears after completing 3 days");
@@ -118,14 +144,36 @@ function dstr(offset) {
         checks: [d1], history: h, lastCheckDate: d1,
         totalDays: h.length, completedCycles: 3, restarts: 2 }]}));
   }, [[dstr(-9), dstr(-8), dstr(-7), dstr(-4), dstr(-3), dstr(-1)], dstr(-1)]);
-  await page.reload();
+  await reload();
 
   await page.click(".goal-top");
   await page.waitForTimeout(300);
   assert(await page.locator("#detail").isVisible(), "record sheet opens on card tap");
-  assert((await page.locator(".cal-cell").count()) === 84, "calendar shows 12 weeks");
-  assert((await page.locator(".cal-cell.on").count()) === 6, "calendar marks every day from history");
-  assert((await page.locator("#detail-word").textContent()).includes("다시"), "record sheet tells the restart story");
+
+  // 달력은 이번 달 한 장 — 날짜 숫자가 보이는 보통의 달력이다
+  const cal = await page.evaluate(() => {
+    const now = new Date();
+    return {
+      cells: document.querySelectorAll("#detail-mcal .mcal-cell:not(.blank)").length,
+      inMonth: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
+      title: document.getElementById("detail-cal-title").textContent,
+      nextDisabled: document.getElementById("detail-cal-next").disabled,
+    };
+  });
+  assert(cal.cells === cal.inMonth, `calendar shows every day of the month (${cal.cells}/${cal.inMonth})`);
+  assert(/\d{4}년 \d{1,2}월/.test(cal.title), "calendar names the month, got: " + cal.title);
+  assert(cal.nextDisabled, "cannot page into the future");
+  assert((await page.locator("#detail-mcal .mcal-cell.today").count()) === 1, "today is marked on the calendar");
+
+  await page.click("#detail-cal-prev");
+  await page.waitForTimeout(200);
+  assert(
+    (await page.locator("#detail-cal-title").textContent()) !== cal.title,
+    "the previous month can be opened"
+  );
+  assert(!(await page.locator("#detail-cal-next").isDisabled()), "and paged back from");
+  await page.click("#detail-cal-next");
+  await page.waitForTimeout(200);
   await page.click("#detail-close");
   await page.waitForTimeout(200);
   assert(await page.locator("#detail").isHidden(), "record sheet closes");
@@ -145,7 +193,7 @@ function dstr(offset) {
           checks: [a, b, c], history: [a, b, c], lastCheckDate: c,
           totalDays: 3, completedCycles: 0, restarts: 0 }]}));
     }, [dstr(lastOffset - 2), dstr(lastOffset - 1), dstr(lastOffset)]);
-    await page.reload();
+    await reload();
   };
 
   await seedDone(0);
@@ -172,7 +220,7 @@ function dstr(offset) {
         checks: [d0], history: [d0], lastCheckDate: d0,
         totalDays: 1, completedCycles: 0, restarts: 0 })) }));
   }, dstr(0));
-  await page.reload();
+  await reload();
   assert((await page.locator("#stat-total-days").textContent()) === "1", "three goals checked today still count as one day");
 
   // 14. 돌탑 정원 — 작심마다 탑 하나, 자기 탑만 자란다
@@ -183,7 +231,7 @@ function dstr(offset) {
       { id: "B", title: "책 10쪽 읽기", icon: "book", createdAt: "", checks: [d2, d1], history: [d2, d1],
         lastCheckDate: d1, totalDays: 5, completedCycles: 1, restarts: 1 }]}));
   }, [dstr(-2), dstr(-1)]);
-  await page.reload();
+  await reload();
   await page.waitForTimeout(200);
 
   // 돌 하나는 그림자·측면·윗면이 묶인 <g> 한 덩어리
@@ -212,7 +260,7 @@ function dstr(offset) {
     s.goals.forEach((g) => { g.checks = [d0]; g.lastCheckDate = d0; });
     localStorage.setItem("jaksim3.v1", JSON.stringify(s));
   }, dstr(0));
-  await page.reload();
+  await reload();
   await page.waitForTimeout(200);
   assert(before > 0 && (await slots()) === 0, "the garden clears once today is done");
 
@@ -224,7 +272,12 @@ function dstr(offset) {
       { id: "x2", title: "10분 걷기", icon: "run", createdAt: "", checks: [], history: [],
         lastCheckDate: null, totalDays: 6, completedCycles: 2, restarts: 1 }]}));
   }, dstr(-1));
-  await page.reload();
+  await reload();
+
+  // 내보내기·가져오기는 설정 탭에 있다
+  await page.click('.tab[data-view="settings"]');
+  await page.waitForTimeout(200);
+  assert(await page.locator("#view-settings").isVisible(), "settings tab opens");
 
   const [download] = await Promise.all([page.waitForEvent("download"), page.click("#btn-export")]);
   const backupPath = path.join(os.tmpdir(), "jaksim-backup-test.json");
@@ -237,11 +290,15 @@ function dstr(offset) {
 
   // 저장소를 통째로 날린 뒤 되살리기
   await page.evaluate(() => localStorage.removeItem("jaksim3.v1"));
-  await page.reload();
+  await reload();
   assert((await page.locator(".goal-card").count()) === 0, "wiped storage really is empty");
+  await page.click('.tab[data-view="settings"]');
+  await page.waitForTimeout(200);
 
   await page.setInputFiles("#file-import", backupPath);
   await page.waitForTimeout(600);
+  await page.click('.tab[data-view="home"]');
+  await page.waitForTimeout(200);
   assert((await page.locator(".goal-card").count()) === 2, "import brings the goals back");
   assert((await page.locator("#stat-cycles").textContent()) === "6", "import restores stones");
   assert((await page.locator("#stat-restarts").textContent()) === "3", "import restores restarts");
@@ -251,6 +308,8 @@ function dstr(offset) {
   fs.writeFileSync(junkPath, JSON.stringify({ hello: "world" }));
   await page.setInputFiles("#file-import", junkPath);
   await page.waitForTimeout(400);
+  await page.click('.tab[data-view="home"]');
+  await page.waitForTimeout(200);
   assert((await page.locator(".goal-card").count()) === 2, "a wrong file never wipes existing records");
 
   // 16. 공유 카드 — 완주한 순간을 이미지로
@@ -260,7 +319,7 @@ function dstr(offset) {
         checks: [d2, d1], history: [d2, d1], lastCheckDate: d1,
         totalDays: 17, completedCycles: 5, restarts: 3 }]}));
   }, [dstr(-2), dstr(-1)]);
-  await page.reload();
+  await reload();
   await page.click(".goal-card .btn-primary");
   await page.waitForTimeout(1800);
   assert(await page.locator("#cheer-share").isVisible(), "celebration offers to save the moment");
@@ -288,7 +347,7 @@ function dstr(offset) {
         checks: [d2, d1], history: [d2, d1], lastCheckDate: d1,
         totalDays: 8, completedCycles: 2, restarts: 1 }]}));
   }, [dstr(-2), dstr(-1)]);
-  await page.reload();
+  await reload();
 
   await page.click("#btn-add");
   assert(await page.locator("#modal").isVisible(), "new-goal sheet opens");
@@ -366,6 +425,80 @@ function dstr(offset) {
     "garden still renders in dark theme"
   );
   await dark.close();
+
+  // 19. 탭 — 오늘(홈) / 지나온 길(기록) / 설정
+  await page.evaluate((d1) => {
+    localStorage.setItem("jaksim3.v1", JSON.stringify({ goals: [
+      { id: "tb", title: "아침에 물 한 잔", icon: "water", createdAt: "",
+        checks: [d1], history: [d1], lastCheckDate: d1,
+        totalDays: 11, completedCycles: 3, restarts: 2 }]}));
+  }, dstr(-1));
+  await reload();
+
+  assert((await page.locator(".tab").count()) === 3, "three tabs are available");
+  await page.click('.tab[data-view="record"]');
+  await page.waitForTimeout(250);
+  assert(await page.locator("#view-record").isVisible(), "record tab opens");
+  assert(await page.locator("#view-home").isHidden(), "home is put away while on record");
+  assert((await page.locator("#rstat-stones").textContent()) === "3", "record tab totals the stones");
+  assert((await page.locator("#record-mcal .mcal-cell.done").count()) >= 1, "record calendar marks the days");
+  assert((await page.locator(".record-row").count()) === 1, "each goal gets a row in the record tab");
+
+  await page.click(".record-row");
+  await page.waitForTimeout(300);
+  assert(await page.locator("#detail").isVisible(), "a record row opens that goal's sheet");
+  await page.click("#detail-close");
+  await page.waitForTimeout(200);
+
+  await page.click('.tab[data-view="home"]');
+  await page.waitForTimeout(200);
+  assert(await page.locator("#view-home").isVisible(), "home comes back");
+
+  // 20. 처음 만나는 안내 — '칸 3개 = 돌 3개'라는 오해를 푸는 것이 핵심
+  await page.evaluate(() => localStorage.removeItem("jaksim3.onboarded"));
+  await page.click('.tab[data-view="settings"]');
+  await page.waitForTimeout(200);
+  await page.click("#btn-show-onboard");
+  await page.waitForTimeout(400);
+  assert(await page.locator("#onboard").isVisible(), "the walkthrough opens");
+  assert((await page.locator(".ob-dots i").count()) === 5, "walkthrough has five pages");
+
+  const titles = [];
+  for (let i = 0; i < 5; i++) {
+    const shown = (await page.locator(".ob-title").textContent()).trim();
+    titles.push(shown);
+    if (i < 4) {
+      await page.click("#ob-next");
+      // 다음 장이 실제로 그려질 때까지 기다린다 (시간으로 어림잡지 않는다)
+      await page.waitForFunction(
+        (prev) => {
+          const el = document.querySelector(".ob-title");
+          return el && el.textContent.trim() !== prev;
+        },
+        shown,
+        { timeout: 3000 }
+      );
+    }
+  }
+  assert(
+    titles.some((t) => t.includes("돌 하나")),
+    "one page explains that three checks make one stone, got: " + titles.join(" / ")
+  );
+  assert((await page.locator("#ob-next").textContent()).includes("시작"), "last page invites you in");
+  await page.click("#ob-next");
+  await page.waitForTimeout(300);
+  assert(await page.locator("#onboard").isHidden(), "walkthrough closes at the end");
+  assert(
+    (await page.evaluate(() => localStorage.getItem("jaksim3.onboarded"))) === "1",
+    "walkthrough is not shown again"
+  );
+
+  // 뒤로가기로도 안내를 닫을 수 있어야 한다
+  await page.click("#btn-show-onboard");
+  await page.waitForTimeout(300);
+  assert(await page.evaluate(() => closeTopLayer()), "back button closes the walkthrough");
+  await page.waitForTimeout(200);
+  assert(await page.locator("#onboard").isHidden(), "and it really closed");
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 

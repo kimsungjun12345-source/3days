@@ -115,12 +115,19 @@ body {
 .app {
   max-width: 430px;
   margin: 0 auto;
-  padding: 16px 20px calc(40px + env(safe-area-inset-bottom));
+  /* 위는 넉넉하게(상태바 아래로 숨이 트이도록), 아래는 탭바 높이만큼 비운다 */
+  padding: calc(22px + env(safe-area-inset-top)) 20px
+           calc(96px + env(safe-area-inset-bottom));
+}
+
+/* 키보드가 올라올 때 화면이 덜컹거리지 않도록 */
+.app {
+  transition: none;
 }
 
 /* ── 앱바 ─────────────────────────── */
 .appbar {
-  padding: 8px 2px 16px;
+  padding: 6px 2px 20px;
 }
 
 .brand {
@@ -980,53 +987,101 @@ body {
   margin-left: 5px;
 }
 
-/* 12주 × 7일 — 세로 한 칸이 한 주 */
-.cal-wrap {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 14px;
-}
-
-.cal-days {
-  display: grid;
-  grid-template-rows: repeat(7, 1fr);
-  gap: 4px;
-  font-size: 0.6rem;
-  color: var(--gray);
-  flex-shrink: 0;
-}
-
-.cal-days span {
+/* ── 월 달력 ─────────────────────────
+ * 예전에는 작은 네모가 늘어선 히트맵이었는데 "한눈에 안 들어온다"는
+ * 지적을 받아, 누구나 읽을 줄 아는 달력 모양으로 바꿨다.
+ */
+.cal-head {
   display: flex;
   align-items: center;
-  line-height: 1;
+  justify-content: space-between;
+  margin-bottom: 10px;
 }
 
-.cal {
-  flex: 1;
+.cal-head b {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.cal-nav {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 10px;
+  background: var(--chip);
+  color: var(--gray-strong);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cal-nav:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.mcal-week,
+.mcal {
   display: grid;
-  grid-template-rows: repeat(7, 1fr);
-  grid-auto-flow: column;
+  grid-template-columns: repeat(7, 1fr);
   gap: 4px;
 }
 
-.cal-cell {
+.mcal-week {
+  margin-bottom: 4px;
+}
+
+.mcal-week span {
+  text-align: center;
+  font-size: 0.68rem;
+  color: var(--gray);
+}
+
+.mcal-week span:first-child {
+  color: #d08a72;
+}
+
+/* 날짜 숫자는 <i> 안에 있지만 기울어지면 안 된다 */
+.mcal-cell i {
+  font-style: normal;
+}
+
+.mcal-cell {
   aspect-ratio: 1;
-  border-radius: 3.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  color: var(--gray-strong);
   background: var(--chip);
 }
 
-.cal-cell.on {
+.mcal-cell.blank {
+  background: none;
+}
+
+/* 돌을 얹은 날 — 채워진 원으로 한눈에 */
+.mcal-cell.done {
   background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
 }
 
-.cal-cell.future {
-  background: transparent;
-  box-shadow: inset 0 0 0 1px var(--line);
+.mcal-cell.today {
+  box-shadow: inset 0 0 0 2px var(--ink);
 }
 
-.cal-cell.today {
-  box-shadow: 0 0 0 2px var(--ink);
+.mcal-cell.future {
+  background: none;
+  color: var(--dot-empty);
+}
+
+.mcal-note {
+  margin-top: 10px;
+  font-size: 0.82rem;
+  color: var(--gray-strong);
+  text-align: center;
 }
 
 .detail-word {
@@ -1186,4 +1241,530 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ── 탭바 ────────────────────────────
+ * 화면이 홈 하나뿐이라 "메뉴가 없어 투박하다"는 지적을 받았다.
+ * 오늘(홈) / 지나온 길(기록) / 설정으로 나눠 머물 자리를 만든다.
+ */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 15;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 12px calc(6px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid var(--line);
+}
+
+.tab {
+  flex: 1;
+  max-width: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 7px 0 5px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--gray);
+  cursor: pointer;
+  border-radius: 12px;
+}
+
+.tab-ico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  transition: transform 0.18s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.tab.on {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.tab.on .tab-ico {
+  transform: translateY(-1px) scale(1.06);
+}
+
+.tab:active .tab-ico {
+  transform: scale(0.92);
+}
+
+/* ── 기록 탭 ─────────────────────── */
+.record-stats {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.record-stats div {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 6px;
+  text-align: center;
+  box-shadow: var(--shadow-card);
+}
+
+.record-stats b {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1.2;
+}
+
+.record-stats .again b {
+  color: var(--sage);
+}
+
+.record-stats span {
+  font-size: 0.72rem;
+  color: var(--gray);
+}
+
+.card-block {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: var(--shadow-card);
+}
+
+.record-goals {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.record-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+}
+
+.record-row:active {
+  background: var(--chip);
+}
+
+.record-ico {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--chip);
+  color: var(--gray-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.record-tt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.record-tt b {
+  font-size: 0.95rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.record-tt span {
+  font-size: 0.75rem;
+  color: var(--gray);
+}
+
+.record-num {
+  flex-shrink: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.record-num i {
+  font-style: normal;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--gray);
+  margin-left: 2px;
+}
+
+.record-empty {
+  text-align: center;
+  color: var(--gray);
+  font-size: 0.88rem;
+  padding: 22px 0;
+}
+
+/* ── 설정 탭 ─────────────────────── */
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.row-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 15px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--shadow-card);
+  font-family: inherit;
+  text-align: left;
+}
+
+.row-btn {
+  cursor: pointer;
+}
+
+.row-btn:active {
+  background: var(--chip);
+}
+
+.row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.row-text b {
+  font-size: 0.93rem;
+  font-weight: 700;
+}
+
+.row-text span {
+  font-size: 0.76rem;
+  color: var(--gray);
+  word-break: keep-all;
+}
+
+.row-arrow {
+  color: var(--dot-empty);
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.row-info {
+  background: none;
+  box-shadow: none;
+  border-style: dashed;
+}
+
+.hour-select {
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 8px 10px;
+}
+
+#notify-hour-row.off {
+  opacity: 0.45;
+}
+
+/* ── 처음 만나는 안내 ─────────────── */
+.onboard {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  padding: calc(20px + env(safe-area-inset-top)) 24px
+           calc(24px + env(safe-area-inset-bottom));
+  animation: ob-fade 0.28s ease;
+}
+
+@keyframes ob-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ob-skip {
+  align-self: flex-end;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: var(--gray);
+  padding: 8px 4px;
+  cursor: pointer;
+}
+
+.ob-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.ob-body.in {
+  animation: ob-slide 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes ob-slide {
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.ob-art {
+  width: 150px;
+  min-height: 150px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 22px;
+}
+
+.ob-art svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 190px;
+}
+
+.ob-art-dots {
+  align-items: center;
+}
+
+.ob-dots-demo {
+  display: flex;
+  gap: 12px;
+}
+
+.ob-dots-demo .dot {
+  width: 44px;
+  height: 44px;
+  font-size: 0.95rem;
+}
+
+/* 무너진 뒤를 보여 주는 장 — 탑 위에 빈 자리를 남긴다 */
+.ob-art-broken {
+  position: relative;
+}
+
+.ob-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.ob-text {
+  font-size: 0.95rem;
+  color: var(--gray-strong);
+  word-break: keep-all;
+  line-height: 1.65;
+}
+
+.ob-text b {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.ob-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.ob-dots {
+  display: flex;
+  gap: 7px;
+}
+
+.ob-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dashed);
+  transition: width 0.24s ease, background 0.24s ease;
+}
+
+.ob-dots i.on {
+  width: 20px;
+  border-radius: 4px;
+  background: var(--accent);
+}
+
+.ob-foot .btn {
+  max-width: 320px;
+}
+
+/* ── 인트로 ──────────────────────────
+ * 돌이 하나씩 천천히 내려앉는 걸 보고 앱이 열린다.
+ */
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: opacity 0.45s ease;
+}
+
+.intro.gone {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.intro-stage {
+  position: relative;
+  width: 190px;
+  height: 130px;
+  margin-bottom: 26px;
+}
+
+.intro-ground {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  width: 132px;
+  height: 12px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: var(--ground-shadow);
+  filter: blur(6px);
+  opacity: 0;
+  animation: intro-ground 0.5s 0.15s ease forwards;
+}
+
+@keyframes intro-ground {
+  to { opacity: 1; }
+}
+
+/* 돌 하나하나가 위에서 툭 떨어져 자리를 잡는다 */
+.intro-stone {
+  position: absolute;
+  left: 50%;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at 34% 26%,
+    var(--stone-top-1),
+    var(--stone-top-2) 46%,
+    var(--stone-top-3)
+  );
+  box-shadow: 0 5px 10px var(--stone-shadow);
+  opacity: 0;
+  animation: intro-drop 0.62s cubic-bezier(0.3, 1.5, 0.5, 1) forwards;
+}
+
+.intro-stone.s1 {
+  width: 116px;
+  height: 34px;
+  bottom: 8px;
+  margin-left: -58px;
+  animation-delay: 0.25s;
+}
+
+.intro-stone.s2 {
+  width: 92px;
+  height: 29px;
+  bottom: 34px;
+  margin-left: -46px;
+  animation-delay: 0.75s;
+}
+
+.intro-stone.s3 {
+  width: 70px;
+  height: 24px;
+  bottom: 57px;
+  margin-left: -35px;
+  animation-delay: 1.25s;
+}
+
+@keyframes intro-drop {
+  0% { opacity: 0; transform: translateY(-46px) scaleY(0.82); }
+  62% { opacity: 1; transform: translateY(3px) scaleY(1.07); }
+  100% { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+
+.intro-brand {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  opacity: 0;
+  animation: intro-text 0.5s 1.6s ease forwards;
+}
+
+.intro-brand em {
+  font-style: normal;
+  color: var(--accent);
+}
+
+.intro-line {
+  font-size: 0.88rem;
+  color: var(--gray);
+  opacity: 0;
+  animation: intro-text 0.5s 1.78s ease forwards;
+}
+
+@keyframes intro-text {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 시트가 열렸을 때 ─────────────────
+ * 키보드가 올라오면 뒤 배경까지 같이 밀려 화면이 덜컹거린다.
+ * 시트가 떠 있는 동안에는 배경 스크롤을 잠가 둔다.
+ */
+body.sheet-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.modal-backdrop {
+  overscroll-behavior: contain;
+}
+
+.modal {
+  will-change: transform;
+}
+
+/* 입력창을 누를 때 화면이 확대되지 않도록 (iOS는 16px 미만이면 확대한다) */
+#input-title {
+  font-size: 16px;
 }

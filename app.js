@@ -575,11 +575,19 @@ function renderGoalCard(goal) {
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/* 앱으로 감쌌을 때는 OS 햅틱 엔진을, 웹에서는 진동을 쓴다 */
+/* 촉감은 상황에 따라 세기를 나눈다. 전부 같은 세기로 울리면
+ * 앱 전체가 투박한 진동기처럼 느껴진다.
+ *   6 이하  → 딸깍(탭 전환, 칩 선택)
+ *   7~14   → 가볍게(오늘의 체크, 버튼)
+ *   15 이상 → 착지(돌이 탑에 닿는 순간)
+ *   배열    → 완주 (OS의 성공 패턴)
+ * 웹에서는 진동 모터밖에 없으므로 값을 훨씬 짧게 잡아 둔다. */
 function haptic(ms) {
-  const kind = Array.isArray(ms) ? "success" : ms >= 16 ? "heavy" : "light";
+  const kind = Array.isArray(ms) ? "success" : ms <= 6 ? "select" : ms >= 15 ? "land" : "light";
   if (typeof nativeHaptic === "function" && nativeHaptic(kind)) return;
-  if (navigator.vibrate) navigator.vibrate(ms);
+  if (!navigator.vibrate) return;
+  const web = { select: 8, light: 12, land: 18, success: [10, 40, 16] }[kind];
+  navigator.vibrate(web);
 }
 
 let toastTimer = null;
@@ -712,41 +720,52 @@ function importData(file) {
   reader.readAsText(file);
 }
 
-/* ── 기록 화면 ─────────────────────── */
+/* ── 달력 ────────────────────────────
+ * 예전에는 12주 히트맵(작은 네모들)이었는데, 실사용 피드백에서
+ * "네모만 여러 개라 뭔지 한눈에 안 들어온다"는 지적을 받았다.
+ * 누구나 읽을 줄 아는 모양 — 날짜 숫자가 있는 월 달력 — 으로 바꾼다.
+ */
 
-const WEEKS = 12;
+/* offset: 0 = 이번 달, -1 = 지난달 … */
+function monthOf(offset) {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + offset);
+  return { y: d.getFullYear(), m: d.getMonth() };
+}
 
-/* 지난 12주를 주 단위로 — 무너진 구간과 다시 쌓은 구간이 한눈에 보인다 */
-function renderCalendar(goal) {
-  const done = new Set(goal.history || []);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  // 이번 주 일요일까지 채워서 격자를 맞춘다
-  const end = new Date(today);
-  end.setDate(end.getDate() + (6 - end.getDay()));
-
-  const cells = [];
-  const total = WEEKS * 7;
-  for (let i = total - 1; i >= 0; i--) {
-    const d = new Date(end);
-    d.setDate(d.getDate() - i);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-      d.getDate()
-    ).padStart(2, "0")}`;
-    const isFuture = d > today;
-    const isToday = d.getTime() === today.getTime();
+function monthCalHTML(doneSet, y, m) {
+  const first = new Date(y, m, 1);
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const todayKey = todayStr();
+  const parts = [];
+  for (let i = 0; i < first.getDay(); i++) parts.push(`<span class="mcal-cell blank"></span>`);
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const cls = [
-      "cal-cell",
-      done.has(key) ? "on" : "",
-      isFuture ? "future" : "",
-      isToday ? "today" : "",
+      "mcal-cell",
+      doneSet.has(key) ? "done" : "",
+      key === todayKey ? "today" : "",
+      key > todayKey ? "future" : "",
     ]
       .filter(Boolean)
       .join(" ");
-    cells.push(`<i class="${cls}" title="${key}"></i>`);
+    parts.push(`<span class="${cls}"><i>${d}</i></span>`);
   }
-  return cells.join("");
+  return parts.join("");
+}
+
+/* 달력 하나(제목 + 격자 + 이동 버튼)를 통째로 관리한다 */
+function paintMonthCal(prefix, offset, doneSet) {
+  const { y, m } = monthOf(offset);
+  $(`${prefix}-cal-title`).textContent = `${y}년 ${m + 1}월`;
+  $(`${prefix}-mcal`).innerHTML = monthCalHTML(doneSet, y, m);
+  // 미래 달로는 넘어가지 않는다
+  $(`${prefix}-cal-next`).disabled = offset >= 0;
+  const ym = `${y}-${String(m + 1).padStart(2, "0")}`;
+  let count = 0;
+  for (const d of doneSet) if (d.startsWith(ym)) count += 1;
+  return count;
 }
 
 /* 기록에서 읽어 낸 한마디 — 숫자보다 이야기를 돌려준다 */
@@ -763,24 +782,131 @@ function historyWord(goal) {
 }
 
 let detailGoalId = null;
+let detailMonth = 0; // 0 = 이번 달
+
+function paintDetailCal() {
+  const goal = state.goals.find((g) => g.id === detailGoalId);
+  if (!goal) return;
+  const done = new Set(goal.history || []);
+  const count = paintMonthCal("detail", detailMonth, done);
+  $("detail-word").textContent =
+    count > 0 ? `이 달에 ${count}일 돌을 얹었어요` : historyWord(goal);
+}
 
 function openDetail(goal) {
   detailGoalId = goal.id;
+  detailMonth = 0;
   $("detail-ico").innerHTML = iconSVG(goalIcon(goal), 20);
   $("detail-title").textContent = goal.title;
   $("detail-stats").innerHTML =
     `<div><b>${goal.totalDays}</b><span>함께한 날</span></div>` +
-    `<div><b>${goal.completedCycles + (goal.checks.length >= 3 ? 1 : 0)}</b><span>쌓은 돌</span></div>` +
+    `<div><b>${stoneCount(goal)}</b><span>쌓은 돌</span></div>` +
     // 다시 쌓은 횟수는 다른 종류의 성취라 색을 따로 준다
     `<div class="again"><b>${goal.restarts}</b><span>다시 쌓음</span></div>`;
-  $("detail-cal").innerHTML = renderCalendar(goal);
-  $("detail-word").textContent = historyWord(goal);
+  paintDetailCal();
   $("detail").hidden = false;
 }
 
 function closeDetail() {
   $("detail").hidden = true;
   detailGoalId = null;
+}
+
+/* ── 기록 탭 ─────────────────────────
+ * 모든 작심을 합친 달력 하나 + 작심별 요약.
+ * 홈이 '오늘'이라면 여기는 '지나온 길'이다.
+ */
+
+let recordMonth = 0;
+
+function paintRecordCal() {
+  const done = new Set();
+  for (const g of state.goals) for (const d of g.history || []) done.add(d);
+  const count = paintMonthCal("record", recordMonth, done);
+  const note = $("record-cal-note");
+  if (state.goals.length === 0) {
+    note.textContent = "첫 작심을 만들면 여기에 기록이 쌓여요.";
+  } else if (count === 0) {
+    note.textContent = "이 달에는 아직 얹은 돌이 없어요.";
+  } else {
+    note.textContent = `이 달에 ${count}일 돌을 얹었어요.`;
+  }
+}
+
+function renderRecord() {
+  $("rstat-days").textContent = totalDaysWithTower();
+  $("rstat-stones").textContent = totalStones();
+  $("rstat-restarts").textContent = state.goals.reduce((s, g) => s + g.restarts, 0);
+  paintRecordCal();
+
+  const list = $("record-goals");
+  list.innerHTML = "";
+  if (state.goals.length === 0) {
+    const p = document.createElement("p");
+    p.className = "record-empty";
+    p.textContent = "아직 만든 작심이 없어요.";
+    list.appendChild(p);
+    return;
+  }
+
+  for (const goal of state.goals) {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "record-row";
+    row.innerHTML =
+      `<span class="record-ico">${iconSVG(goalIcon(goal), 20)}</span>` +
+      `<span class="record-tt"><b></b><span></span></span>` +
+      `<span class="record-num">${stoneCount(goal)}<i>돌</i></span>`;
+    row.querySelector("b").textContent = goal.title;
+    row.querySelector(".record-tt span").textContent =
+      `함께한 날 ${goal.totalDays}` + (goal.restarts ? ` · 다시 쌓음 ${goal.restarts}` : "");
+    row.addEventListener("click", () => openDetail(goal));
+    list.appendChild(row);
+  }
+}
+
+/* ── 화면 전환 ─────────────────────── */
+
+let currentView = "home";
+
+function switchView(name) {
+  currentView = name;
+  for (const v of ["home", "record", "settings"]) {
+    $(`view-${v}`).hidden = v !== name;
+  }
+  document.querySelectorAll(".tab").forEach((t) => {
+    const on = t.dataset.view === name;
+    t.classList.toggle("on", on);
+    t.setAttribute("aria-current", on ? "page" : "false");
+  });
+  if (name === "record") renderRecord();
+  window.scrollTo({ top: 0 });
+  haptic(6);
+}
+
+function setupTabs() {
+  document.querySelectorAll(".tab").forEach((tab) => {
+    const key = { home: "home", record: "calendar", settings: "gear" }[tab.dataset.view];
+    tab.querySelector(".tab-ico").innerHTML = iconSVG(key, 22);
+    tab.addEventListener("click", () => switchView(tab.dataset.view));
+  });
+
+  for (const [prefix, get, set, paint] of [
+    ["detail", () => detailMonth, (v) => (detailMonth = v), paintDetailCal],
+    ["record", () => recordMonth, (v) => (recordMonth = v), paintRecordCal],
+  ]) {
+    $(`${prefix}-cal-prev`).addEventListener("click", () => {
+      set(get() - 1);
+      paint();
+      haptic(6);
+    });
+    $(`${prefix}-cal-next`).addEventListener("click", () => {
+      if (get() >= 0) return;
+      set(get() + 1);
+      paint();
+      haptic(6);
+    });
+  }
 }
 
 /* ── 완주 축하 ─────────────────────── */
@@ -924,6 +1050,106 @@ function stoneDust(x, y) {
   }
 }
 
+/* ── 처음 만나는 안내 ─────────────────
+ * 실사용에서 "체크 칸 3개가 곧 돌 3개인 줄 알았다"는 오해가 나왔다.
+ * 규칙을 글로만 적지 않고, 각 장에 실제와 같은 그림을 그려 보여 준다.
+ */
+
+const ONBOARD_SEEN_KEY = "jaksim3.onboarded";
+
+function obDots(filled, todayIdx) {
+  return (
+    `<div class="ob-dots-demo">` +
+    [0, 1, 2]
+      .map((i) => {
+        const cls = i < filled ? "dot done" : i === todayIdx ? "dot today" : "dot";
+        return `<span class="${cls}">${i < filled ? "✓" : i + 1}</span>`;
+      })
+      .join("") +
+    `</div>`
+  );
+}
+
+const ONBOARD = [
+  {
+    art: () => `<div class="ob-art">${cairnSVG(0, true, 2)}</div>`,
+    title: "약속은 딱 3일",
+    body: "거창한 목표 대신 사흘만 약속해요.\n3일이면 누구나 해볼 만하니까요.",
+  },
+  {
+    art: () => `<div class="ob-art ob-art-dots">${obDots(1, 1)}</div>`,
+    title: "하루 하나씩, 세 칸",
+    body: "오늘 해내면 칸 하나가 채워져요.\n이 세 칸은 <b>이번 3일의 진행 상황</b>이에요.",
+  },
+  {
+    art: () => `<div class="ob-art">${cairnSVG(1, false, 0, 9)}</div>`,
+    title: "세 칸을 다 채우면 돌 하나",
+    body: "칸 세 개가 곧 돌 세 개가 아니라,\n<b>3일을 완주해야 돌 하나</b>가 쌓여요.",
+  },
+  {
+    art: () => `<div class="ob-art">${cairnSVG(5, true, 0, 9)}</div>`,
+    title: "돌이 모여 나의 탑이",
+    body: "작심 하나가 탑 하나예요.\n작심삼일 120번이면 1년이 됩니다.",
+  },
+  {
+    art: () => `<div class="ob-art ob-art-broken">${cairnSVG(3, false, 0, 9)}</div>`,
+    title: "무너져도 사라지지 않아요",
+    body: "하루 빠뜨려도 쌓아 둔 돌은 그대로예요.\n돌탑은 원래 <b>무너지면 다시 쌓는 것</b>이니까요.",
+    last: true,
+  },
+];
+
+let obIndex = 0;
+
+function paintOnboard() {
+  const page = ONBOARD[obIndex];
+  $("ob-body").innerHTML =
+    page.art() +
+    `<h2 class="ob-title"></h2>` +
+    `<p class="ob-text">${page.body.replace(/\n/g, "<br />")}</p>`;
+  $("ob-body").querySelector(".ob-title").textContent = page.title;
+  $("ob-body").classList.remove("in");
+  void $("ob-body").offsetWidth;
+  $("ob-body").classList.add("in");
+
+  $("ob-dots").innerHTML = ONBOARD.map(
+    (_, i) => `<i class="${i === obIndex ? "on" : ""}"></i>`
+  ).join("");
+  $("ob-next").textContent = page.last ? "시작하기" : "다음";
+  $("ob-skip").hidden = !!page.last;
+}
+
+function openOnboard() {
+  obIndex = 0;
+  $("onboard").hidden = false;
+  paintOnboard();
+}
+
+function closeOnboard() {
+  $("onboard").hidden = true;
+  localStorage.setItem(ONBOARD_SEEN_KEY, "1");
+}
+
+function setupOnboard() {
+  $("ob-next").addEventListener("click", () => {
+    haptic(8);
+    if (obIndex >= ONBOARD.length - 1) {
+      closeOnboard();
+      return;
+    }
+    obIndex += 1;
+    paintOnboard();
+  });
+  $("ob-skip").addEventListener("click", () => {
+    haptic(6);
+    closeOnboard();
+  });
+  $("btn-show-onboard").addEventListener("click", () => {
+    switchView("home");
+    openOnboard();
+  });
+}
+
 /* ── 바텀시트 ─────────────────────── */
 
 let selectedIcon = ICON_KEYS[0];
@@ -1033,13 +1259,23 @@ function setupModal() {
 function setupNotifyToggle() {
   const row = $("notify-row");
   const btn = $("btn-notify");
+  const hourRow = $("notify-hour-row");
+  const hourSel = $("notify-hour");
   if (!row || !btn || typeof IS_NATIVE === "undefined" || !IS_NATIVE) return;
 
   row.hidden = false;
+  hourRow.hidden = false;
+  hourSel.value = String(notifyHour());
+
+  const hourLabel = () => hourSel.options[hourSel.selectedIndex].textContent;
   const paint = () => {
     const on = notifyEnabled();
     btn.classList.toggle("on", on);
     btn.setAttribute("aria-checked", on ? "true" : "false");
+    hourRow.classList.toggle("off", !on);
+    $("notify-sub").textContent = on
+      ? `${hourLabel()}에 조용히 알려드려요`
+      : "쉬는 동안에도 돌아올 자리를 남겨둡니다";
   };
   paint();
 
@@ -1050,14 +1286,47 @@ function setupNotifyToggle() {
     if (turningOn && !ok) {
       toast("stone", "설정에서 알림을 허용해 주세요");
     } else if (turningOn) {
-      toast("stone", "저녁 9시에 알려드릴게요");
+      toast("stone", `${hourLabel()}에 알려드릴게요`);
     }
   });
+
+  hourSel.addEventListener("change", async () => {
+    setNotifyHour(Number(hourSel.value));
+    paint();
+    if (notifyEnabled()) {
+      await rescheduleNotifications();
+      toast("stone", `${hourLabel()}로 옮겼어요`);
+    }
+  });
+}
+
+/* ── 인트로 ──────────────────────────
+ * 돌이 하나씩 내려앉는 걸 보고 시작한다. 매일 여러 번 여는 앱이라
+ * 길면 방해가 되므로 짧게 두고, 아무 데나 누르면 바로 건너뛴다.
+ */
+function setupIntro() {
+  const el = $("intro");
+  if (!el) return;
+  let done = false;
+  const dismiss = () => {
+    if (done) return;
+    done = true;
+    el.classList.add("gone");
+    setTimeout(() => el.remove(), 500);
+    // 처음 온 사람에게는 인트로가 끝난 뒤 사용법을 보여 준다
+    if (!localStorage.getItem(ONBOARD_SEEN_KEY)) setTimeout(openOnboard, 260);
+  };
+  el.addEventListener("click", dismiss);
+  setTimeout(dismiss, reduceMotion ? 300 : 2300);
 }
 
 /* 열려 있는 시트 중 가장 위의 것을 닫는다.
  * 안드로이드 뒤로가기와 ESC가 같은 규칙을 쓰도록 한곳에 모아 둔다. */
 function closeTopLayer() {
+  if (!$("onboard").hidden) {
+    closeOnboard();
+    return true;
+  }
   if (!$("cheer").hidden) {
     closeCheer();
     return true;
@@ -1076,16 +1345,23 @@ function closeTopLayer() {
 function openModal() {
   selectIcon(ICON_KEYS[0]);
   $("modal").hidden = false;
-  $("input-title").focus();
+  document.body.classList.add("sheet-open");
+  // 시트가 자리를 잡은 뒤에 키보드를 올려야 덜컹거리지 않는다
+  setTimeout(() => $("input-title").focus({ preventScroll: true }), 260);
 }
 
 function closeModal() {
+  $("input-title").blur();
   $("modal").hidden = true;
+  document.body.classList.remove("sheet-open");
 }
 
 /* ── 시작 ─────────────────────────── */
 
 setupModal();
+setupTabs();
+setupOnboard();
+setupIntro();
 render();
 
 document.addEventListener("keydown", (ev) => {

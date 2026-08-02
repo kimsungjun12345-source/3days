@@ -55,9 +55,29 @@ const ICONS = {
     label: "마음",
     path: `<path d="M12 19.2s-6.8-3.9-6.8-8.4a3.8 3.8 0 0 1 6.8-2.4 3.8 3.8 0 0 1 6.8 2.4c0 4.5-6.8 8.4-6.8 8.4Z"/>`,
   },
+
+  /* ── 탭바 전용 ── */
+  home: {
+    label: "홈",
+    path: `<path d="M4.4 11.4 12 4.8l7.6 6.6"/>
+           <path d="M6.3 10v8.7h11.4V10"/>
+           <path d="M10.3 18.7v-4.2h3.4v4.2"/>`,
+  },
+  calendar: {
+    label: "기록",
+    path: `<rect x="4.2" y="5.6" width="15.6" height="14" rx="2.4"/>
+           <path d="M4.2 10.2h15.6M8.4 3.6v3.4M15.6 3.6v3.4"/>
+           <circle cx="12" cy="14.8" r="1.3"/>`,
+  },
+  gear: {
+    label: "설정",
+    path: `<circle cx="12" cy="12" r="3.1"/>
+           <path d="M12 4v2.2M12 17.8V20M4 12h2.2M17.8 12H20M6.6 6.6l1.5 1.5M15.9 15.9l1.5 1.5M17.4 6.6l-1.5 1.5M8.1 15.9l-1.5 1.5"/>`,
+  },
 };
 
-const ICON_KEYS = Object.keys(ICONS);
+/* 작심 아이콘 고르기에 나오는 목록 — 탭바용 아이콘은 제외 */
+const ICON_KEYS = Object.keys(ICONS).filter((k) => !["home", "calendar", "gear"].includes(k));
 
 /* 예전 데이터에 남아 있는 이모지를 아이콘으로 이어 준다 */
 const EMOJI_TO_ICON = {

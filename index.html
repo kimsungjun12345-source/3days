@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f6f3" />
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#161513" />
   <meta name="color-scheme" content="light dark" />
@@ -15,10 +15,11 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="작심삼일" />
   <meta name="mobile-web-app-capable" content="yes" />
+
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪨</text></svg>" />
+  <link rel="icon" href="icons/icon.svg" />
 </head>
 <body>
   <div class="app">
@@ -27,69 +28,159 @@
       <h1 class="brand">작심<em>삼일</em></h1>
     </header>
 
-    <section class="hero" id="stats" hidden>
-      <div class="garden" id="hero-garden" aria-hidden="true"></div>
-      <div class="hero-foot">
-        <div>
-          <span class="hero-label">돌탑과 함께한 날</span>
-          <span class="hero-big"><b id="stat-total-days">0</b>일</span>
+    <!-- ── 홈 ─────────────────────────── -->
+    <main id="view-home" class="view">
+      <section class="hero" id="stats" hidden>
+        <div class="garden" id="hero-garden" aria-hidden="true"></div>
+        <div class="hero-foot">
+          <div>
+            <span class="hero-label">돌탑과 함께한 날</span>
+            <span class="hero-big"><b id="stat-total-days">0</b>일</span>
+          </div>
+          <div class="hero-sub">
+            쌓은 돌 <b id="stat-cycles">0</b> · 다시 쌓음 <b id="stat-restarts">0</b>
+          </div>
         </div>
-        <div class="hero-sub">
-          쌓은 돌 <b id="stat-cycles">0</b> · 다시 쌓음 <b id="stat-restarts">0</b>
+      </section>
+
+      <section class="empty" id="empty" hidden>
+        <div class="empty-cairn" aria-hidden="true"></div>
+        <h2>첫 돌을 쌓아볼까요?</h2>
+        <p>
+          약속은 딱 3일. 3일을 채우면 돌 하나가 쌓여요.<br />
+          무너져도 괜찮아요 — 돌탑은 원래<br />
+          무너지면 다시 쌓는 거니까요.
+        </p>
+      </section>
+
+      <div class="section-head" id="section-head" hidden>
+        <h2>오늘의 작심</h2>
+      </div>
+
+      <div id="goal-list" class="goal-list"></div>
+
+      <button class="add-card" id="btn-add">＋ <b>새 작심 만들기</b><span class="add-sub"> — 딱 3일만 약속해요</span></button>
+
+      <p class="note" id="note" hidden></p>
+
+      <button class="install-card" id="btn-install" hidden>
+        <span class="install-icon" aria-hidden="true"></span>
+        <span class="install-text">
+          <b>홈 화면에 두기</b>
+          <span id="install-sub">앱처럼 열리고, 인터넷이 없어도 돌을 얹을 수 있어요</span>
+        </span>
+      </button>
+
+      <footer class="footer">
+        <p>작심삼일도 여러 번 하면, 평생이 된다</p>
+      </footer>
+    </main>
+
+    <!-- ── 기록 ────────────────────────── -->
+    <main id="view-record" class="view" hidden>
+      <div class="record-stats">
+        <div><b id="rstat-days">0</b><span>함께한 날</span></div>
+        <div><b id="rstat-stones">0</b><span>쌓은 돌</span></div>
+        <div class="again"><b id="rstat-restarts">0</b><span>다시 쌓음</span></div>
+      </div>
+
+      <section class="card-block">
+        <div class="cal-head">
+          <button type="button" class="cal-nav" id="record-cal-prev" aria-label="지난달">‹</button>
+          <b id="record-cal-title"></b>
+          <button type="button" class="cal-nav" id="record-cal-next" aria-label="다음달">›</button>
+        </div>
+        <div class="mcal-week" aria-hidden="true">
+          <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+        </div>
+        <div class="mcal" id="record-mcal"></div>
+        <p class="mcal-note" id="record-cal-note"></p>
+      </section>
+
+      <div class="section-head"><h2>작심별 기록</h2></div>
+      <div id="record-goals" class="record-goals"></div>
+    </main>
+
+    <!-- ── 설정 ────────────────────────── -->
+    <main id="view-settings" class="view" hidden>
+      <div class="settings-list">
+
+        <div class="row-card" id="notify-row" hidden>
+          <span class="row-text">
+            <b>돌 얹을 시간 알림</b>
+            <span id="notify-sub">저녁 9시에 조용히 알려드려요</span>
+          </span>
+          <button type="button" class="switch" id="btn-notify" role="switch" aria-checked="false" aria-label="알림 받기">
+            <span class="switch-knob"></span>
+          </button>
+        </div>
+
+        <div class="row-card" id="notify-hour-row" hidden>
+          <span class="row-text">
+            <b>알림 시간</b>
+            <span>하루를 정리하며 아직 만회할 수 있는 시간이 좋아요</span>
+          </span>
+          <select id="notify-hour" class="hour-select" aria-label="알림 시간">
+            <option value="19">저녁 7시</option>
+            <option value="20">저녁 8시</option>
+            <option value="21" selected>저녁 9시</option>
+            <option value="22">저녁 10시</option>
+            <option value="23">저녁 11시</option>
+          </select>
+        </div>
+
+        <button type="button" class="row-card row-btn" id="btn-show-onboard">
+          <span class="row-text">
+            <b>사용법 다시 보기</b>
+            <span>돌탑이 쌓이는 방법을 처음부터 알려드려요</span>
+          </span>
+          <span class="row-arrow" aria-hidden="true">›</span>
+        </button>
+
+        <button type="button" class="row-card row-btn" id="btn-export">
+          <span class="row-text">
+            <b>기록 내보내기</b>
+            <span>지금까지의 기록을 파일로 저장해 둬요</span>
+          </span>
+          <span class="row-arrow" aria-hidden="true">›</span>
+        </button>
+
+        <button type="button" class="row-card row-btn" id="btn-import">
+          <span class="row-text">
+            <b>기록 가져오기</b>
+            <span>내보내 둔 파일로 기록을 되살려요</span>
+          </span>
+          <span class="row-arrow" aria-hidden="true">›</span>
+        </button>
+        <input type="file" id="file-import" accept="application/json,.json" hidden />
+
+        <div class="row-card row-info">
+          <span class="row-text">
+            <b>작심삼일</b>
+            <span>기록은 이 기기에만 저장돼요 · v1.0</span>
+          </span>
         </div>
       </div>
-    </section>
 
-    <section class="empty" id="empty" hidden>
-      <div class="empty-cairn" aria-hidden="true"></div>
-      <h2>첫 돌을 쌓아볼까요?</h2>
-      <p>
-        약속은 딱 3일. 3일을 채우면 돌 하나가 쌓여요.<br />
-        무너져도 괜찮아요 — 돌탑은 원래<br />
-        무너지면 다시 쌓는 거니까요.
-      </p>
-    </section>
+      <footer class="footer">
+        <p>작심삼일도 여러 번 하면, 평생이 된다</p>
+      </footer>
+    </main>
 
-    <div class="section-head" id="section-head" hidden>
-      <h2>오늘의 작심</h2>
-    </div>
-
-    <main id="goal-list" class="goal-list"></main>
-
-    <button class="add-card" id="btn-add">＋ <b>새 작심 만들기</b><span class="add-sub"> — 딱 3일만 약속해요</span></button>
-
-    <p class="note" id="note" hidden></p>
-
-    <div class="notify-row" id="notify-row" hidden>
-      <span class="notify-text">
-        <b>돌 얹을 시간 알림</b>
-        <span>저녁 9시에 조용히 알려드려요. 쉬는 동안에도 돌아올 자리를 남겨둡니다.</span>
-      </span>
-      <button type="button" class="switch" id="btn-notify" role="switch" aria-checked="false" aria-label="알림 받기">
-        <span class="switch-knob"></span>
+    <!-- ── 탭바 ────────────────────────── -->
+    <nav class="tabbar" aria-label="주요 화면">
+      <button type="button" class="tab on" data-view="home">
+        <span class="tab-ico" aria-hidden="true"></span>홈
       </button>
-    </div>
+      <button type="button" class="tab" data-view="record">
+        <span class="tab-ico" aria-hidden="true"></span>기록
+      </button>
+      <button type="button" class="tab" data-view="settings">
+        <span class="tab-ico" aria-hidden="true"></span>설정
+      </button>
+    </nav>
 
-    <button class="install-card" id="btn-install" hidden>
-      <span class="install-icon" aria-hidden="true"></span>
-      <span class="install-text">
-        <b>홈 화면에 두기</b>
-        <span id="install-sub">앱처럼 열리고, 인터넷이 없어도 돌을 얹을 수 있어요</span>
-      </span>
-    </button>
-
-    <div class="data-actions">
-      <button type="button" id="btn-export">기록 내보내기</button>
-      <span aria-hidden="true">·</span>
-      <button type="button" id="btn-import">가져오기</button>
-      <input type="file" id="file-import" accept="application/json,.json" hidden />
-    </div>
-
-    <footer class="footer">
-      <p>작심삼일도 여러 번 하면, 평생이 된다</p>
-    </footer>
-
-    <!-- 작심 기록 -->
+    <!-- 작심 기록 시트 -->
     <div class="modal-backdrop" id="detail" hidden>
       <div class="modal detail" role="dialog" aria-modal="true" aria-labelledby="detail-title">
         <div class="detail-head">
@@ -100,18 +191,14 @@
         <div class="detail-stats" id="detail-stats"></div>
 
         <div class="cal-head">
-          <span>지난 12주</span>
-          <span class="cal-legend">
-            <i class="cal-dot"></i> 쉬어감
-            <i class="cal-dot on"></i> 쌓은 날
-          </span>
+          <button type="button" class="cal-nav" id="detail-cal-prev" aria-label="지난달">‹</button>
+          <b id="detail-cal-title"></b>
+          <button type="button" class="cal-nav" id="detail-cal-next" aria-label="다음달">›</button>
         </div>
-        <div class="cal-wrap">
-          <div class="cal-days" aria-hidden="true">
-            <span>일</span><span></span><span>화</span><span></span><span>목</span><span></span><span>토</span>
-          </div>
-          <div class="cal" id="detail-cal"></div>
+        <div class="mcal-week" aria-hidden="true">
+          <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
         </div>
+        <div class="mcal" id="detail-mcal"></div>
         <p class="detail-word" id="detail-word"></p>
 
         <div class="modal-actions">
@@ -161,6 +248,28 @@
         </form>
       </div>
     </div>
+
+    <!-- 처음 만나는 안내 -->
+    <div class="onboard" id="onboard" hidden>
+      <button type="button" class="ob-skip" id="ob-skip">건너뛰기</button>
+      <div class="ob-body" id="ob-body"></div>
+      <div class="ob-foot">
+        <div class="ob-dots" id="ob-dots" aria-hidden="true"></div>
+        <button type="button" class="btn btn-primary" id="ob-next">다음</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 앱을 열 때 잠깐 — 돌이 하나씩 쌓이는 걸 보고 시작한다 -->
+  <div class="intro" id="intro">
+    <div class="intro-stage" aria-hidden="true">
+      <span class="intro-stone s1"></span>
+      <span class="intro-stone s2"></span>
+      <span class="intro-stone s3"></span>
+      <span class="intro-ground"></span>
+    </div>
+    <h1 class="intro-brand">작심<em>삼일</em></h1>
+    <p class="intro-line">딱 3일만 약속해요</p>
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

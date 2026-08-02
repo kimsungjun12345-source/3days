@@ -49,6 +49,18 @@ function serve() {
   const errors = [];
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
 
+
+  // 인트로와 첫 사용 안내는 실제 흐름이지만, 아래 검사들의 대상은 아니다.
+  // 프로덕션 코드를 건드리지 않고 테스트에서만 건너뛴다.
+  await page.addInitScript(() => {
+    localStorage.setItem("jaksim3.onboarded", "1");
+    const style = document.createElement("style");
+    style.textContent = ".intro{display:none !important}";
+    const put = () => document.head && document.head.appendChild(style);
+    if (document.head) put();
+    else document.addEventListener("DOMContentLoaded", put);
+  });
+
   const assert = (cond, name) => {
     console.log((cond ? "PASS" : "FAIL") + "  " + name);
     if (!cond) process.exitCode = 1;
