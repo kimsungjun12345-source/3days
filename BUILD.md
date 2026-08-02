@@ -64,16 +64,61 @@ Chromium 경로가 다르면 `CHROMIUM_PATH` 환경변수로 알려 주세요.
 4. Product → Archive → App Store Connect 업로드
 5. 애플 개발자 프로그램 연 $99
 
-### 안드로이드
+### 안드로이드 — 맥 없이도 됩니다
 
-1. 서명 키 만들기
-   ```bash
-   keytool -genkey -v -keystore jaksimsamil.keystore \
-     -alias jaksimsamil -keyalg RSA -keysize 2048 -validity 10000
-   ```
-   **이 파일과 비밀번호를 잃어버리면 같은 앱으로 업데이트할 수 없습니다.**
-2. Android Studio → Build → Generate Signed Bundle (AAB)
-3. Play Console 등록비 1회 $25
+안드로이드는 윈도우·리눅스에서 그대로 빌드됩니다. 로컬에 아무것도 깔지
+않고 **GitHub Actions로만** 낼 수도 있습니다.
+
+#### 1. 서명 키 만들기 (한 번만)
+
+```bash
+keytool -genkey -v -keystore jaksimsamil.keystore \
+  -alias jaksimsamil -keyalg RSA -keysize 2048 -validity 10000
+```
+
+**이 파일과 비밀번호를 잃어버리면 같은 앱으로 업데이트할 수 없습니다.**
+비밀번호 관리자에 함께 보관하세요.
+
+#### 2. GitHub Actions로 빌드 (권장)
+
+저장소 Settings → Secrets and variables → Actions에 네 가지를 넣습니다.
+
+| 이름 | 값 |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | `base64 -w0 jaksimsamil.keystore` 결과 (macOS는 `base64 -i`) |
+| `ANDROID_KEYSTORE_PASSWORD` | 키스토어 비밀번호 |
+| `ANDROID_KEY_ALIAS` | `jaksimsamil` |
+| `ANDROID_KEY_PASSWORD` | 키 비밀번호 |
+
+그다음 릴리스 태그를 밀면 서명된 AAB가 나옵니다.
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+Actions 탭 → 해당 실행 → Artifacts에서 `jaksimsamil-release-aab`를 받아
+Play Console에 올리면 됩니다. 시크릿을 넣기 전에도 **푸시할 때마다 디버그
+APK**가 만들어지므로, 그것만 받아 폰에 설치해 바로 확인할 수 있습니다.
+
+#### 3. 로컬에서 빌드하려면
+
+Android Studio를 설치한 뒤 `npm run android` → Build → Generate Signed Bundle.
+
+#### 4. Play Console
+
+등록비 1회 $25. 첫 출시 전에 준비할 것:
+
+- 앱 아이콘 512×512 (`icons/icon-512.png`)
+- 스크린샷 최소 2장 (`store/screenshots/android/`)
+- 짧은 설명·전체 설명 (`store/LISTING.md`)
+- 개인정보 처리방침 URL (`store/privacy.html`을 호스팅)
+- 데이터 안전 양식: **수집 항목 없음**으로 신고
+
+#### 버전 올리기
+
+`android/app/build.gradle`의 `versionCode`(정수, 매번 +1)와
+`versionName`(사람이 읽는 버전)을 함께 올립니다. Play는 같은
+`versionCode`를 두 번 받지 않습니다.
 
 ### 심사에서 자주 걸리는 것
 

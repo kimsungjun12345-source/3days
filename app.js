@@ -1054,6 +1054,24 @@ function setupNotifyToggle() {
   });
 }
 
+/* 열려 있는 시트 중 가장 위의 것을 닫는다.
+ * 안드로이드 뒤로가기와 ESC가 같은 규칙을 쓰도록 한곳에 모아 둔다. */
+function closeTopLayer() {
+  if (!$("cheer").hidden) {
+    closeCheer();
+    return true;
+  }
+  if (!$("detail").hidden) {
+    closeDetail();
+    return true;
+  }
+  if (!$("modal").hidden) {
+    closeModal();
+    return true;
+  }
+  return false;
+}
+
 function openModal() {
   selectIcon(ICON_KEYS[0]);
   $("modal").hidden = false;
@@ -1068,6 +1086,10 @@ function closeModal() {
 
 setupModal();
 render();
+
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape") closeTopLayer();
+});
 
 // 자정을 넘겨 열어둔 화면도 날짜에 맞게 갱신
 setInterval(() => {

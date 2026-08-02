@@ -280,6 +280,40 @@ function dstr(offset) {
   await shot.saveAs(shotPath);
   assert(fs.statSync(shotPath).size > 20000, "saved share card is a real image, not an empty file");
 
+  // 17. 뒤로가기 / ESC — 열려 있는 시트부터 닫는다
+  //     (안드로이드에서 이 처리가 없으면 시트 위에서 앱이 통째로 꺼진다)
+  await page.evaluate(([d2, d1]) => {
+    localStorage.setItem("jaksim3.v1", JSON.stringify({ goals: [
+      { id: "bk", title: "아침에 물 한 잔", icon: "water", createdAt: "",
+        checks: [d2, d1], history: [d2, d1], lastCheckDate: d1,
+        totalDays: 8, completedCycles: 2, restarts: 1 }]}));
+  }, [dstr(-2), dstr(-1)]);
+  await page.reload();
+
+  await page.click("#btn-add");
+  assert(await page.locator("#modal").isVisible(), "new-goal sheet opens");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  assert(await page.locator("#modal").isHidden(), "escape closes the new-goal sheet");
+
+  await page.click(".goal-top");
+  await page.waitForTimeout(300);
+  assert(await page.locator("#detail").isVisible(), "record sheet opens");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  assert(await page.locator("#detail").isHidden(), "escape closes the record sheet");
+
+  await page.click(".goal-card .btn-primary");
+  await page.waitForTimeout(1800);
+  assert(await page.locator("#cheer").isVisible(), "celebration is open");
+  assert(await page.evaluate(() => closeTopLayer()), "back button reports it handled the celebration");
+  await page.waitForTimeout(300);
+  assert(await page.locator("#cheer").isHidden(), "back button closes the celebration");
+  assert(
+    (await page.evaluate(() => closeTopLayer())) === false,
+    "with nothing open the back button falls through so android can exit"
+  );
+
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 
   await page.screenshot({ path: __dirname + "/screenshot.png", fullPage: true });

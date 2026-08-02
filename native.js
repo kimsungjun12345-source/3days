@@ -190,14 +190,21 @@ async function setupNativeShell() {
     /* 무시 */
   }
 
+  if (!NP.App) return;
+
   // 앱으로 돌아올 때마다 날짜와 알림을 다시 맞춘다
-  if (NP.App) {
-    NP.App.addListener("appStateChange", ({ isActive }) => {
-      if (!isActive) return;
-      if (typeof render === "function") render();
-      rescheduleNotifications();
-    });
-  }
+  NP.App.addListener("appStateChange", ({ isActive }) => {
+    if (!isActive) return;
+    if (typeof render === "function") render();
+    rescheduleNotifications();
+  });
+
+  // 안드로이드 뒤로가기: 열려 있는 시트부터 닫고, 없을 때만 앱을 나간다.
+  // 이 처리가 없으면 축하 화면에서 뒤로가기를 눌렀을 때 앱이 통째로 꺼진다.
+  NP.App.addListener("backButton", () => {
+    if (typeof closeTopLayer === "function" && closeTopLayer()) return;
+    NP.App.exitApp();
+  });
 }
 
 setupNativeShell();

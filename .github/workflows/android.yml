@@ -1,0 +1,101 @@
+name: 안드로이드 빌드
+
+# 맥 없이 안드로이드 앱을 만들기 위한 워크플로.
+# - 평소: 푸시할 때마다 디버그 APK를 만들어 기기에 바로 설치해 볼 수 있게 한다
+# - 릴리스: 태그를 밀거나 수동 실행하면 서명된 AAB(스토어 업로드용)를 만든다
+#
+# 서명에 필요한 값은 저장소 Settings → Secrets에 넣어 둔다.
+#   ANDROID_KEYSTORE_BASE64  : keystore 파일을 base64로 변환한 문자열
+#   ANDROID_KEYSTORE_PASSWORD
+#   ANDROID_KEY_ALIAS
+#   ANDROID_KEY_PASSWORD
+# (base64 변환:  base64 -w0 jaksimsamil.keystore  또는 macOS는  base64 -i ...)
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "서명된 AAB까지 만들기 (시크릿 설정 필요)"
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: 안드로이드 SDK 준비
+        uses: android-actions/setup-android@v3
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: 웹 자산 빌드 후 네이티브에 동기화
+        run: |
+          npm run build
+          npx cap sync android
+
+      - name: 디버그 APK
+        run: ./gradlew assembleDebug --no-daemon
+        working-directory: android
+
+      - name: 디버그 APK 올리기
+        uses: actions/upload-artifact@v4
+        with:
+          name: jaksimsamil-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      # ── 여기서부터는 스토어 업로드용 (시크릿이 있을 때만) ──
+
+      - name: 서명 키 복원
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 시크릿이 없습니다. BUILD.md의 서명 키 만들기를 먼저 진행하세요."
+            exit 1
+          fi
+          echo "$KEYSTORE" | base64 -d > android/app/release.keystore
+
+      - name: 서명된 AAB
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          ./gradlew bundleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=$PWD/app/release.keystore \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+        working-directory: android
+
+      - name: AAB 올리기
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release
+        uses: actions/upload-artifact@v4
+        with:
+          name: jaksimsamil-release-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+
+      - name: 서명 키 지우기
+        if: always()
+        run: rm -f android/app/release.keystore
