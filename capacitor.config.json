@@ -1,0 +1,25 @@
+{
+  "appId": "com.jaksimsamil.app",
+  "appName": "작심삼일",
+  "webDir": "www",
+  "backgroundColor": "#f7f6f3",
+  "ios": {
+    "contentInset": "always",
+    "backgroundColor": "#f7f6f3"
+  },
+  "android": {
+    "backgroundColor": "#f7f6f3"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 600,
+      "backgroundColor": "#f7f6f3",
+      "showSpinner": false,
+      "androidScaleType": "CENTER_CROP"
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_stone",
+      "iconColor": "#e85d3d"
+    }
+  }
+}

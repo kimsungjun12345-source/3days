@@ -210,7 +210,14 @@ async function shareCard(info) {
   const blob = await canvasToBlob(canvas);
   if (!blob) return { ok: false };
 
-  const file = new File([blob], `jaksimsamil-${info.dateKey}.png`, { type: "image/png" });
+  const name = `jaksimsamil-${info.dateKey}.png`;
+  const file = new File([blob], name, { type: "image/png" });
+
+  // 앱으로 감쌌으면 네이티브 공유 시트를 먼저 시도한다
+  if (typeof nativeShareImage === "function") {
+    const shared = await nativeShareImage(blob, name, `${info.title} — 작심삼일`);
+    if (shared) return { ok: true, how: "share" };
+  }
 
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {

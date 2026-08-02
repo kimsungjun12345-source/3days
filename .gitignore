@@ -1,2 +1,18 @@
 node_modules/
 test/screenshot.png
+
+# 빌드로 만들어지는 것 (npm run build / cap sync 로 언제든 다시 생성)
+www/
+
+# 네이티브 빌드 산출물 — 프로젝트 폴더 자체는 저장소에 둔다
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/capacitor-cordova-android-plugins/
+ios/App/Pods/
+ios/App/build/
+ios/App/Podfile.lock
+ios/capacitor-cordova-ios-plugins/
+DerivedData/
+*.xcuserstate

@@ -379,6 +379,68 @@ body {
   font-weight: 700;
 }
 
+/* ── 알림 토글 (앱에서만) ───────────── */
+.notify-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: 0 1px 4px rgba(40, 35, 25, 0.04);
+}
+
+.notify-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.notify-text b {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.notify-text span {
+  font-size: 0.76rem;
+  color: var(--gray);
+  word-break: keep-all;
+}
+
+.switch {
+  flex-shrink: 0;
+  width: 50px;
+  height: 30px;
+  border: none;
+  border-radius: 999px;
+  background: #ded8cf;
+  padding: 3px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.switch.on {
+  background: var(--accent);
+}
+
+.switch-knob {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(40, 35, 25, 0.3);
+  transition: transform 0.2s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.switch.on .switch-knob {
+  transform: translateX(20px);
+}
+
 /* ── 홈 화면에 두기 ────────────────── */
 .install-card {
   display: flex;

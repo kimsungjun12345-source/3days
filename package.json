@@ -1,0 +1,26 @@
+{
+  "name": "jaksimsamil",
+  "version": "1.0.0",
+  "private": true,
+  "description": "작심삼일 — 딱 3일만 약속하는 습관 앱",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "sync": "npm run build && cap sync",
+    "ios": "npm run sync && cap open ios",
+    "android": "npm run sync && cap open android",
+    "test": "node test/smoke.js && node test/pwa.js"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/local-notifications": "^8.2.1",
+    "@capacitor/share": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/ios": "^8.5.0"
+  }
+}

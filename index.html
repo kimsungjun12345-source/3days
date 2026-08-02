@@ -58,6 +58,16 @@
 
     <p class="note" id="note" hidden></p>
 
+    <div class="notify-row" id="notify-row" hidden>
+      <span class="notify-text">
+        <b>돌 얹을 시간 알림</b>
+        <span>저녁 9시에 조용히 알려드려요. 쉬는 동안에도 돌아올 자리를 남겨둡니다.</span>
+      </span>
+      <button type="button" class="switch" id="btn-notify" role="switch" aria-checked="false" aria-label="알림 받기">
+        <span class="switch-knob"></span>
+      </button>
+    </div>
+
     <button class="install-card" id="btn-install" hidden>
       <span class="install-icon" aria-hidden="true"></span>
       <span class="install-text">
@@ -154,6 +164,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   <div id="confetti" class="confetti-layer" aria-hidden="true"></div>
   <script src="icons.js"></script>
+  <script src="native.js"></script>
   <script src="share.js"></script>
   <script src="app.js"></script>
   <script src="pwa.js"></script>

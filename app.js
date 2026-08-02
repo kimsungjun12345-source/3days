@@ -366,6 +366,8 @@ function render() {
   renderStats();
   renderGoals();
   runPendingAnim();
+  // 상태가 바뀌면 앞으로 보낼 알림도 다시 짠다 (네이티브에서만 동작)
+  if (typeof rescheduleNotifications === "function") rescheduleNotifications();
 }
 
 function renderStats() {
@@ -572,7 +574,10 @@ function renderGoalCard(goal) {
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+/* 앱으로 감쌌을 때는 OS 햅틱 엔진을, 웹에서는 진동을 쓴다 */
 function haptic(ms) {
+  const kind = Array.isArray(ms) ? "success" : ms >= 16 ? "heavy" : "light";
+  if (typeof nativeHaptic === "function" && nativeHaptic(kind)) return;
   if (navigator.vibrate) navigator.vibrate(ms);
 }
 
@@ -972,6 +977,8 @@ function setupModal() {
     closeModal();
   });
 
+  setupNotifyToggle();
+
   $("btn-export").addEventListener("click", exportData);
   $("btn-import").addEventListener("click", () => $("file-import").click());
   $("file-import").addEventListener("change", (ev) => {
@@ -1018,6 +1025,32 @@ function setupModal() {
     const goal = state.goals.find((g) => g.id === cheerGoalId);
     closeCheer();
     if (goal) nextCycle(goal);
+  });
+}
+
+/* 알림은 앱으로 감쌌을 때만 의미가 있으므로 그때만 노출한다 */
+function setupNotifyToggle() {
+  const row = $("notify-row");
+  const btn = $("btn-notify");
+  if (!row || !btn || typeof IS_NATIVE === "undefined" || !IS_NATIVE) return;
+
+  row.hidden = false;
+  const paint = () => {
+    const on = notifyEnabled();
+    btn.classList.toggle("on", on);
+    btn.setAttribute("aria-checked", on ? "true" : "false");
+  };
+  paint();
+
+  btn.addEventListener("click", async () => {
+    const turningOn = !notifyEnabled();
+    const ok = await setNotifyEnabled(turningOn);
+    paint();
+    if (turningOn && !ok) {
+      toast("stone", "설정에서 알림을 허용해 주세요");
+    } else if (turningOn) {
+      toast("stone", "저녁 9시에 알려드릴게요");
+    }
   });
 }
 
