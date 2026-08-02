@@ -6,6 +6,13 @@
   <meta name="theme-color" content="#f7f6f3" />
   <meta name="description" content="작심삼일 — 딱 3일만 약속하는 습관 앱. 3일마다 돌 하나, 무너지면 다시 쌓기." />
   <title>작심삼일</title>
+
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="작심삼일" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
@@ -50,6 +57,14 @@
     <button class="add-card" id="btn-add">＋ <b>새 작심 만들기</b><span class="add-sub"> — 딱 3일만 약속해요</span></button>
 
     <p class="note" id="note" hidden></p>
+
+    <button class="install-card" id="btn-install" hidden>
+      <span class="install-icon" aria-hidden="true"></span>
+      <span class="install-text">
+        <b>홈 화면에 두기</b>
+        <span id="install-sub">앱처럼 열리고, 인터넷이 없어도 돌을 얹을 수 있어요</span>
+      </span>
+    </button>
 
     <div class="data-actions">
       <button type="button" id="btn-export">기록 내보내기</button>
@@ -141,5 +156,6 @@
   <script src="icons.js"></script>
   <script src="share.js"></script>
   <script src="app.js"></script>
+  <script src="pwa.js"></script>
 </body>
 </html>
