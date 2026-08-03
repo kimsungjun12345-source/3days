@@ -239,7 +239,9 @@ async function rescheduleNotifications() {
  * Capacitor에서 Style.LIGHT는 '밝은 배경용(어두운 글자)', DARK는 그 반대다. */
 async function applyStatusBarTheme() {
   if (!IS_NATIVE || !NP.StatusBar) return;
-  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  // 기기 설정이 아니라 앱이 실제로 칠한 색을 따라간다 —
+  // 설정에서 '어둡게'를 골랐는데 상태바만 밝으면 이가 빠져 보인다
+  const dark = document.documentElement.dataset.theme === "dark";
   try {
     await NP.StatusBar.setStyle({ style: dark ? "DARK" : "LIGHT" });
     if (Cap.getPlatform && Cap.getPlatform() === "android") {
@@ -254,10 +256,10 @@ async function setupNativeShell() {
   if (!IS_NATIVE) return;
   try {
     await applyStatusBarTheme();
-    // 설정에서 테마를 바꾸면 상태바도 따라가야 한다
+    // 기기 설정을 따르는 중에 해가 지고 뜨면 상태바도 같이 바뀌어야 한다
     window
       .matchMedia("(prefers-color-scheme: dark)")
-      .addEventListener("change", applyStatusBarTheme);
+      .addEventListener("change", () => setTimeout(applyStatusBarTheme, 0));
     if (NP.SplashScreen) await NP.SplashScreen.hide();
   } catch (e) {
     /* 무시 */

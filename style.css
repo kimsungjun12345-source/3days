@@ -38,55 +38,60 @@
   --toast-bg: rgba(27, 26, 24, 0.94);
   --toast-fg: #fdfcfa;
   --garden-glow: #faf8f4;
+  --seg-on: #ffffff;      /* 셋 중 고른 칸 — 바탕보다 떠 보여야 한다 */
   --accent-glow: rgba(232, 93, 61, 0.28);
   --accent-glow-soft: rgba(232, 93, 61, 0.22);
 }
 
 /* 저녁 9시 알림을 받고 여는 앱이라 어두운 곳에서 쓸 일이 많다.
-   돌은 사라지지 않고, 달빛을 받은 것처럼 톤만 낮아진다. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #161513;
-    --card: #201f1c;
-    --line: #2d2b26;
-    --ink: #f0ece4;
-    --gray: #8a837a;
-    --gray-strong: #aca496;
-    --chip: #2a2824;
-    --accent: #f4744f;
-    --accent-soft: #3a251e;
-    --sage: #86a578;
+   돌은 사라지지 않고, 달빛을 받은 것처럼 톤만 낮아진다.
 
-    --stone-side-1: #b3ab9c;
-    --stone-side-2: #8c8474;
-    --stone-side-3: #635c4e;
-    --stone-side-4: #423c33;
-    --stone-top-1: #c2baa9;
-    --stone-top-2: #9d9584;
-    --stone-top-3: #726a5c;
-    --stone-shadow: rgba(0, 0, 0, 0.5);
-    --stone-shine: rgba(255, 250, 238, 0.16);
-    --ground-shadow: rgba(0, 0, 0, 0.42);
-    --garden-ground: #2f2c26;
-    --slot-fill: rgba(244, 116, 79, 0.12);
-    --ghost-stone: rgba(180, 172, 156, 0.14);
+   기기 설정을 따르는지, 밝게 고정인지, 어둡게 고정인지는 설정에서 고른다.
+   그 판단은 CSS가 아니라 <head>의 짧은 스크립트가 내려서 html에
+   data-theme="dark|light"로 박아 준다. 덕분에 어두운 팔레트를
+   (기기 설정용 / 직접 고른 용) 두 벌로 복사해 두지 않아도 된다. */
+:root[data-theme="dark"] {
+  --bg: #161513;
+  --card: #201f1c;
+  --line: #2d2b26;
+  --ink: #f0ece4;
+  --gray: #8a837a;
+  --gray-strong: #aca496;
+  --chip: #2a2824;
+  --accent: #f4744f;
+  --accent-soft: #3a251e;
+  --sage: #86a578;
 
-    --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.28);
-    --scrim: rgba(8, 7, 6, 0.62);
+  --stone-side-1: #b3ab9c;
+  --stone-side-2: #8c8474;
+  --stone-side-3: #635c4e;
+  --stone-side-4: #423c33;
+  --stone-top-1: #c2baa9;
+  --stone-top-2: #9d9584;
+  --stone-top-3: #726a5c;
+  --stone-shadow: rgba(0, 0, 0, 0.5);
+  --stone-shine: rgba(255, 250, 238, 0.16);
+  --ground-shadow: rgba(0, 0, 0, 0.42);
+  --garden-ground: #2f2c26;
+  --slot-fill: rgba(244, 116, 79, 0.12);
+  --ghost-stone: rgba(180, 172, 156, 0.14);
 
-    /* 진한 버튼은 밝은 배경에 어두운 글자로 뒤집는다 */
-    --on-accent: #1c1310;
-    --solid-bg: #ece7dd;
-    --solid-fg: #1b1a18;
-    --sage-soft: #242e21;
-    --dashed: #3a3730;
-    --dot-empty: #5c564d;
-    --toast-bg: rgba(240, 236, 228, 0.95);
-    --toast-fg: #1b1a18;
-    --garden-glow: rgba(255, 250, 236, 0.05);
-    --accent-glow: rgba(244, 116, 79, 0.22);
-    --accent-glow-soft: rgba(244, 116, 79, 0.16);
-  }
+  --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.28);
+  --scrim: rgba(8, 7, 6, 0.62);
+
+  /* 진한 버튼은 밝은 배경에 어두운 글자로 뒤집는다 */
+  --on-accent: #1c1310;
+  --solid-bg: #ece7dd;
+  --solid-fg: #1b1a18;
+  --sage-soft: #242e21;
+  --dashed: #3a3730;
+  --dot-empty: #5c564d;
+  --toast-bg: rgba(240, 236, 228, 0.95);
+  --toast-fg: #1b1a18;
+  --garden-glow: rgba(255, 250, 236, 0.05);
+  --seg-on: #3b3833;
+  --accent-glow: rgba(244, 116, 79, 0.22);
+  --accent-glow-soft: rgba(244, 116, 79, 0.16);
 }
 
 * {
@@ -963,7 +968,13 @@ body {
 }
 
 /* 쌓는 중인 돌 자리 */
+/* 쌓는 중인 돌 자리는 늘 남아 있고, 숨을 쉬는 건 오늘 할 일이 남았을 때뿐.
+   오늘 해내면 깜빡임이 멎으면서 자리가 차분해진다 — 그것 자체가 보상이다. */
 .building-stone {
+  opacity: 0.45;
+}
+
+.building-stone.waiting {
   animation: building-pulse 2.8s ease-in-out infinite;
 }
 
@@ -1604,6 +1615,43 @@ body {
   background: none;
   box-shadow: none;
   border-style: dashed;
+}
+
+/* 한 줄에 다 안 들어가는 설정은 위아래로 쌓는다 */
+.row-stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+/* 셋 중 하나 고르기 */
+.seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--chip);
+}
+
+.seg-item {
+  flex: 1;
+  height: 36px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--gray-strong);
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.seg-item.on {
+  background: var(--seg-on);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: var(--shadow-card);
 }
 
 /* 시각 고르기 — 보이는 건 '밤 9시 30분'이라는 한국어 알약이고,

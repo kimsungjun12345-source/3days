@@ -3,11 +3,35 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f6f3" />
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#161513" />
+  <meta name="theme-color" content="#f7f6f3" id="theme-color" />
   <meta name="color-scheme" content="light dark" />
   <meta name="description" content="작심삼일 — 딱 3일만 약속하는 습관 앱. 3일마다 돌 하나, 무너지면 다시 쌓기." />
   <title>작심삼일</title>
+
+  <!-- 화면 밝기 정하기 — 스타일시트보다 먼저 달려야 첫 화면이 번쩍이지 않는다.
+       설정값은 '기기 설정 따르기(auto) / 밝게 / 어둡게' 셋 중 하나이고,
+       여기서 실제 색(dark|light)으로 풀어 html에 박아 둔다. -->
+  <script>
+    (function () {
+      var KEY = "jaksim3.theme";
+      window.THEME_KEY = KEY;
+      window.applyTheme = function () {
+        var pref = localStorage.getItem(KEY) || "auto";
+        var dark =
+          pref === "dark" ||
+          (pref !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+        var meta = document.getElementById("theme-color");
+        if (meta) meta.setAttribute("content", dark ? "#161513" : "#f7f6f3");
+        return dark;
+      };
+      window.applyTheme();
+      // 기기 설정을 따르는 중이라면 해가 지고 뜨는 것도 따라간다
+      matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+        if ((localStorage.getItem(KEY) || "auto") === "auto") window.applyTheme();
+      });
+    })();
+  </script>
 
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
@@ -104,6 +128,18 @@
     <!-- ── 설정 ────────────────────────── -->
     <main id="view-settings" class="view" hidden>
       <div class="settings-list">
+
+        <div class="row-card row-stack">
+          <span class="row-text">
+            <b>화면 밝기</b>
+            <span id="theme-sub">기기 설정을 따라가요</span>
+          </span>
+          <div class="seg" id="theme-seg" role="radiogroup" aria-label="화면 밝기">
+            <button type="button" class="seg-item" data-theme-pref="auto" role="radio" aria-checked="true">기기 설정</button>
+            <button type="button" class="seg-item" data-theme-pref="light" role="radio" aria-checked="false">밝게</button>
+            <button type="button" class="seg-item" data-theme-pref="dark" role="radio" aria-checked="false">어둡게</button>
+          </div>
+        </div>
 
         <div class="row-card" id="notify-row" hidden>
           <span class="row-text">

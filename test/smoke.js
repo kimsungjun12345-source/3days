@@ -61,7 +61,11 @@ function dstr(offset) {
   await page.click("#form-add button[type=submit]");
   assert((await page.locator(".goal-card").count()) === 1, "goal card created");
   assert(await page.locator("#stats").isVisible(), "stats visible after adding goal");
-  assert((await page.locator(".goal-card .btn-primary").textContent()).includes("돌 얹기"), "fresh goal offers stone-check CTA");
+  // 하루치는 칸 하나다. 버튼이 '오늘의 돌'이라고 하면 돌 하나가 하루라는
+  // 뜻이 되어 '3일에 돌 하나'라는 규칙과 정면으로 어긋난다.
+  const freshCta = await page.locator(".goal-card .btn-primary").textContent();
+  assert(freshCta.includes("오늘"), "fresh goal offers a today CTA, got: " + freshCta);
+  assert(!freshCta.includes("돌"), "the daily CTA never promises a stone, got: " + freshCta);
 
   // 3. 오늘 체크
   await page.click(".goal-card .btn-primary");
@@ -234,10 +238,11 @@ function dstr(offset) {
   await reload();
   await page.waitForTimeout(200);
 
-  // 돌 하나는 그림자·측면·윗면이 묶인 <g> 한 덩어리
+  // 돌 하나는 그림자·측면·윗면이 묶인 <g> 한 덩어리.
+  // 쌓는 중인(아직 3일을 못 채운) 돌은 .slot-stone으로 표시돼 있으니 빼고 센다.
   const stonesIn = (id) => page.evaluate((i) => {
     const t = document.querySelector('#hero-garden .tower[data-goal-id="' + i + '"] .tower-inner');
-    return t ? t.querySelectorAll(":scope > g").length : -1;
+    return t ? t.querySelectorAll(":scope > g:not(.slot-stone)").length : -1;
   }, id);
 
   assert((await page.locator("#hero-garden .tower").count()) === 2, "every goal gets its own tower in the garden");
@@ -252,9 +257,12 @@ function dstr(offset) {
   await page.click("#cheer-close");
   await page.waitForTimeout(300);
 
-  // 오늘 할 일을 다 끝내면 정원에서 점선 자리가 사라진다
+  // 오늘 할 일을 다 끝내면 점선 자리가 숨을 멈춘다 — 자리 자체는 남는다.
+  // 자리를 통째로 걷어내면, 아직 돌이 하나도 없는 작심에서는 그릴 것이
+  // 바닥 그림자밖에 안 남아 정원이 얼룩 하나처럼 보인다.
   const slots = () => page.locator("#hero-garden .building-stone").count();
-  const before = await slots();
+  const pulsing = () => page.locator("#hero-garden .building-stone.waiting").count();
+  assert((await pulsing()) > 0, "an unfinished day breathes in the garden");
   await page.evaluate((d0) => {
     const s = JSON.parse(localStorage.getItem("jaksim3.v1"));
     s.goals.forEach((g) => { g.checks = [d0]; g.lastCheckDate = d0; });
@@ -262,7 +270,8 @@ function dstr(offset) {
   }, dstr(0));
   await reload();
   await page.waitForTimeout(200);
-  assert(before > 0 && (await slots()) === 0, "the garden clears once today is done");
+  assert((await slots()) > 0, "the stone being built keeps its place after today is done");
+  assert((await pulsing()) === 0, "but it stops breathing once today is done");
 
   // 15. 기록 내보내기 / 가져오기 — 저장소가 지워져도 되살릴 수 있어야 한다
   await page.evaluate((d1) => {
@@ -596,6 +605,96 @@ function dstr(offset) {
   await page.waitForTimeout(200);
   assert((await page.locator(".goal-card").count()) === 1, "a goal is made without ever typing");
   assert(await page.locator("#modal").isHidden(), "and the sheet closes itself");
+
+  // 24. 정원은 진행 중인 작심을 언제나 보여 준다
+  // 예전에는 '오늘 할 일이 남았을 때'만 쌓는 중인 자리를 그렸다. 그래서
+  // 돌이 아직 없는 작심에서 오늘 체크를 누르는 순간 그릴 것이 바닥
+  // 그림자밖에 남지 않았고, 정원이 얼룩 하나로 보였다.
+  await page.click(".goal-card .btn-primary");
+  await page.waitForTimeout(500);
+
+  const towerParts = async () =>
+    page.evaluate(() => {
+      const t = document.querySelector("#hero-garden .tower");
+      if (!t) return null;
+      return {
+        slot: !!t.querySelector(".building-stone"),
+        waiting: !!t.querySelector(".building-stone.waiting"),
+        // 그림자(그림자 필터가 걸린 것)를 뺀, 실제로 보이는 돌의 수
+        stones: t.querySelectorAll("ellipse[fill^='url(#stoneTop']").length,
+      };
+    });
+
+  assert((await towerParts()).stones >= 1, "a checked-in goal still shows a stone in the garden");
+  assert((await towerParts()).slot, "the stone being built keeps its place after today is done");
+  assert(!(await towerParts()).waiting, "and it stops pulsing once today is done");
+
+  // 하루 해낼 때마다 그 자리의 돌이 자란다 — '칸 셋이 돌 하나'가 눈에 보이도록
+  const slotStoneWidth = () =>
+    page.evaluate(() => {
+      const ring = document.querySelector("#hero-garden .tower .building-stone");
+      if (!ring) return 0;
+      // 점선 자리 바로 다음에 그려진 것이 자라는 중인 돌이다
+      const g = ring.nextElementSibling;
+      const top = g && g.querySelector("ellipse[fill^='url(#stoneTop']");
+      return top ? Number(top.getAttribute("rx")) : 0;
+    });
+
+  const day1 = await slotStoneWidth();
+  assert(day1 > 0, "one day in, a small stone has started to form");
+
+  await page.evaluate((d) => {
+    const g = state.goals[0];
+    g.checks = [d];
+    g.history = [d];
+    g.lastCheckDate = d;
+    save();
+    render();
+  }, dstr(-1));
+  await page.click(".goal-card .btn-primary");
+  await page.waitForTimeout(400);
+  const day2 = await slotStoneWidth();
+  assert(day2 > day1, `the stone grows on the second day (${day1} → ${day2})`);
+
+  // 25. 화면 밝기를 앱에서 직접 고른다
+  await page.click('.tab[data-view="settings"]');
+  await page.waitForTimeout(200);
+  assert((await page.locator("#theme-seg .seg-item").count()) === 3, "three brightness choices");
+  assert(
+    (await page.locator('.seg-item[data-theme-pref="auto"]').getAttribute("class")).includes("on"),
+    "it follows the device by default"
+  );
+
+  await page.click('.seg-item[data-theme-pref="dark"]');
+  await page.waitForTimeout(250);
+  assert(
+    (await page.evaluate(() => document.documentElement.dataset.theme)) === "dark",
+    "choosing dark really darkens the app"
+  );
+  assert(
+    (await page.evaluate(() => getComputedStyle(document.body).backgroundColor)) === "rgb(22, 21, 19)",
+    "and the night palette is actually applied"
+  );
+  assert(
+    (await page.evaluate(() => document.getElementById("theme-color").content)) === "#161513",
+    "the system bar colour follows too"
+  );
+
+  await page.click('.seg-item[data-theme-pref="light"]');
+  await page.waitForTimeout(250);
+  assert(
+    (await page.evaluate(() => document.documentElement.dataset.theme)) === "light",
+    "light stays light even if the device is dark"
+  );
+
+  // 고른 밝기는 앱을 다시 열어도 남아 있어야 한다
+  await page.reload();
+  await page.waitForFunction(() => !!document.querySelector(".goal-card"), null, { timeout: 5000 });
+  assert(
+    (await page.evaluate(() => document.documentElement.dataset.theme)) === "light",
+    "the choice survives a restart"
+  );
+  await page.evaluate(() => localStorage.removeItem("jaksim3.theme"));
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 

@@ -148,7 +148,7 @@ function nextCycle(goal, from) {
   } else {
     save();
     render();
-    toast("sleep", "내일 첫 돌에서 만나요");
+    toast("sleep", "내일 첫 칸부터 시작해요");
   }
 }
 
@@ -250,16 +250,19 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0) {
   let rx = 40;
   let ry = 13.5;
   let top = 0;
-  // 바닥에 드리운 그림자는 빛 반대쪽(오른쪽 아래)으로 살짝 밀어 둔다
-  const parts = [
-    `<ellipse cx="4" cy="2" rx="47" ry="8" fill="var(--ground-shadow)" filter="url(#groundShadow-${uid})"/>`,
-  ];
+  // 바닥 그림자는 마지막에 앞쪽으로 끼워 넣는다 — 크기가 실제로 서 있는
+  // 것의 발 너비를 따라야 하는데, 그건 다 그려 보기 전에는 알 수 없다.
+  // 늘 같은 크기로 두면 돌이 하나도 없는 탑에서 그림자만 커다랗게 남아
+  // 정원이 얼룩 하나처럼 보인다.
+  const parts = [];
+  let foot = 0;
 
   for (let i = 0; i < shown; i++) {
     y -= ry * 1.5;
     const tilt = i % 2 === 0 ? -1.6 : 1.7;
     const cx = i % 2 === 0 ? -1.5 : 1.5;
     parts.push(stonePiece(cx, y, rx, ry, tilt, uid));
+    foot = Math.max(foot, rx);
     top = Math.min(top, y - ry);
     y -= ry * 0.4;
     rx *= 0.85;
@@ -278,16 +281,44 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0) {
     ry *= 0.93;
   }
 
-  if (building) {
+  /* 쌓는 중인 돌 자리.
+   *
+   * building은 참/거짓이거나 { done, waiting } 이다. done은 이번 3일 중
+   * 며칠을 해냈는지(0~2). 예전에는 이 자리를 '오늘 할 일이 남았을 때'만
+   * 그렸는데, 그러면 돌이 아직 하나도 없는 작심에서 오늘 체크를 하는 순간
+   * 그릴 것이 바닥 그림자밖에 남지 않아 정원이 얼룩 하나로 보였다.
+   *
+   * 이제는 이번 3일이 도는 동안 늘 이 자리를 지키고, 하루 해낼 때마다
+   * 그 안의 돌이 자란다. 3일째에 점선을 꽉 채우며 진짜 돌이 되니까
+   * '칸 셋이 돌 하나'라는 규칙이 정원에서도 눈으로 보인다. */
+  const slot = building === true ? { done: 0, waiting: true } : building || null;
+  if (slot) {
     const by = y - ry * 1.3;
     const brx = Math.max(rx * 0.92, 15);
     const bry = Math.max(ry * 0.88, 6);
+    const grown = Math.min(Math.max(slot.done, 0), 2) / 3;
     parts.push(
-      `<ellipse class="building-stone" cx="0" cy="${by}" rx="${brx}" ry="${bry}"
+      `<ellipse class="building-stone${slot.waiting ? " waiting" : ""}" cx="0" cy="${by.toFixed(1)}"
+        rx="${brx.toFixed(1)}" ry="${bry.toFixed(1)}"
         fill="var(--slot-fill)" stroke="var(--accent)" stroke-width="1.6" stroke-dasharray="4.5 3.5"/>`
     );
+    if (grown > 0) {
+      // 자라는 동안에는 점선 안에 얌전히 들어가도록 조금 작게 앉힌다.
+      // 다 쌓은 돌과 구분되도록 표를 해 둔다 — 이건 아직 돌 하나가 아니다.
+      parts.push(
+        `<g class="slot-stone">${stonePiece(0, by - bry * 0.3, brx * (0.44 + 0.46 * grown), bry * (0.4 + 0.5 * grown), 0, uid)}</g>`
+      );
+    }
+    foot = Math.max(foot, brx);
     top = Math.min(top, by - bry);
   }
+
+  // 바닥에 드리운 그림자는 빛 반대쪽(오른쪽 아래)으로 살짝 밀어 둔다
+  const shadowRx = Math.max(foot * 1.18, 16);
+  parts.unshift(
+    `<ellipse cx="4" cy="2" rx="${shadowRx.toFixed(1)}" ry="${(shadowRx * 0.17).toFixed(1)}"
+      fill="var(--ground-shadow)" filter="url(#groundShadow-${uid})"/>`
+  );
 
   return { markup: parts.join("\n"), top };
 }
@@ -323,9 +354,13 @@ function gardenSVG(goals) {
   const groups = drawOrder.map(({ goal, stones, spot }) => {
     const held = heldGoalId === goal.id;
     const st = goalStatus(goal);
-    // 점선 자리는 '오늘 아직 남은 일'일 때만 — 오늘 할 걸 다 하면 정원이 말끔해진다
-    const waiting = (st === "fresh" || st === "active") && !checkedToday(goal);
-    const building = held || waiting;
+    // 이번 3일이 도는 동안에는 쌓는 중인 돌 자리를 계속 지킨다.
+    // 점선이 깜빡이는 것은 '오늘 아직 남았다'는 뜻이라, 오늘 할 걸 다 하면
+    // 깜빡임만 멎고 자리는 그대로 남는다.
+    const running = st === "fresh" || st === "active";
+    // 돌이 공중에 떠 있는 동안에는 자리도 착지 직전(이틀째) 모습으로 둔다
+    const done = held ? goal.checks.length - 1 : goal.checks.length;
+    const building = held || running ? { done, waiting: running && !checkedToday(goal) } : null;
     const drawn = held ? Math.max(0, stones - 1) : stones;
     const { markup } = stoneStack(drawn, building, 4, 0, uid);
 
@@ -458,7 +493,7 @@ function attachLongPressDelete(card, goal) {
   let fired = false;
 
   const start = (ev) => {
-    // 오늘의 돌 얹기 같은 버튼을 꾹 눌렀다가 삭제되는 일은 없어야 한다
+    // 오늘 해냈어요 같은 버튼을 꾹 눌렀다가 삭제되는 일은 없어야 한다
     if (ev.target.closest("button")) return;
     clearTimeout(timer);
     fired = false;
@@ -577,15 +612,17 @@ function renderGoalCard(goal) {
     btn.addEventListener("click", () => restart(goal));
   } else if (checkedToday(goal) && goal.checks.length === 0) {
     btn.classList.add("btn-done");
-    btn.textContent = "내일 첫 돌에서 만나요";
+    btn.textContent = "내일 첫 칸부터 시작해요";
     btn.disabled = true;
   } else if (checkedToday(goal)) {
     btn.classList.add("btn-done");
     btn.textContent = "오늘은 다 했어요";
     btn.disabled = true;
   } else {
+    // '오늘의 돌 얹기'라고 하면 안 된다. 돌 하나는 사흘이지 하루가 아니다.
+    // 하루치는 칸 하나이고, 그 칸 셋이 모여야 돌이 된다.
     btn.classList.add("btn-primary");
-    btn.textContent = "오늘의 돌 얹기";
+    btn.textContent = goal.checks.length === 2 ? "오늘 해내고 돌 완성하기" : "오늘 해냈어요";
     btn.addEventListener("click", () => checkToday(goal));
   }
   card.appendChild(btn);
@@ -1263,6 +1300,7 @@ function setupModal() {
     closeModal();
   });
 
+  setupThemeToggle();
   setupNotifyToggle();
 
   $("btn-export").addEventListener("click", exportData);
@@ -1315,6 +1353,51 @@ function setupModal() {
 }
 
 /* 알림은 앱으로 감쌌을 때만 의미가 있으므로 그때만 노출한다 */
+/* 화면 밝기 — 기기 설정을 따를지, 밝게/어둡게 고정할지.
+ *
+ * 기기 설정만 따르게 두면 낮에도 어두운 화면을 좋아하는 사람, 밤에도
+ * 밝은 화면이 편한 사람이 갈 곳이 없다. 앱 안에서 따로 정할 수 있어야 한다.
+ * 실제 색을 입히는 일은 <head>의 applyTheme가 하고, 여기서는 고른 값을
+ * 저장하고 화면 상태만 맞춘다. */
+const THEME_LABEL = {
+  auto: "기기 설정을 따라가요",
+  light: "언제나 밝은 화면으로",
+  dark: "언제나 어두운 화면으로",
+};
+
+function themePref() {
+  const v = localStorage.getItem(THEME_KEY);
+  return v === "light" || v === "dark" ? v : "auto";
+}
+
+function setupThemeToggle() {
+  const seg = $("theme-seg");
+  if (!seg) return;
+
+  const paint = () => {
+    const pref = themePref();
+    seg.querySelectorAll(".seg-item").forEach((el) => {
+      const on = el.dataset.themePref === pref;
+      el.classList.toggle("on", on);
+      el.setAttribute("aria-checked", on ? "true" : "false");
+    });
+    $("theme-sub").textContent = THEME_LABEL[pref];
+  };
+  paint();
+
+  seg.addEventListener("click", (ev) => {
+    const btn = ev.target.closest(".seg-item");
+    if (!btn || btn.dataset.themePref === themePref()) return;
+    localStorage.setItem(THEME_KEY, btn.dataset.themePref);
+    applyTheme();
+    paint();
+    haptic(6);
+    // 돌탑은 CSS 변수로 색을 받으므로 알아서 따라오지만,
+    // 네이티브 상태바는 따로 알려 줘야 같이 바뀐다
+    if (typeof applyStatusBarTheme === "function") applyStatusBarTheme();
+  });
+}
+
 /* 알림 시각은 몇 개 중에 고르는 게 아니라 분 단위로 자유롭게 정한다.
  * 사람마다 하루가 끝나는 시각이 다르고(교대 근무, 새벽형), 알림은 그
  * 시각에 맞아야만 잔소리가 아니라 도움이 된다. 입력은 OS 시계 다이얼을
