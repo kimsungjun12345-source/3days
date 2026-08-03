@@ -1,9 +1,45 @@
 const { chromium } = require("playwright-core");
+const http = require("http");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
 
-const APP = "file://" + path.resolve(__dirname, "..", "index.html");
+/* 검사는 file:// 이 아니라 진짜 http 로 연다.
+ *
+ * file:// 에서는 출처(origin)가 불투명해서 localStorage가 새로고침 사이에
+ * 간헐적으로 날아간다. 그 탓에 '새로고침 뒤 기록이 남아 있는가' 계열 검사가
+ * 열 번에 한두 번 이유 없이 깨졌다. 앱이 실제로 도는 환경도 http이니
+ * 검사도 같은 조건에서 하는 것이 맞다. */
+const ROOT = path.resolve(__dirname, "..");
+const PORT = 8932;
+const APP = `http://localhost:${PORT}/index.html`;
+
+const MIME = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+};
+
+function serve() {
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      const rel = decodeURIComponent(req.url.split("?")[0]);
+      const file = path.join(ROOT, rel === "/" ? "index.html" : rel);
+      if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+        res.writeHead(404);
+        res.end("not found");
+        return;
+      }
+      res.writeHead(200, { "Content-Type": MIME[path.extname(file)] || "application/octet-stream" });
+      fs.createReadStream(file).pipe(res);
+    });
+    server.listen(PORT, () => resolve(server));
+  });
+}
 
 function dstr(offset) {
   const d = new Date();
@@ -12,6 +48,7 @@ function dstr(offset) {
 }
 
 (async () => {
+  const server = await serve();
   const browser = await chromium.launch({
     executablePath: "/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell",
   });
@@ -25,6 +62,9 @@ function dstr(offset) {
   // 프로덕션 코드를 건드리지 않고 테스트에서만 건너뛴다.
   await page.addInitScript(() => {
     localStorage.setItem("jaksim3.onboarded", "1");
+    // 서비스 워커가 끼면 새로고침마다 캐시에서 옛 파일이 올 수 있다.
+    // 그건 test/pwa.js가 따로 검사하므로 여기서는 꺼 둔다.
+    if (navigator.serviceWorker) navigator.serviceWorker.register = () => new Promise(() => {});
     const style = document.createElement("style");
     style.textContent = ".intro{display:none !important}";
     const put = () => document.head && document.head.appendChild(style);
@@ -43,6 +83,22 @@ function dstr(offset) {
       if (!list || !empty) return false;
       return list.children.length > 0 || !empty.hidden;
     }, null, { timeout: 5000 });
+  };
+
+  /* 안내가 다음 장으로 '다 넘어갈' 때까지 기다린다.
+   * 글자만 바뀌면 애니메이션은 아직 도는 중이고, 그 사이에 다음 클릭을
+   * 던지면 부하가 걸린 기기에서 옆 버튼으로 새는 일이 있었다. */
+  const settled = async (prevTitle) => {
+    await page.waitForFunction(
+      (prev) => {
+        const el = document.querySelector(".ob-title");
+        const body = document.getElementById("ob-body");
+        if (!el || !body || el.textContent.trim() === prev) return false;
+        return body.getAnimations().every((a) => a.playState === "finished");
+      },
+      prevTitle,
+      { timeout: 4000 }
+    );
   };
 
   const assert = (cond, name) => {
@@ -238,11 +294,10 @@ function dstr(offset) {
   await reload();
   await page.waitForTimeout(200);
 
-  // 돌 하나는 그림자·측면·윗면이 묶인 <g> 한 덩어리.
-  // 쌓는 중인(아직 3일을 못 채운) 돌은 .slot-stone으로 표시돼 있으니 빼고 센다.
+  // 돌 하나는 그림자·측면·윗면이 묶인 <g> 한 덩어리
   const stonesIn = (id) => page.evaluate((i) => {
     const t = document.querySelector('#hero-garden .tower[data-goal-id="' + i + '"] .tower-inner');
-    return t ? t.querySelectorAll(":scope > g:not(.slot-stone)").length : -1;
+    return t ? t.querySelectorAll(":scope > g").length : -1;
   }, id);
 
   assert((await page.locator("#hero-garden .tower").count()) === 2, "every goal gets its own tower in the garden");
@@ -388,6 +443,9 @@ function dstr(offset) {
     colorScheme: "dark",
   });
   const darkPage = await dark.newPage();
+  await darkPage.addInitScript(() => {
+    if (navigator.serviceWorker) navigator.serviceWorker.register = () => new Promise(() => {});
+  });
   darkPage.on("pageerror", (e) => errors.push("dark pageerror: " + e.message));
   await darkPage.goto(APP);
   await darkPage.evaluate((d1) => {
@@ -464,6 +522,13 @@ function dstr(offset) {
   assert(await page.locator("#view-home").isVisible(), "home comes back");
 
   // 20. 처음 만나는 안내 — '칸 3개 = 돌 3개'라는 오해를 푸는 것이 핵심
+
+  // 인트로가 완전히 끝나기를 먼저 기다린다.
+  // 인트로는 2.3초 뒤 스스로 사라지면서 '처음 온 사람인가'를 다시 확인하고,
+  // 처음이면 안내를 띄운다. 그 전에 아래에서 '봤음' 표시를 지워 버리면,
+  // 검사가 안내를 넘기는 도중에 인트로가 안내를 처음부터 다시 열어 버린다.
+  // (기기가 바쁜 날에만 걸려서 원인을 찾기 어려운 종류의 어긋남이었다.)
+  await page.waitForFunction(() => !document.getElementById("intro"), null, { timeout: 8000 });
   await page.evaluate(() => localStorage.removeItem("jaksim3.onboarded"));
   await page.click('.tab[data-view="settings"]');
   await page.waitForTimeout(200);
@@ -471,6 +536,7 @@ function dstr(offset) {
   await page.waitForTimeout(400);
   assert(await page.locator("#onboard").isVisible(), "the walkthrough opens");
   assert((await page.locator(".ob-dots i").count()) === 5, "walkthrough has five pages");
+  assert(await page.locator("#ob-prev").isDisabled(), "there is nowhere to go back to on page one");
 
   const titles = [];
   for (let i = 0; i < 5; i++) {
@@ -478,15 +544,7 @@ function dstr(offset) {
     titles.push(shown);
     if (i < 4) {
       await page.click("#ob-next");
-      // 다음 장이 실제로 그려질 때까지 기다린다 (시간으로 어림잡지 않는다)
-      await page.waitForFunction(
-        (prev) => {
-          const el = document.querySelector(".ob-title");
-          return el && el.textContent.trim() !== prev;
-        },
-        shown,
-        { timeout: 3000 }
-      );
+      await settled(shown);
     }
   }
   assert(
@@ -494,6 +552,17 @@ function dstr(offset) {
     "one page explains that three checks make one stone, got: " + titles.join(" / ")
   );
   assert((await page.locator("#ob-next").textContent()).includes("시작"), "last page invites you in");
+
+  // 놓친 장으로 돌아갈 수 있어야 한다 — 특히 '칸 셋이 돌 하나' 장은
+  // 한 번 넘기면 다시 볼 방법이 없었다
+  await page.click("#ob-prev");
+  await settled(titles[4]);
+  const backTitle = (await page.locator(".ob-title").textContent()).trim();
+  assert(backTitle === titles[3], `back goes to the page before (want ${titles[3]}, got ${backTitle})`);
+  await page.click("#ob-next");
+  await settled(titles[3]);
+  const fwdTitle = (await page.locator(".ob-title").textContent()).trim();
+  assert(fwdTitle === titles[4], `and forward returns (want ${titles[4]}, got ${fwdTitle})`);
   await page.click("#ob-next");
   await page.waitForTimeout(300);
   assert(await page.locator("#onboard").isHidden(), "walkthrough closes at the end");
@@ -620,28 +689,25 @@ function dstr(offset) {
       return {
         slot: !!t.querySelector(".building-stone"),
         waiting: !!t.querySelector(".building-stone.waiting"),
-        // 그림자(그림자 필터가 걸린 것)를 뺀, 실제로 보이는 돌의 수
+        // 다 쌓인 돌 (윗면 그라디언트를 쓰는 것만)
         stones: t.querySelectorAll("ellipse[fill^='url(#stoneTop']").length,
+        // 채워진 테두리 도막 = 이번 3일 중 해낸 날
+        days: t.querySelectorAll(".slot-day").length,
       };
     });
 
-  assert((await towerParts()).stones >= 1, "a checked-in goal still shows a stone in the garden");
   assert((await towerParts()).slot, "the stone being built keeps its place after today is done");
   assert(!(await towerParts()).waiting, "and it stops pulsing once today is done");
 
-  // 하루 해낼 때마다 그 자리의 돌이 자란다 — '칸 셋이 돌 하나'가 눈에 보이도록
-  const slotStoneWidth = () =>
-    page.evaluate(() => {
-      const ring = document.querySelector("#hero-garden .tower .building-stone");
-      if (!ring) return 0;
-      // 점선 자리 바로 다음에 그려진 것이 자라는 중인 돌이다
-      const g = ring.nextElementSibling;
-      const top = g && g.querySelector("ellipse[fill^='url(#stoneTop']");
-      return top ? Number(top.getAttribute("rx")) : 0;
-    });
-
-  const day1 = await slotStoneWidth();
-  assert(day1 > 0, "one day in, a small stone has started to form");
+  // 하루 해낼 때마다 자리의 테두리가 한 도막씩 채워진다.
+  // 자라는 것이 '돌'이면 안 된다 — 하루 만에 돌 하나가 쌓인 것처럼 보여
+  // '3일에 돌 하나'라는 규칙과 정면으로 어긋난다. 그래서 채워지는 것은
+  // 돌이 들어올 자리의 윤곽선뿐이고, 돌은 3일을 채워야 생긴다.
+  assert((await towerParts()).days === 1, "one day in, one third of the outline is filled");
+  assert(
+    (await towerParts()).stones === 0,
+    "one day in, no stone has appeared — a stone is three days, not one"
+  );
 
   await page.evaluate((d) => {
     const g = state.goals[0];
@@ -653,8 +719,23 @@ function dstr(offset) {
   }, dstr(-1));
   await page.click(".goal-card .btn-primary");
   await page.waitForTimeout(400);
-  const day2 = await slotStoneWidth();
-  assert(day2 > day1, `the stone grows on the second day (${day1} → ${day2})`);
+  assert((await towerParts()).days === 2, "two days in, two thirds are filled");
+  assert((await towerParts()).stones === 0, "still no stone on day two");
+
+  // 3일째에야 돌이 된다
+  await page.evaluate((d) => {
+    const g = state.goals[0];
+    g.checks = [d[0], d[1]];
+    g.history = [d[0], d[1]];
+    g.lastCheckDate = d[1];
+    save();
+    render();
+  }, [dstr(-2), dstr(-1)]);
+  await page.click(".goal-card .btn-primary");
+  await page.waitForTimeout(1600);
+  assert((await towerParts()).stones === 1, "the third day is what turns the outline into a stone");
+  await page.click("#cheer-close");
+  await page.waitForTimeout(300);
 
   // 25. 화면 밝기를 앱에서 직접 고른다
   await page.click('.tab[data-view="settings"]');
@@ -700,4 +781,5 @@ function dstr(offset) {
 
   await page.screenshot({ path: __dirname + "/screenshot.png", fullPage: true });
   await browser.close();
+  server.close();
 })();

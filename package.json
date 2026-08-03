@@ -11,7 +11,8 @@
     "sync": "npm run build && cap sync",
     "ios": "npm run sync && cap open ios",
     "android": "npm run sync && cap open android",
-    "test": "node test/smoke.js && node test/pwa.js"
+    "test": "node test/smoke.js && node test/pwa.js && node test/contrast.js",
+    "live": "node scripts/live-config.js"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",

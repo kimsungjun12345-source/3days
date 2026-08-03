@@ -3,11 +3,12 @@
   --card: #ffffff;
   --line: #ece8e1;
   --ink: #1b1a18;
-  --gray: #9a938a;
-  --gray-strong: #6e6860;
+  --gray: #726b62;
+  --gray-strong: #575149;
   --chip: #f1efeb;
-  --accent: #e85d3d;
-  --accent-soft: #fbeee9;
+  --accent: #ce4a3a;          /* 채우는 색 — 버튼·칸·테두리 */
+  --accent-ink: #bd3e2f;      /* 강조색 '글자' — 옅은 바탕 위에서도 읽히도록 한 단 더 진하게 */
+  --accent-soft: #faeae6;
   --sage: #5f7d54;
   --radius: 20px;
 
@@ -23,7 +24,7 @@
   --stone-shine: rgba(255, 252, 244, 0.26);
   --ground-shadow: rgba(74, 64, 48, 0.2);
   --garden-ground: #ece5d7;
-  --slot-fill: rgba(232, 93, 61, 0.1);
+  --slot-fill: rgba(206, 74, 58, 0.1);
   --ghost-stone: rgba(168, 159, 142, 0.14);
 
   --shadow-card: 0 1px 4px rgba(40, 35, 25, 0.04);
@@ -34,13 +35,17 @@
   --solid-fg: #fdfbf7;
   --sage-soft: #eef3ec;
   --dashed: #d9d3c9;
-  --dot-empty: #c6bfb4;
+  --dot-empty: #958873;
+  --num-ink: #756a59;   /* 읽어야 하는 숫자 — 칸·달력 날짜 */
+  --slot-empty: #b8ae9c;      /* 쌓는 중인 돌 자리의 빈 도막 */
+  --danger: #b4483a;          /* 지우기 — 겁주지 않되 눈에는 띄게 */
+  --sunday: #a95538;
   --toast-bg: rgba(27, 26, 24, 0.94);
   --toast-fg: #fdfcfa;
   --garden-glow: #faf8f4;
   --seg-on: #ffffff;      /* 셋 중 고른 칸 — 바탕보다 떠 보여야 한다 */
-  --accent-glow: rgba(232, 93, 61, 0.28);
-  --accent-glow-soft: rgba(232, 93, 61, 0.22);
+  --accent-glow: rgba(206, 74, 58, 0.3);
+  --accent-glow-soft: rgba(206, 74, 58, 0.24);
 }
 
 /* 저녁 9시 알림을 받고 여는 앱이라 어두운 곳에서 쓸 일이 많다.
@@ -55,10 +60,11 @@
   --card: #201f1c;
   --line: #2d2b26;
   --ink: #f0ece4;
-  --gray: #8a837a;
+  --gray: #958e86;
   --gray-strong: #aca496;
   --chip: #2a2824;
   --accent: #f4744f;
+  --accent-ink: #f4744f;
   --accent-soft: #3a251e;
   --sage: #86a578;
 
@@ -85,7 +91,11 @@
   --solid-fg: #1b1a18;
   --sage-soft: #242e21;
   --dashed: #3a3730;
-  --dot-empty: #5c564d;
+  --dot-empty: #787064;
+  --num-ink: #968e81;
+  --danger: #cf766a;
+  --sunday: #f0937a;
+  --slot-empty: #6a6255;
   --toast-bg: rgba(240, 236, 228, 0.95);
   --toast-fg: #1b1a18;
   --garden-glow: rgba(255, 250, 236, 0.05);
@@ -143,7 +153,7 @@ body {
 
 .brand em {
   font-style: normal;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 /* ── 히어로 ───────────────────────── */
@@ -274,7 +284,7 @@ body {
 .state-active .goal-ico,
 .state-fresh .goal-ico {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .state-broken .goal-ico {
@@ -306,7 +316,7 @@ body {
 }
 
 .goal-status b {
-  color: var(--accent);
+  color: var(--accent-ink);
   font-weight: 700;
 }
 
@@ -331,7 +341,7 @@ body {
   font-size: 0.68rem;
   font-weight: 700;
   background: var(--chip);
-  color: var(--dot-empty);
+  color: var(--num-ink);
 }
 
 .dot.done {
@@ -342,7 +352,7 @@ body {
 .dot.today {
   background: var(--card);
   border: 2px solid var(--accent);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 /* 길게 눌러 삭제 — 누르는 동안만 살짝 줄어든다 */
@@ -440,12 +450,12 @@ body {
   border-style: solid;
   border-color: var(--accent);
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
   padding: 18px;
 }
 
 .add-card.first-cta b {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .add-card.first-cta .add-sub {
@@ -701,7 +711,7 @@ body {
 .icon-option.selected {
   border-color: var(--accent);
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 #input-title {
@@ -854,7 +864,7 @@ body {
 .suggest-chip.on {
   border-color: var(--accent);
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
   font-weight: 700;
 }
 
@@ -970,17 +980,32 @@ body {
 /* 쌓는 중인 돌 자리 */
 /* 쌓는 중인 돌 자리는 늘 남아 있고, 숨을 쉬는 건 오늘 할 일이 남았을 때뿐.
    오늘 해내면 깜빡임이 멎으면서 자리가 차분해진다 — 그것 자체가 보상이다. */
+.slot-bed {
+  opacity: 0.5;
+}
+
 .building-stone {
-  opacity: 0.45;
+  opacity: 0.9;
 }
 
 .building-stone.waiting {
   animation: building-pulse 2.8s ease-in-out infinite;
 }
 
+/* 하루 해낼 때마다 테두리 한 도막이 진해진다. 마지막에 얹히는 것은
+   이 세 도막이 채워진 뒤이므로, 도막 자체는 돌로 보이면 안 된다. */
+.slot-day {
+  animation: slot-day-in 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes slot-day-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @keyframes building-pulse {
-  0%, 100% { opacity: 0.75; }
-  50% { opacity: 1; }
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.9; }
 }
 
 /* 새로 만든 작심 카드가 스르륵 나타난다 */
@@ -1045,7 +1070,7 @@ body {
   height: 38px;
   border-radius: 12px;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1076,7 +1101,7 @@ body {
   display: block;
   font-size: 1.3rem;
   font-weight: 800;
-  color: var(--accent);
+  color: var(--accent-ink);
   line-height: 1.2;
 }
 
@@ -1172,7 +1197,7 @@ body {
 }
 
 .mcal-week span:first-child {
-  color: #d08a72;
+  color: var(--sunday);
 }
 
 /* 날짜 숫자는 <i> 안에 있지만 기울어지면 안 된다 */
@@ -1211,6 +1236,11 @@ body {
   color: var(--dot-empty);
 }
 
+/* 지나간 날짜는 읽을 수 있어야 한다 — 흐린 것과 안 보이는 것은 다르다 */
+.mcal-cell {
+  color: var(--num-ink);
+}
+
 .mcal-note {
   margin-top: 10px;
   font-size: 0.82rem;
@@ -1228,7 +1258,7 @@ body {
 }
 
 .btn-danger {
-  color: #b4483a;
+  color: var(--danger);
 }
 
 .detail .modal-actions .btn-danger {
@@ -1298,7 +1328,7 @@ body {
   font-size: 0.76rem;
   font-weight: 700;
   letter-spacing: 0.14em;
-  color: var(--accent);
+  color: var(--accent-ink);
   margin-bottom: 4px;
 }
 
@@ -1424,7 +1454,7 @@ body {
 }
 
 .tab.on {
-  color: var(--accent);
+  color: var(--accent-ink);
   font-weight: 700;
 }
 
@@ -1457,7 +1487,7 @@ body {
   display: block;
   font-size: 1.4rem;
   font-weight: 800;
-  color: var(--accent);
+  color: var(--accent-ink);
   line-height: 1.2;
 }
 
@@ -1539,7 +1569,7 @@ body {
   flex-shrink: 0;
   font-size: 1.25rem;
   font-weight: 800;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .record-num i {
@@ -1861,8 +1891,24 @@ body {
   background: var(--accent);
 }
 
-.ob-foot .btn {
+.ob-nav {
+  display: flex;
+  gap: 10px;
+  width: 100%;
   max-width: 320px;
+}
+
+.ob-nav .btn-ghost {
+  flex: 1;
+}
+
+.ob-nav .btn-primary {
+  flex: 2.2;
+}
+
+.ob-nav .btn:disabled {
+  opacity: 0.32;
+  cursor: default;
 }
 
 /* ── 인트로 ──────────────────────────
@@ -1967,7 +2013,7 @@ body {
 
 .intro-brand em {
   font-style: normal;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .intro-line {

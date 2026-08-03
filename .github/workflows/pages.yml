@@ -1,0 +1,69 @@
+name: 웹 배포
+
+# 화면(HTML·CSS·JS)만 정적 호스팅에 올린다.
+#
+# 이게 있으면 글자 하나 고칠 때마다 APK를 다시 받지 않아도 된다.
+# '살아있는 빌드'(android.yml의 LIVE_URL)를 한 번 설치해 두면 그 뒤로는
+# 여기 올라간 화면을 앱이 그대로 불러온다.
+#
+# ── 쓰기 전에 한 번 해 둘 일 ──────────────────────
+# 저장소 Settings → Pages → Source 를 "GitHub Actions"로 바꾼다.
+# 비공개 저장소에서 Pages를 쓰려면 GitHub Pro 이상이 필요하다.
+# (무료 계정이라면 저장소를 공개로 돌리거나, 다른 정적 호스팅을 쓴다.)
+
+on:
+  push:
+    branches: ["claude/jaksim-samil-app-salp5o", "main"]
+    paths:
+      - "index.html"
+      - "*.css"
+      - "*.js"
+      - "manifest.webmanifest"
+      - "icons/**"
+      - "scripts/build.js"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 배포는 한 번에 하나만. 새 배포가 뜨면 기다리던 것은 버린다.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 웹 자산 모으기
+        run: node scripts/build.js
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: www
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+      - name: 주소 알려주기
+        run: |
+          echo "### 화면이 올라갔습니다" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.deploy.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "이 주소를 저장소 Settings → Secrets and variables → Actions → Variables 에" >> $GITHUB_STEP_SUMMARY
+          echo "\`LIVE_URL\` 로 넣어 두면, 앱을 다시 설치하지 않아도 되는 빌드가 만들어집니다." >> $GITHUB_STEP_SUMMARY

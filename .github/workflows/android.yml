@@ -65,6 +65,21 @@ jobs:
              "dist/jaksimsamil-$(date +%m%d)-${GITHUB_SHA::7}.apk"
           ls -lh dist/
 
+      # ── 다시 설치하지 않아도 되는 빌드 ──────────────────
+      # 껍데기(플러그인·알림·햅틱)는 그대로 두고 화면만 웹에서 받아온다.
+      # 한 번 깔아 두면 그 뒤로는 앱을 다시 여는 것만으로 최신 화면이 뜬다.
+      # 저장소 변수 LIVE_URL이 있을 때만 만든다 (pages.yml 참고).
+      - name: 살아있는 빌드
+        if: vars.LIVE_URL != ''
+        run: |
+          node scripts/live-config.js "${{ vars.LIVE_URL }}"
+          npx cap sync android
+          ./gradlew assembleDebug --no-daemon -p android
+          cp android/app/build/outputs/apk/debug/app-debug.apk \
+             "dist/jaksimsamil-live-$(date +%m%d)-${GITHUB_SHA::7}.apk"
+          node scripts/live-config.js --revert
+          ls -lh dist/
+
       - name: 디버그 APK 올리기 (PC에서 받을 때)
         uses: actions/upload-artifact@v4
         with:

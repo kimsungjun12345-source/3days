@@ -281,33 +281,43 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0) {
     ry *= 0.93;
   }
 
-  /* 쌓는 중인 돌 자리.
+  /* 쌓는 중인 돌 자리 — 테두리가 곧 3일이다.
    *
    * building은 참/거짓이거나 { done, waiting } 이다. done은 이번 3일 중
-   * 며칠을 해냈는지(0~2). 예전에는 이 자리를 '오늘 할 일이 남았을 때'만
-   * 그렸는데, 그러면 돌이 아직 하나도 없는 작심에서 오늘 체크를 하는 순간
-   * 그릴 것이 바닥 그림자밖에 남지 않아 정원이 얼룩 하나로 보였다.
+   * 며칠을 해냈는지(0~2).
    *
-   * 이제는 이번 3일이 도는 동안 늘 이 자리를 지키고, 하루 해낼 때마다
-   * 그 안의 돌이 자란다. 3일째에 점선을 꽉 채우며 진짜 돌이 되니까
-   * '칸 셋이 돌 하나'라는 규칙이 정원에서도 눈으로 보인다. */
+   * 여기는 두 번 틀렸던 자리다. 처음에는 '오늘 할 일이 남았을 때'만
+   * 그려서, 돌이 아직 없는 작심에서 오늘 체크를 누르는 순간 그릴 것이
+   * 바닥 그림자밖에 없었다. 그래서 진행 상황을 돌로 그려 넣었더니
+   * 이번에는 그게 그냥 돌로 보였다 — 하루 만에 돌 하나가 쌓인 것처럼.
+   * 돌 하나는 사흘이라고 해 놓고 그림이 정반대로 말한 셈이다.
+   *
+   * 그래서 자라는 것은 돌이 아니라 '돌이 들어올 자리의 테두리'다.
+   * 테두리를 정확히 세 도막으로 끊어 두고, 하루 해낼 때마다 한 도막씩
+   * 진해진다. 세 도막이 다 차야 비로소 돌이 된다. 채워지는 것이 윤곽선
+   * 뿐이므로 돌이 생겼다고 오해할 여지가 없다.
+   *
+   * pathLength="3"으로 둘레를 3으로 정규화하면 타원 둘레를 재지 않고도
+   * 정확히 3등분한 도막을 그릴 수 있다. */
   const slot = building === true ? { done: 0, waiting: true } : building || null;
   if (slot) {
     const by = y - ry * 1.3;
     const brx = Math.max(rx * 0.92, 15);
     const bry = Math.max(ry * 0.88, 6);
-    const grown = Math.min(Math.max(slot.done, 0), 2) / 3;
+    const done = Math.min(Math.max(slot.done, 0), 2);
+    const ring = (cls, width, extra) =>
+      `<ellipse class="${cls}" cx="0" cy="${by.toFixed(1)}" rx="${brx.toFixed(1)}" ry="${bry.toFixed(1)}"
+        pathLength="3" fill="none" stroke-width="${width}" stroke-linecap="round" ${extra}/>`;
+
+    // 아직 안 채운 도막들 — 자리는 여기라는 표시
     parts.push(
-      `<ellipse class="building-stone${slot.waiting ? " waiting" : ""}" cx="0" cy="${by.toFixed(1)}"
-        rx="${brx.toFixed(1)}" ry="${bry.toFixed(1)}"
-        fill="var(--slot-fill)" stroke="var(--accent)" stroke-width="1.6" stroke-dasharray="4.5 3.5"/>`
+      `<ellipse class="slot-bed" cx="0" cy="${by.toFixed(1)}" rx="${brx.toFixed(1)}" ry="${bry.toFixed(1)}"
+        fill="var(--slot-fill)"/>`,
+      ring("building-stone" + (slot.waiting ? " waiting" : ""), 2, 'stroke="var(--slot-empty)" stroke-dasharray="0.8 0.2"')
     );
-    if (grown > 0) {
-      // 자라는 동안에는 점선 안에 얌전히 들어가도록 조금 작게 앉힌다.
-      // 다 쌓은 돌과 구분되도록 표를 해 둔다 — 이건 아직 돌 하나가 아니다.
-      parts.push(
-        `<g class="slot-stone">${stonePiece(0, by - bry * 0.3, brx * (0.44 + 0.46 * grown), bry * (0.4 + 0.5 * grown), 0, uid)}</g>`
-      );
+    // 해낸 날 수만큼 도막이 진해진다 — 빈 도막보다 굵게 그려야 눈에 띈다
+    for (let i = 0; i < done; i++) {
+      parts.push(ring("slot-day", 3, `stroke="var(--accent)" stroke-dasharray="0.8 2.2" stroke-dashoffset="${-i}"`));
     }
     foot = Math.max(foot, brx);
     top = Math.min(top, by - bry);
@@ -1211,6 +1221,9 @@ function paintOnboard() {
   ).join("");
   $("ob-next").textContent = page.last ? "시작하기" : "다음";
   $("ob-skip").hidden = !!page.last;
+  // 첫 장에서는 돌아갈 곳이 없다. 자리를 비워 두면 '다음'이 좌우로
+  // 튀므로, 버튼은 그대로 두고 눌리지 않게만 한다.
+  $("ob-prev").disabled = obIndex === 0;
 }
 
 function openOnboard() {
@@ -1234,6 +1247,13 @@ function setupOnboard() {
       return;
     }
     obIndex += 1;
+    paintOnboard();
+  });
+  // 놓친 장을 다시 보러 갈 수 있어야 한다 — 특히 '칸 셋이 돌 하나' 장은
+  // 한 번 읽고 넘어가면 다시 볼 방법이 없었다
+  $("ob-prev").addEventListener("click", () => {
+    if (obIndex === 0) return;
+    obIndex -= 1;
     paintOnboard();
   });
   $("ob-skip").addEventListener("click", closeOnboard);
