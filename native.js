@@ -151,7 +151,8 @@ async function clearNotifications() {
 }
 
 function atHour(daysFromNow, hour, minute = 0) {
-  const d = new Date();
+  // 알림 시각도 앱이 믿는 '오늘'을 따라간다 (개발자 모드에서 날짜를 밀었을 때)
+  const d = typeof now === "function" ? now() : new Date();
   d.setDate(d.getDate() + daysFromNow);
   d.setHours(hour, minute, 0, 0);
   return d;
@@ -166,7 +167,7 @@ async function rescheduleNotifications() {
   await clearNotifications();
 
   const items = [];
-  const now = new Date();
+  const clock = typeof now === "function" ? now() : new Date();
   let id = 1;
 
   const todo = state.goals.filter((g) => {
@@ -177,7 +178,7 @@ async function rescheduleNotifications() {
   // 오늘 아직 남은 일이 있고 알림 시간이 지나지 않았다면 오늘 저녁에 한 번
   const hour = notifyHour();
   const minute = notifyMinute();
-  const passed = now.getHours() * 60 + now.getMinutes() >= hour * 60 + minute;
+  const passed = clock.getHours() * 60 + clock.getMinutes() >= hour * 60 + minute;
   if (todo.length && !passed) {
     const near = todo.find((g) => g.checks.length === 2);
     items.push({

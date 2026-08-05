@@ -22,7 +22,7 @@ const FILES = [
   "manifest.webmanifest",
 ];
 
-const DIRS = ["icons"];
+const DIRS = ["icons", "fonts"];
 
 function copyDir(from, to) {
   fs.mkdirSync(to, { recursive: true });

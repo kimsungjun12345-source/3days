@@ -23,8 +23,34 @@ const SUGGESTIONS = [
   { title: "12시 전에 눕기", icon: "sleep" },
 ];
 
-function todayStr(offsetDays = 0) {
+/* ── 지금 몇 시인가 ────────────────────
+ * 앱의 모든 날짜 판단은 여기를 지난다.
+ *
+ * 이 앱은 '며칠 연속인가'로 돌아가므로, 실제로 쌓이는지 보려면 하루씩
+ * 기다려야 한다. 개발자 모드에서 날짜를 앞으로 밀 수 있게 하려면 날짜를
+ * 읽는 곳이 한 군데여야 한다.
+ */
+const DEV_DAYS_KEY = "jaksim3.devDays";
+
+function devDays() {
+  const v = Number(localStorage.getItem(DEV_DAYS_KEY));
+  return Number.isFinite(v) ? Math.trunc(v) : 0;
+}
+
+function setDevDays(n) {
+  if (n) localStorage.setItem(DEV_DAYS_KEY, String(n));
+  else localStorage.removeItem(DEV_DAYS_KEY);
+}
+
+function now() {
   const d = new Date();
+  const shift = devDays();
+  if (shift) d.setDate(d.getDate() + shift);
+  return d;
+}
+
+function todayStr(offsetDays = 0) {
+  const d = now();
   d.setDate(d.getDate() + offsetDays);
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -98,7 +124,7 @@ function addGoal(title, icon) {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     title,
     icon,
-    createdAt: new Date().toISOString(),
+    createdAt: now().toISOString(),
     checks: [],          // 이번 사이클에서 체크한 날짜들 (최대 3개)
     history: [],         // 지금까지 체크한 모든 날짜 — 기록 화면의 재료
     lastCheckDate: null, // 같은 날 중복 카운트 방지
@@ -797,7 +823,7 @@ function importData(file) {
 
 /* offset: 0 = 이번 달, -1 = 지난달 … */
 function monthOf(offset) {
-  const d = new Date();
+  const d = now();
   d.setDate(1);
   d.setMonth(d.getMonth() + offset);
   return { y: d.getFullYear(), m: d.getMonth() };
@@ -1322,6 +1348,7 @@ function setupModal() {
 
   setupThemeToggle();
   setupNotifyToggle();
+  setupDevTools();
 
   $("btn-export").addEventListener("click", exportData);
   $("btn-import").addEventListener("click", () => $("file-import").click());
@@ -1415,6 +1442,152 @@ function setupThemeToggle() {
     // 돌탑은 CSS 변수로 색을 받으므로 알아서 따라오지만,
     // 네이티브 상태바는 따로 알려 줘야 같이 바뀐다
     if (typeof applyStatusBarTheme === "function") applyStatusBarTheme();
+  });
+}
+
+/* ── 개발자 도구 ────────────────────
+ * 이 앱은 '며칠째인가'로 돌아간다. 그래서 돌이 정말 쌓이는지 눈으로
+ * 확인하려면 사흘을 기다려야 하고, 무너지는 흐름을 보려면 더 걸린다.
+ * 확인할 수 없는 것은 고칠 수도 없으니 날짜를 밀 수단을 둔다.
+ *
+ * 안드로이드가 빌드 번호를 다루는 방식을 따랐다 — 정보 줄을 다섯 번
+ * 누르면 열린다. 평소에는 눈에 띄지 않고, 찾는 사람은 찾을 수 있다.
+ */
+function setupDevTools() {
+  const about = $("row-about");
+  const card = $("dev-card");
+  const banner = $("dev-banner");
+  if (!about || !card || !banner) return;
+
+  let taps = 0;
+  let tapTimer = null;
+
+  const paintBanner = () => {
+    const shift = devDays();
+    banner.hidden = shift === 0;
+    if (shift !== 0) {
+      const when = shift > 0 ? `${shift}일 뒤` : `${-shift}일 전`;
+      banner.textContent = `개발자 모드 · 앱이 ${when}(${todayStr()})라고 믿는 중 — 눌러서 원래대로`;
+    }
+    $("dev-sub").textContent =
+      shift === 0
+        ? "돌이 실제로 쌓이는지 하루를 넘겨 가며 확인해요"
+        : `지금 ${todayStr()} 기준으로 돌아가고 있어요`;
+  };
+  paintBanner();
+
+  // 날짜를 밀면 화면 전체가 다시 판단돼야 한다
+  const refresh = () => {
+    paintBanner();
+    render();
+    renderRecord();
+  };
+
+  about.addEventListener("click", () => {
+    taps += 1;
+    clearTimeout(tapTimer);
+    tapTimer = setTimeout(() => (taps = 0), 1500);
+    if (taps < 5) {
+      if (taps >= 3) toast("stone", `${5 - taps}번 더 누르면 개발자 도구가 열려요`);
+      return;
+    }
+    taps = 0;
+    card.hidden = !card.hidden;
+    haptic(6);
+    if (!card.hidden) card.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+  banner.addEventListener("click", () => {
+    setDevDays(0);
+    refresh();
+    toast("sun", "원래 날짜로 돌아왔어요");
+  });
+
+  $("dev-next-day").addEventListener("click", () => {
+    setDevDays(devDays() + 1);
+    refresh();
+    haptic(8);
+    toast("stone", `${todayStr()} — 하루 보냈어요`);
+  });
+
+  $("dev-prev-day").addEventListener("click", () => {
+    setDevDays(devDays() - 1);
+    refresh();
+    haptic(8);
+    toast("stone", `${todayStr()} — 하루 되돌렸어요`);
+  });
+
+  // 오늘 남은 작심을 한 번에 해낸다 (돌이 완성되면 축하 화면까지 그대로 뜬다)
+  $("dev-check-all").addEventListener("click", () => {
+    const todo = state.goals.filter((g) => {
+      const st = goalStatus(g);
+      return (st === "fresh" || st === "active") && !checkedToday(g);
+    });
+    if (!todo.length) {
+      toast("sleep", "오늘 남은 작심이 없어요");
+      return;
+    }
+    switchView("home");
+    // 마지막 하나만 애니메이션·축하를 그대로 보여 준다
+    todo.slice(0, -1).forEach((g) => checkToday(g, { silent: true }));
+    checkToday(todo[todo.length - 1]);
+  });
+
+  /* 3일을 한 바퀴 돌린다 — 돌 하나가 실제로 얹히는지 가장 빠르게 보는 길.
+   * 하루를 밀고 체크하는 것을 세 번 반복하되, 마지막 날만 애니메이션과
+   * 축하를 그대로 태워야 '얹히는 순간'을 볼 수 있다. */
+  $("dev-run-cycle").addEventListener("click", async () => {
+    const goal = state.goals.find((g) => {
+      const st = goalStatus(g);
+      return st === "fresh" || st === "active";
+    });
+    if (!goal) {
+      toast("stone", "진행 중인 작심이 없어요. '연습용 작심 넣기'를 먼저 눌러 주세요");
+      return;
+    }
+    switchView("home");
+    const left = 3 - goal.checks.length;
+    for (let i = 0; i < left; i++) {
+      if (checkedToday(goal)) {
+        setDevDays(devDays() + 1);
+        paintBanner();
+      }
+      const last = i === left - 1;
+      checkToday(goal, { silent: !last });
+      if (!last) await new Promise((r) => setTimeout(r, 700));
+    }
+    paintBanner();
+  });
+
+  $("dev-seed").addEventListener("click", () => {
+    // 돌 셋을 쌓고 한 번 무너졌다 돌아온 사람 — 정원이 어떻게 보이는지 확인용
+    const history = [];
+    for (let d = 14; d >= 6; d--) history.push(todayStr(-d));
+    state.goals.push({
+      id: "dev" + Date.now().toString(36),
+      title: "연습용 · 아침에 물 한 잔",
+      icon: "water",
+      createdAt: now().toISOString(),
+      checks: [],
+      history,
+      lastCheckDate: todayStr(-6),
+      totalDays: history.length,
+      completedCycles: 3,
+      restarts: 1,
+    });
+    save();
+    switchView("home");
+    refresh();
+    toast("water", "돌 3개짜리 연습용 작심을 넣었어요");
+  });
+
+  $("dev-reset").addEventListener("click", () => {
+    if (!confirm("날짜를 원래대로 돌리고 기록을 전부 지울까요?\n(개발자 도구 전용 — 되돌릴 수 없어요)")) return;
+    setDevDays(0);
+    state.goals = [];
+    save();
+    refresh();
+    toast("stone", "처음 상태로 돌아왔어요");
   });
 }
 

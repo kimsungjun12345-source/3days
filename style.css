@@ -12,6 +12,12 @@
   --sage: #5f7d54;
   --radius: 20px;
 
+  /* 제목은 본문과 다른 얼굴을 쓴다. 본문은 읽기 위한 글꼴, 제목은
+     이 앱이 어떤 목소리인지 알려주는 글꼴이다. */
+  --font-body: Pretendard, "Noto Sans KR", -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-title: "Gowun Batang", var(--font-body);
+
   /* 돌탑 — SVG 그라데이션이 이 값을 그대로 읽는다 */
   --stone-side-1: #ded8cc;
   --stone-side-2: #bdb4a2;
@@ -119,8 +125,7 @@ html {
 }
 
 body {
-  font-family: Pretendard, "Noto Sans KR", -apple-system, BlinkMacSystemFont,
-    "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-family: var(--font-body);
   background: var(--bg);
   color: var(--ink);
   line-height: 1.5;
@@ -146,8 +151,9 @@ body {
 }
 
 .brand {
-  font-size: 1.2rem;
-  font-weight: 800;
+  font-family: var(--font-title);
+  font-size: 1.25rem;
+  font-weight: 700;
   letter-spacing: 0.01em;
 }
 
@@ -193,8 +199,9 @@ body {
 }
 
 .hero-big {
-  font-size: 1.35rem;
-  font-weight: 800;
+  font-family: var(--font-title);
+  font-size: 1.4rem;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 
@@ -215,7 +222,8 @@ body {
 }
 
 .section-head h2 {
-  font-size: 1rem;
+  font-family: var(--font-title);
+  font-size: 1.05rem;
   font-weight: 700;
 }
 
@@ -238,8 +246,9 @@ body {
 }
 
 .empty h2 {
-  font-size: 1.15rem;
-  font-weight: 800;
+  font-family: var(--font-title);
+  font-size: 1.2rem;
+  font-weight: 700;
   margin-bottom: 8px;
 }
 
@@ -654,8 +663,9 @@ body {
 }
 
 .modal h2 {
+  font-family: var(--font-title);
   font-size: 1.2rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .modal-sub {
@@ -782,8 +792,9 @@ body {
 }
 
 .sheet-head h2 {
-  font-size: 1.05rem;
-  font-weight: 800;
+  font-family: var(--font-title);
+  font-size: 1.1rem;
+  font-weight: 700;
 }
 
 .sheet-close {
@@ -1333,8 +1344,9 @@ body {
 }
 
 .cheer-title {
-  font-size: 1.35rem;
-  font-weight: 800;
+  font-family: var(--font-title);
+  font-size: 1.4rem;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 
@@ -1647,6 +1659,75 @@ body {
   border-style: dashed;
 }
 
+/* ── 개발자 도구 ────────────────────
+ * 평소에는 없는 것처럼 있어야 한다. 정보 줄을 다섯 번 눌러야 열리고,
+ * 열려 있는 동안에는 '지금 날짜를 밀어 둔 상태'라는 걸 계속 알려 준다.
+ */
+.dev-banner {
+  display: block;
+  width: 100%;
+  margin: -8px 0 16px;
+  padding: 9px 14px;
+  border: 1px dashed var(--accent);
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-family: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: left;
+  word-break: keep-all;
+  cursor: pointer;
+}
+
+/* 정보 줄은 눌리는 것이지만 버튼처럼 보이지는 않아야 한다 */
+#row-about {
+  width: 100%;
+  border: 1px dashed var(--line);
+  font-family: inherit;
+  text-align: left;
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dev-card {
+  border-style: dashed;
+  border-color: var(--accent);
+  background: none;
+  box-shadow: none;
+}
+
+.dev-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.dev-btn {
+  height: 42px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--card);
+  color: var(--gray-strong);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  word-break: keep-all;
+}
+
+.dev-btn:active {
+  background: var(--chip);
+}
+
+.dev-btn.dev-warn {
+  grid-column: 1 / -1;
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
 /* 한 줄에 다 안 들어가는 설정은 위아래로 쌓는다 */
 .row-stack {
   flex-direction: column;
@@ -1848,8 +1929,9 @@ body {
 }
 
 .ob-title {
-  font-size: 1.35rem;
-  font-weight: 800;
+  font-family: var(--font-title);
+  font-size: 1.4rem;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 
@@ -2004,8 +2086,9 @@ body {
 }
 
 .intro-brand {
-  font-size: 1.5rem;
-  font-weight: 800;
+  font-family: var(--font-title);
+  font-size: 1.6rem;
+  font-weight: 700;
   letter-spacing: 0.06em;
   opacity: 0;
   animation: intro-text 0.5s 1.6s ease forwards;

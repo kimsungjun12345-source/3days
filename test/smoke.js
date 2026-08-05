@@ -777,6 +777,56 @@ function dstr(offset) {
   );
   await page.evaluate(() => localStorage.removeItem("jaksim3.theme"));
 
+  // 26. 개발자 도구 — 돌이 정말 쌓이는지 하루를 넘겨 가며 확인하는 수단
+  // 이 앱은 '며칠째인가'로 돌아가서, 이게 없으면 사흘을 기다려야 확인이 된다.
+  await page.evaluate(() => {
+    state.goals = [];
+    save();
+    localStorage.removeItem("jaksim3.devDays");
+    render();
+  });
+  await page.click('.tab[data-view="settings"]');
+  await page.waitForTimeout(200);
+  assert(await page.locator("#dev-card").isHidden(), "the dev drawer stays out of the way");
+
+  for (let i = 0; i < 5; i++) {
+    await page.click("#row-about");
+    await page.waitForTimeout(80);
+  }
+  assert(await page.locator("#dev-card").isVisible(), "five taps on the version row open it");
+
+  await page.click("#dev-seed");
+  await page.waitForTimeout(400);
+  assert((await page.locator("#stat-cycles").textContent()) === "3", "the practice goal arrives with three stones");
+
+  // 3일을 돌리면 돌이 정확히 하나 늘어야 한다 — 하루에 하나가 아니라
+  await page.click('.tab[data-view="settings"]');
+  await page.waitForTimeout(150);
+  await page.click("#dev-run-cycle");
+  await page.waitForFunction(() => !document.getElementById("cheer").hidden, null, { timeout: 8000 });
+  assert(
+    (await page.locator("#cheer-title").textContent()).includes("네 번째"),
+    "three days in a row adds exactly one stone"
+  );
+  await page.click("#cheer-close");
+  await page.waitForTimeout(300);
+  assert((await page.locator("#stat-cycles").textContent()) === "4", "and the garden agrees");
+
+  // 날짜를 밀어 둔 동안에는 그 사실이 계속 보여야 한다
+  assert(await page.locator("#dev-banner").isVisible(), "a shifted clock announces itself");
+  assert(
+    (await page.evaluate(() => Number(localStorage.getItem("jaksim3.devDays")))) === 2,
+    "the cycle moved the clock by two days"
+  );
+
+  await page.click("#dev-banner");
+  await page.waitForTimeout(300);
+  assert(await page.locator("#dev-banner").isHidden(), "tapping the banner puts the clock back");
+  assert(
+    (await page.evaluate(() => localStorage.getItem("jaksim3.devDays"))) === null,
+    "and nothing is left behind"
+  );
+
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 
   await page.screenshot({ path: __dirname + "/screenshot.png", fullPage: true });

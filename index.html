@@ -42,6 +42,8 @@
 
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <!-- 제목 글꼴은 앱 안에 넣어 둔다 — 첫 실행에 네트워크가 없어도 같은 얼굴로 뜨도록 -->
+  <link rel="stylesheet" href="fonts/gowun-batang/gowun-batang.css" />
   <link rel="stylesheet" href="style.css" />
   <link rel="icon" href="icons/icon.svg" />
 </head>
@@ -51,6 +53,9 @@
     <header class="appbar">
       <h1 class="brand">작심<em>삼일</em></h1>
     </header>
+
+    <!-- 날짜를 밀어 둔 동안에는 그 사실이 계속 보여야 한다 -->
+    <button type="button" class="dev-banner" id="dev-banner" hidden></button>
 
     <!-- ── 홈 ─────────────────────────── -->
     <main id="view-home" class="view">
@@ -187,11 +192,27 @@
         </button>
         <input type="file" id="file-import" accept="application/json,.json" hidden />
 
-        <div class="row-card row-info">
+        <!-- 다섯 번 누르면 개발자 도구가 열린다 (안드로이드 빌드 번호와 같은 방식) -->
+        <button type="button" class="row-card row-info" id="row-about">
           <span class="row-text">
             <b>작심삼일</b>
-            <span>기록은 이 기기에만 저장돼요 · v1.0</span>
+            <span id="about-sub">기록은 이 기기에만 저장돼요 · v1.0</span>
           </span>
+        </button>
+
+        <div class="row-card row-stack dev-card" id="dev-card" hidden>
+          <span class="row-text">
+            <b>개발자 도구</b>
+            <span id="dev-sub">돌이 실제로 쌓이는지 하루를 넘겨 가며 확인해요</span>
+          </span>
+          <div class="dev-grid">
+            <button type="button" class="dev-btn" id="dev-next-day">하루 보내기 →</button>
+            <button type="button" class="dev-btn" id="dev-prev-day">← 하루 되돌리기</button>
+            <button type="button" class="dev-btn" id="dev-check-all">오늘 전부 해내기</button>
+            <button type="button" class="dev-btn" id="dev-run-cycle">3일 한 바퀴 돌리기</button>
+            <button type="button" class="dev-btn" id="dev-seed">연습용 작심 넣기</button>
+            <button type="button" class="dev-btn dev-warn" id="dev-reset">날짜·기록 되돌리기</button>
+          </div>
         </div>
       </div>
 
