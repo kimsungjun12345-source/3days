@@ -359,17 +359,33 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0) {
   return { markup: parts.join("\n"), top };
 }
 
-/* 탑이 설 자리 — 앞에서 뒤로, 좌우로 흩어지게 미리 잡아 둔 구도 */
-const GARDEN_SPOTS = [
-  { x: 0.5, depth: 0 },
-  { x: 0.21, depth: 0.52 },
-  { x: 0.79, depth: 0.44 },
-  { x: 0.36, depth: 0.88 },
-  { x: 0.65, depth: 0.98 },
-  { x: 0.12, depth: 0.78 },
-];
+/* ── 탑이 여러 개가 될 때 ──────────────
+ * 탑 하나는 무한정 자라지 않는다. 돌 일곱 개(= 21일)를 채우면 그 탑은
+ * 완성되고, 그다음 돌부터는 그 옆에 새 탑이 선다.
+ *
+ * 예전에는 한 작심의 탑이 돌 네 개에서 조용히 멈췄다. 열이틀만 지나면
+ * 아무리 쌓아도 그림이 그대로였다는 뜻이다. 이 앱이 주는 보상이
+ * '내 탑이 자라는 걸 보는 것' 하나뿐인데 그게 12일 만에 끊겼다.
+ *
+ * 탑을 여러 개로 나누면 두 가지가 같이 풀린다. 하나는 높이 문제 —
+ * 돌 120개짜리 탑은 화면에 담을 수도 없고 보기에도 이상하다. 다른 하나는
+ * 이야기 — 마이산 탑사처럼, 오래 다닌 사람의 자리에는 탑이 여러 채 선다.
+ */
+const STONES_PER_TOWER = 7; // 7 × 3일 = 21일
 
-const GARDEN_MAX = GARDEN_SPOTS.length;
+/* 작심 하나가 가진 탑들 — 완성한 탑 수와, 지금 쌓는 중인 탑의 돌 수 */
+function towersOf(goal, heldBack = false) {
+  const total = Math.max(0, stoneCount(goal) - (heldBack ? 1 : 0));
+  return { done: Math.floor(total / STONES_PER_TOWER), current: total % STONES_PER_TOWER };
+}
+
+/* 작심마다 정원의 한 구역(가로 위치)을 가진다. 그 구역 안에서 탑들이
+ * 뒤로 물러나며 지그재그로 선다 — 새로 쌓는 탑이 늘 맨 앞이다. */
+const GOAL_LANES = [0.5, 0.2, 0.79, 0.35, 0.66, 0.11];
+const GARDEN_MAX = GOAL_LANES.length;
+/* 한 구역에 그리는 탑 수. 이보다 많아지면 뒤쪽은 어차피 안개에 잠겨
+ * 구분되지 않으므로, 그릴 수를 막고 정확한 개수는 숫자로 알린다. */
+const TOWERS_DRAWN = 9;
 
 function gardenSVG(goals) {
   const W = 340;
@@ -377,39 +393,61 @@ function gardenSVG(goals) {
   const groundY = 132;
   const uid = ++stoneDefsSeq;
 
-  // 큰 탑이 앞에 오도록 — 가장 많이 쌓은 작심이 정원의 주인공이 된다
-  const towers = goals
+  // 많이 쌓은 작심이 정원 한가운데를 차지한다
+  const lanes = goals
     .map((g) => ({ goal: g, stones: stoneCount(g) }))
     .sort((a, b) => b.stones - a.stones)
     .slice(0, GARDEN_MAX);
 
-  // 뒤에 있는 탑부터 그려야 앞 탑이 위에 겹친다
-  const drawOrder = towers.map((t, i) => ({ ...t, spot: GARDEN_SPOTS[i] }));
-  drawOrder.sort((a, b) => b.spot.depth - a.spot.depth);
-
-  const groups = drawOrder.map(({ goal, stones, spot }) => {
+  /* 작심 하나가 탑 여러 채가 된다. 지금 쌓는 탑이 맨 앞, 완성한 탑들이
+   * 그 뒤로 물러난다. 뒤로 갈수록 작고 흐려서, 여러 채가 서 있어도
+   * 화면이 시끄러워지지 않고 '오래 다닌 자리'처럼 보인다. */
+  const drawList = [];
+  lanes.forEach(({ goal }, gi) => {
     const held = heldGoalId === goal.id;
+    const { done, current } = towersOf(goal, held);
     const st = goalStatus(goal);
     // 이번 3일이 도는 동안에는 쌓는 중인 돌 자리를 계속 지킨다.
     // 점선이 깜빡이는 것은 '오늘 아직 남았다'는 뜻이라, 오늘 할 걸 다 하면
     // 깜빡임만 멎고 자리는 그대로 남는다.
     const running = st === "fresh" || st === "active";
-    // 돌이 공중에 떠 있는 동안에는 자리도 착지 직전(이틀째) 모습으로 둔다
-    const done = held ? goal.checks.length - 1 : goal.checks.length;
-    const building = held || running ? { done, waiting: running && !checkedToday(goal) } : null;
-    const drawn = held ? Math.max(0, stones - 1) : stones;
-    const { markup } = stoneStack(drawn, building, 4, 0, uid);
+    const checks = held ? goal.checks.length - 1 : goal.checks.length;
+    const building = held || running ? { done: checks, waiting: running && !checkedToday(goal) } : null;
 
-    const scale = (1 - 0.44 * spot.depth) * 0.62;
-    const x = spot.x * W;
-    const y = groundY - spot.depth * 26;
-    const opacity = (1 - 0.42 * spot.depth).toFixed(2);
+    const baseX = GOAL_LANES[gi];
+    const shown = Math.min(done, TOWERS_DRAWN - 1);
+    for (let t = 0; t <= shown; t++) {
+      // t = 0 이 지금 쌓는 탑(맨 앞), 클수록 오래전에 완성한 탑
+      const depth = Math.min(0.99, t * 0.145 + gi * 0.05);
+      // 뒤로 갈수록 좌우로 벌어지게 — 일부러 지그재그로 흩어 놓는다.
+      // 앞의 두세 채는 넉넉히 떨어뜨리고, 뒤로 갈수록 간격을 좁혀
+      // 화면 밖으로 나가지 않으면서 '멀리까지 이어진다'는 느낌만 남긴다.
+      const step = t <= 2 ? 0.085 : 0.055;
+      const spread = step * Math.ceil(t / 2) * (t % 2 === 0 ? -1 : 1);
+      const x = Math.min(0.89, Math.max(0.11, baseX + spread)) * W;
+      const y = groundY - depth * 26;
+      const scale = (1 - 0.44 * depth) * 0.62;
+      const opacity = (1 - 0.42 * depth).toFixed(2);
+      drawList.push({
+        goal,
+        current: t === 0,
+        stones: t === 0 ? current : STONES_PER_TOWER,
+        building: t === 0 ? building : null,
+        depth, x, y, scale, opacity,
+      });
+    }
+  });
 
+  // 뒤에 있는 탑부터 그려야 앞 탑이 위에 겹친다
+  drawList.sort((a, b) => b.depth - a.depth);
+
+  const groups = drawList.map((t) => {
+    const { markup } = stoneStack(t.stones, t.building, STONES_PER_TOWER, 0, uid);
     // 안쪽 g를 한 겹 더 두는 이유: 바깥 g의 transform(위치·크기)을
     // CSS 애니메이션이 덮어쓰지 않도록 흔들림은 안쪽에서만 준다
-    return `<g class="tower" data-goal-id="${goal.id}"
-      transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${scale.toFixed(3)})"
-      opacity="${opacity}"><g class="tower-inner">${markup}</g></g>`;
+    return `<g class="tower${t.current ? " tower-current" : ""}" data-goal-id="${t.goal.id}"
+      transform="translate(${t.x.toFixed(1)} ${t.y.toFixed(1)}) scale(${t.scale.toFixed(3)})"
+      opacity="${t.opacity}"><g class="tower-inner">${markup}</g></g>`;
   });
 
   // 탑들이 허공이 아니라 땅 위에 선 것처럼 보이도록 옅은 지면을 깔아 둔다
@@ -870,6 +908,10 @@ function historyWord(goal) {
   if (goal.restarts > 0) {
     return `${goal.restarts}번 무너지고 ${goal.restarts}번 다시 왔어요. 그게 이 탑의 진짜 기록이에요.`;
   }
+  const built = towersOf(goal);
+  if (built.done > 0) {
+    return `돌탑 ${built.done}채를 세웠어요. 한 채가 ${STONES_PER_TOWER * 3}일이니 ${built.done * STONES_PER_TOWER * 3}일이에요.`;
+  }
   if (goal.completedCycles > 0) {
     return `${goal.completedCycles}번의 3일이 쌓여 ${goal.totalDays}일이 됐어요.`;
   }
@@ -893,9 +935,12 @@ function openDetail(goal) {
   detailMonth = 0;
   $("detail-ico").innerHTML = iconSVG(goalIcon(goal), 20);
   $("detail-title").textContent = goal.title;
+  const built = towersOf(goal);
   $("detail-stats").innerHTML =
     `<div><b>${goal.totalDays}</b><span>함께한 날</span></div>` +
     `<div><b>${stoneCount(goal)}</b><span>쌓은 돌</span></div>` +
+    // 완성한 탑은 돌 일곱 개(21일)마다 하나 — 돌보다 큰 단위의 성취다
+    (built.done ? `<div><b>${built.done}</b><span>완성한 탑</span></div>` : "") +
     // 다시 쌓은 횟수는 다른 종류의 성취라 색을 따로 준다
     `<div class="again"><b>${goal.restarts}</b><span>다시 쌓음</span></div>`;
   paintDetailCal();
@@ -953,8 +998,11 @@ function renderRecord() {
       `<span class="record-tt"><b></b><span></span></span>` +
       `<span class="record-num">${stoneCount(goal)}<i>돌</i></span>`;
     row.querySelector("b").textContent = goal.title;
+    const t = towersOf(goal);
     row.querySelector(".record-tt span").textContent =
-      `함께한 날 ${goal.totalDays}` + (goal.restarts ? ` · 다시 쌓음 ${goal.restarts}` : "");
+      (t.done ? `탑 ${t.done}채 완성 · ` : "") +
+      `이 탑 ${t.current}/${STONES_PER_TOWER}` +
+      (goal.restarts ? ` · 다시 쌓음 ${goal.restarts}` : "");
     row.addEventListener("click", () => openDetail(goal));
     list.appendChild(row);
   }
@@ -1022,6 +1070,9 @@ function totalStones() {
 
 function cheerWord(stones, restarts, isFirst) {
   if (isFirst) return "첫 3일을 해냈어요. 이 감각만 기억하면 돼요.";
+  // '하나만 더'는 지금 이 순간에만 쓸모 있는 말이라 다른 것보다 앞세운다
+  const left = STONES_PER_TOWER - (stones % STONES_PER_TOWER);
+  if (left === 1) return "돌 하나만 더 얹으면 이 탑이 완성돼요.";
   if (restarts > 0) return "무너졌다 다시 쌓은 탑이라, 더 단단해요.";
   if (stones % 10 === 0) return `돌 ${stones}개. 이만큼 쌓은 사람은 흔치 않아요.`;
   return `작심삼일 ${stones}번 = ${stones * 3}일. 이렇게 평생 가는 거예요.`;
@@ -1033,15 +1084,29 @@ function showCheer(goal) {
   const restarts = goal.restarts;
   const days = goal.totalDays;
 
-  // 축하 화면에서는 탑을 더 높이 보여 준다
-  $("cheer-cairn").innerHTML = cairnSVG(stones, false, 0, 9);
-  $("cheer-title").textContent = `${ordinal(stones)} 돌을 얹었어요`;
+  // 방금 얹은 돌이 들어간 '지금 그 탑'을 보여 준다. 지금까지 쌓은 돌 전체가
+  // 아니라 — 돌 예순 개짜리 탑은 화면에 담기지도 않고, 방금의 성취가
+  // 어디에 얹혔는지도 안 보인다.
+  const { done: towersDone, current: inTower } = towersOf(goal);
+  $("cheer-cairn").innerHTML = cairnSVG(inTower || STONES_PER_TOWER, false, 0, STONES_PER_TOWER);
+  /* 탑 하나를 다 채운 날은 그냥 넘어가서는 안 되는 날이다.
+   * 돌 일곱 개 = 21일 — 이 앱에서 가장 큰 매듭이라 축하도 달라야 한다. */
+  const towerDone = inTower === 0 && stones > 0;
+  $("cheer-kicker").textContent = towerDone
+    ? `돌탑 ${towersDone}채 완성 · ${STONES_PER_TOWER * 3}일`
+    : "작심삼일 완주";
+  $("cheer-kicker").classList.toggle("big", towerDone);
+  $("cheer-title").textContent = towerDone
+    ? `탑 하나를 다 쌓았어요`
+    : `${ordinal(stones)} 돌을 얹었어요`;
   $("cheer-goal").innerHTML = `<span class="cheer-goal-ico">${iconSVG(goalIcon(goal), 16)}</span>`;
   $("cheer-goal").appendChild(document.createTextNode(goal.title));
   $("cheer-stats").innerHTML =
     `<span>함께한 날 <b>${days}</b></span><span>쌓은 돌 <b>${stones}</b></span>` +
     (restarts ? `<span>다시 쌓음 <b>${restarts}</b></span>` : "");
-  $("cheer-word").textContent = cheerWord(stones, restarts, stones === 1);
+  $("cheer-word").textContent = towerDone
+    ? "다음 돌부터는 이 탑 옆에 새 탑이 섭니다."
+    : cheerWord(stones, restarts, stones === 1);
 
   cheerGoalId = goal.id;
   const el = $("cheer");
@@ -1062,7 +1127,7 @@ function closeCheer() {
 /* 완주한 돌이 카드에서 그 작심의 탑으로 날아가 얹힌다 */
 function flyStoneToTower(fromEl, goalId, onLanded) {
   // 착지점 = 그 작심의 탑 꼭대기에 비어 있는 점선 자리
-  const tower = document.querySelector(`#hero-garden .tower[data-goal-id="${goalId}"]`);
+  const tower = document.querySelector(`#hero-garden .tower-current[data-goal-id="${goalId}"]`);
   const slot = tower && tower.querySelector(".building-stone");
   if (!fromEl || !slot || reduceMotion) {
     landStone();
@@ -1117,7 +1182,7 @@ function landStone(x, y) {
 /* 돌이 얹힌 탑만 눌렸다 펴진다 — 정원의 나머지는 가만히 있는다 */
 function bumpTower(goalId) {
   const tower = goalId
-    ? document.querySelector(`#hero-garden .tower[data-goal-id="${goalId}"]`)
+    ? document.querySelector(`#hero-garden .tower-current[data-goal-id="${goalId}"]`)
     : $("hero-garden");
   if (!tower) return;
   tower.classList.remove("bump");

@@ -296,7 +296,7 @@ function dstr(offset) {
 
   // 돌 하나는 그림자·측면·윗면이 묶인 <g> 한 덩어리
   const stonesIn = (id) => page.evaluate((i) => {
-    const t = document.querySelector('#hero-garden .tower[data-goal-id="' + i + '"] .tower-inner');
+    const t = document.querySelector('#hero-garden .tower-current[data-goal-id="' + i + '"] .tower-inner');
     return t ? t.querySelectorAll(":scope > g").length : -1;
   }, id);
 
@@ -826,6 +826,51 @@ function dstr(offset) {
     (await page.evaluate(() => localStorage.getItem("jaksim3.devDays"))) === null,
     "and nothing is left behind"
   );
+
+  // 27. 오래 쌓아도 정원이 계속 자란다
+  // 예전에는 한 작심의 탑이 돌 네 개에서 조용히 멈췄다. 돌 4개와 60개의
+  // 그림이 픽셀 단위로 같았다는 뜻이고, 열이틀 뒤부터는 아무리 해내도
+  // 보상이 없었다는 뜻이다. 이 앱이 주는 보상이 그거 하나뿐인데.
+  const gardenAt = (stones) =>
+    page.evaluate((n) => {
+      state.goals = [{ id: "big", title: "아침에 물 한 잔", icon: "water", createdAt: "",
+        checks: [], history: [], lastCheckDate: null, totalDays: n * 3, completedCycles: n, restarts: 0 }];
+      save();
+      render();
+      const towers = [...document.querySelectorAll("#hero-garden .tower")];
+      return {
+        towers: towers.length,
+        current: document.querySelectorAll("#hero-garden .tower-current").length,
+        stones: towers.reduce((s, t) => s + t.querySelectorAll("ellipse[fill^='url(#stoneTop']").length, 0),
+      };
+    }, stones);
+
+  const g1 = await gardenAt(1);
+  const g6 = await gardenAt(6);
+  const g7 = await gardenAt(7);
+  const g20 = await gardenAt(20);
+  const g120 = await gardenAt(120);
+
+  assert(g1.towers === 1 && g1.stones === 1, "one stone, one tower");
+  assert(g6.towers === 1 && g6.stones === 6, "six stones still fit in a single tower");
+  assert(g7.towers === 2, "the seventh stone finishes a tower and starts the next one");
+  assert(g7.current === 1, "exactly one tower is the one being built");
+  assert(g20.towers > g7.towers, "twenty stones make more towers than seven");
+  assert(g120.towers > g20.towers, "and a year's worth makes more still");
+  assert(
+    g120.stones > g20.stones && g20.stones > g7.stones,
+    `the garden keeps gaining stones (7→${g7.stones}, 20→${g20.stones}, 120→${g120.stones})`
+  );
+
+  // 완성한 탑 수는 기록에도 남아야 한다
+  await page.click('.tab[data-view="record"]');
+  await page.waitForTimeout(250);
+  assert(
+    (await page.locator(".record-row .record-tt span").textContent()).includes("탑 17채"),
+    "the record tab counts the finished towers"
+  );
+  await page.click('.tab[data-view="home"]');
+  await page.waitForTimeout(200);
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 

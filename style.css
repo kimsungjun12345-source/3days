@@ -1343,6 +1343,17 @@ body {
   margin-bottom: 4px;
 }
 
+/* 탑 한 채를 다 쌓은 날은 이 앱에서 가장 큰 매듭이라 표시도 커진다 */
+.cheer-kicker.big {
+  display: inline-block;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  margin-bottom: 8px;
+}
+
 .cheer-title {
   font-family: var(--font-title);
   font-size: 1.4rem;
