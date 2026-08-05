@@ -845,32 +845,78 @@ function dstr(offset) {
       };
     }, stones);
 
+  const per = await page.evaluate(() => STONES_PER_TOWER);
   const g1 = await gardenAt(1);
-  const g6 = await gardenAt(6);
-  const g7 = await gardenAt(7);
-  const g20 = await gardenAt(20);
-  const g120 = await gardenAt(120);
+  const gFull = await gardenAt(per - 1);
+  const gOver = await gardenAt(per);
+  const gMid = await gardenAt(per * 4);
+  const gYear = await gardenAt(120);
 
   assert(g1.towers === 1 && g1.stones === 1, "one stone, one tower");
-  assert(g6.towers === 1 && g6.stones === 6, "six stones still fit in a single tower");
-  assert(g7.towers === 2, "the seventh stone finishes a tower and starts the next one");
-  assert(g7.current === 1, "exactly one tower is the one being built");
-  assert(g20.towers > g7.towers, "twenty stones make more towers than seven");
-  assert(g120.towers > g20.towers, "and a year's worth makes more still");
+  assert(gFull.towers === 1 && gFull.stones === per - 1, `${per - 1} stones still fit in one tower`);
+  assert(gOver.towers === 2, `stone number ${per} finishes a tower and starts the next`);
+  assert(gOver.current === 1, "exactly one tower is the one being built");
+  assert(gMid.towers > gOver.towers, "four towers' worth makes more towers");
+  assert(gYear.towers > gMid.towers, "and a year's worth makes more still");
   assert(
-    g120.stones > g20.stones && g20.stones > g7.stones,
-    `the garden keeps gaining stones (7→${g7.stones}, 20→${g20.stones}, 120→${g120.stones})`
+    gYear.stones > gMid.stones && gMid.stones > gOver.stones,
+    `the garden keeps gaining stones (${per}→${gOver.stones}, ${per * 4}→${gMid.stones}, 120→${gYear.stones})`
   );
 
   // 완성한 탑 수는 기록에도 남아야 한다
   await page.click('.tab[data-view="record"]');
   await page.waitForTimeout(250);
   assert(
-    (await page.locator(".record-row .record-tt span").textContent()).includes("탑 17채"),
+    (await page.locator(".record-row .record-tt span").textContent()).includes(`탑 ${Math.floor(120 / per)}채`),
     "the record tab counts the finished towers"
   );
   await page.click('.tab[data-view="home"]');
   await page.waitForTimeout(200);
+
+  // 28. 작심마다 돌이 다르다 — 색깔 범례가 아니라 돌의 성격으로
+  // 탑이 여러 채 서면 어느 게 어느 작심인지 알아야 한다. 그렇다고
+  // 빨강·파랑을 칠하면 정원이 아니라 그래프가 된다.
+  await page.click('.tab[data-view="home"]');
+  await page.waitForTimeout(200);
+  const stones = await page.evaluate(() => {
+    state.goals = ["가", "나", "다"].map((t, i) => ({
+      id: "s" + i, title: t, icon: "water", createdAt: "",
+      checks: [], history: [], lastCheckDate: null,
+      totalDays: 9, completedCycles: 3, restarts: 0,
+    }));
+    save();
+    render();
+    const tone = (id) => {
+      const el = document.querySelector(`#hero-garden .tower-current[data-goal-id="${id}"]`);
+      return el ? getComputedStyle(el).filter : null;
+    };
+    const width = (id) => {
+      const el = document.querySelector(`#hero-garden .tower-current[data-goal-id="${id}"] ellipse[fill^='url(#stoneTop']`);
+      return el ? Number(el.getAttribute("ry")) : 0;
+    };
+    return {
+      tones: ["s0", "s1", "s2"].map(tone),
+      flats: ["s0", "s1", "s2"].map(width),
+      lanes: ["s0", "s1", "s2"].map((id) => {
+        const el = document.querySelector(`#hero-garden .tower-current[data-goal-id="${id}"]`);
+        return el ? el.getAttribute("transform") : null;
+      }),
+    };
+  });
+  assert(new Set(stones.tones).size === 3, "each goal's stones catch the light differently");
+  assert(new Set(stones.flats).size === 3, "and each goal's stones have their own shape");
+
+  // 자리는 고정이어야 한다 — 많이 쌓은 순으로 자리를 주면 어제 가운데
+  // 있던 탑이 오늘 옆으로 밀려서 '내 정원'이라는 기억이 안 생긴다
+  const movedLanes = await page.evaluate(() => {
+    const before = document.querySelector('#hero-garden .tower-current[data-goal-id="s0"]').getAttribute("transform");
+    state.goals[2].completedCycles = 99; // 세 번째 작심이 압도적으로 앞서도
+    save();
+    render();
+    const after = document.querySelector('#hero-garden .tower-current[data-goal-id="s0"]').getAttribute("transform");
+    return { before, after };
+  });
+  assert(movedLanes.before === movedLanes.after, "a goal keeps its place in the garden as counts change");
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 

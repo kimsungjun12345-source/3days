@@ -270,11 +270,11 @@ function stonePiece(cx, cy, rx, ry, tilt, uid) {
  */
 
 /* 바닥 중심을 원점으로 위로 쌓는 돌 무더기 */
-function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0) {
+function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0, ch = STONE_CHARACTERS[0]) {
   const shown = Math.min(stones, max);
   let y = -4;
   let rx = 40;
-  let ry = 13.5;
+  let ry = 13.5 * ch.flat;
   let top = 0;
   // 바닥 그림자는 마지막에 앞쪽으로 끼워 넣는다 — 크기가 실제로 서 있는
   // 것의 발 너비를 따라야 하는데, 그건 다 그려 보기 전에는 알 수 없다.
@@ -285,13 +285,13 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0) {
 
   for (let i = 0; i < shown; i++) {
     y -= ry * 1.5;
-    const tilt = i % 2 === 0 ? -1.6 : 1.7;
+    const tilt = (i % 2 === 0 ? -1 : 1.05) * ch.tilt;
     const cx = i % 2 === 0 ? -1.5 : 1.5;
     parts.push(stonePiece(cx, y, rx, ry, tilt, uid));
     foot = Math.max(foot, rx);
     top = Math.min(top, y - ry);
     y -= ry * 0.4;
-    rx *= 0.85;
+    rx *= ch.taper;
     ry *= 0.93;
   }
 
@@ -303,7 +303,7 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0) {
     );
     top = Math.min(top, y - ry);
     y -= ry * 0.4;
-    rx *= 0.85;
+    rx *= ch.taper;
     ry *= 0.93;
   }
 
@@ -371,7 +371,53 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0) {
  * 돌 120개짜리 탑은 화면에 담을 수도 없고 보기에도 이상하다. 다른 하나는
  * 이야기 — 마이산 탑사처럼, 오래 다닌 사람의 자리에는 탑이 여러 채 선다.
  */
-const STONES_PER_TOWER = 7; // 7 × 3일 = 21일
+const STONES_PER_TOWER = 5; // 5 × 3일 = 15일
+
+/* ── 작심마다 다른 돌 ──────────────────
+ * 정원에 탑이 여러 채 서면 "어느 게 내 물 마시기 탑이지?"가 생긴다.
+ * 그렇다고 작심마다 빨강·파랑을 칠하면 정원이 아니라 막대그래프가 된다.
+ * 이 앱에서 돌탑은 데이터를 읽는 도구가 아니라 내가 쌓아온 것을 바라보는
+ * 자리라서, 그 톤을 잃으면 앱의 절반이 사라진다.
+ *
+ * 그래서 색을 새로 칠하지 않고 '돌의 성격'을 달리했다. 실제 돌밭에서
+ * 돌을 구별하는 방식 그대로다 — 어떤 자리는 납작한 판석이 쌓여 있고,
+ * 어떤 자리는 둥근 조약돌이며, 볕과 이끼에 따라 돌빛이 조금씩 다르다.
+ *
+ *   flat  : 납작한 정도 (높을수록 판석)
+ *   taper : 위로 갈수록 좁아지는 속도
+ *   tilt  : 돌을 얹은 손버릇 — 기울기의 크기
+ *   tone  : 돌빛. 회색 돌에 아주 약한 색조만 얹는다
+ */
+/* 색조는 속삭이는 정도만. 구별은 주로 '밝기'와 '모양'이 한다 —
+ * 실제 돌밭도 빨강·파랑이 아니라 밝은 사암과 어두운 현무암으로 갈린다.
+ * 색을 세게 주면 정원이 아니라 색깔 범례가 된다.
+ *
+ * 돌빛(tone)은 CSS의 .stone-tone-N 이 쥐고 있다. 어두운 화면에서는
+ * 같은 필터를 그대로 쓰면 밝은 돌이 배경에서 떠 보이기 때문에,
+ * 팔레트가 있는 곳에서 테마별로 따로 잡아야 한다. */
+/* 순서가 곧 정원에 들어오는 순서다. 이웃한 둘이 가장 달라 보이도록
+ * 늘어놨다 — 작심이 두 개인 사람이 제일 많은데, 그 둘이 비슷하면
+ * 이 장치는 아무 일도 하지 않은 것이 된다. */
+const STONE_CHARACTERS = [
+  { flat: 1.0, taper: 0.85, tilt: 1.6 },   // 기본 — 따뜻한 회색, 보통 두께
+  { flat: 1.24, taper: 0.81, tilt: 0.7 },  // 창백하고 서늘한 판석 — 아주 납작
+  { flat: 0.82, taper: 0.9, tilt: 3.6 },   // 짙은 조약돌 — 둥글고 삐뚤빼뚤
+  { flat: 1.12, taper: 0.83, tilt: 1.1 },  // 밝은 사암
+  { flat: 0.94, taper: 0.87, tilt: 2.4 },  // 이끼 낀 어두운 돌
+  { flat: 0.9, taper: 0.88, tilt: 2.9 },   // 무채색 자갈
+];
+
+function characterOf(index) {
+  const i = index % STONE_CHARACTERS.length;
+  return { ...STONE_CHARACTERS[i], toneClass: `stone-tone-${i}` };
+}
+
+/* 이 작심의 돌 — 정원·축하 화면·기록이 모두 같은 돌을 써야
+ * "이게 내 그 탑이구나"가 성립한다 */
+function goalCharacter(goal) {
+  const i = state.goals.findIndex((g) => g.id === goal.id);
+  return characterOf(i < 0 ? 0 : i);
+}
 
 /* 작심 하나가 가진 탑들 — 완성한 탑 수와, 지금 쌓는 중인 탑의 돌 수 */
 function towersOf(goal, heldBack = false) {
@@ -383,9 +429,13 @@ function towersOf(goal, heldBack = false) {
  * 뒤로 물러나며 지그재그로 선다 — 새로 쌓는 탑이 늘 맨 앞이다. */
 const GOAL_LANES = [0.5, 0.2, 0.79, 0.35, 0.66, 0.11];
 const GARDEN_MAX = GOAL_LANES.length;
-/* 한 구역에 그리는 탑 수. 이보다 많아지면 뒤쪽은 어차피 안개에 잠겨
- * 구분되지 않으므로, 그릴 수를 막고 정확한 개수는 숫자로 알린다. */
-const TOWERS_DRAWN = 9;
+/* 정원에 그리는 탑 수는 대체로 열 채 안쪽으로 유지한다.
+ * 작심이 여섯이면 한 작심당 두 채씩만 그린다 — 그보다 많이 그리면
+ * 탑들이 서로 가려서 '많다'는 느낌 말고는 아무것도 남지 않는다.
+ * 정확한 개수는 그림이 아니라 기록 탭의 숫자가 말한다. */
+function towersDrawn(goalCount) {
+  return Math.max(2, Math.round(10 / Math.max(1, goalCount)));
+}
 
 function gardenSVG(goals) {
   const W = 340;
@@ -393,17 +443,20 @@ function gardenSVG(goals) {
   const groundY = 132;
   const uid = ++stoneDefsSeq;
 
-  // 많이 쌓은 작심이 정원 한가운데를 차지한다
-  const lanes = goals
-    .map((g) => ({ goal: g, stones: stoneCount(g) }))
-    .sort((a, b) => b.stones - a.stones)
-    .slice(0, GARDEN_MAX);
+  /* 작심마다 정원의 자리가 정해져 있다 — 만든 순서대로.
+   *
+   * 예전에는 많이 쌓은 순서로 자리를 줬는데, 그러면 어제까지 가운데 있던
+   * 탑이 오늘 옆으로 밀린다. 정원의 지형이 바뀌면 "왼쪽 저건 내 걷기 탑"
+   * 같은 기억이 만들어지지 않는다. 자리는 고정이어야 내 정원이 된다. */
+  const lanes = goals.slice(0, GARDEN_MAX).map((g, i) => ({ goal: g, lane: i }));
 
   /* 작심 하나가 탑 여러 채가 된다. 지금 쌓는 탑이 맨 앞, 완성한 탑들이
    * 그 뒤로 물러난다. 뒤로 갈수록 작고 흐려서, 여러 채가 서 있어도
    * 화면이 시끄러워지지 않고 '오래 다닌 자리'처럼 보인다. */
   const drawList = [];
-  lanes.forEach(({ goal }, gi) => {
+  const perGoal = towersDrawn(lanes.length);
+  lanes.forEach(({ goal, lane: gi }) => {
+    const ch = characterOf(gi);
     const held = heldGoalId === goal.id;
     const { done, current } = towersOf(goal, held);
     const st = goalStatus(goal);
@@ -415,7 +468,7 @@ function gardenSVG(goals) {
     const building = held || running ? { done: checks, waiting: running && !checkedToday(goal) } : null;
 
     const baseX = GOAL_LANES[gi];
-    const shown = Math.min(done, TOWERS_DRAWN - 1);
+    const shown = Math.min(done, perGoal - 1);
     for (let t = 0; t <= shown; t++) {
       // t = 0 이 지금 쌓는 탑(맨 앞), 클수록 오래전에 완성한 탑
       const depth = Math.min(0.99, t * 0.145 + gi * 0.05);
@@ -429,7 +482,7 @@ function gardenSVG(goals) {
       const scale = (1 - 0.44 * depth) * 0.62;
       const opacity = (1 - 0.42 * depth).toFixed(2);
       drawList.push({
-        goal,
+        goal, ch,
         current: t === 0,
         stones: t === 0 ? current : STONES_PER_TOWER,
         building: t === 0 ? building : null,
@@ -442,10 +495,10 @@ function gardenSVG(goals) {
   drawList.sort((a, b) => b.depth - a.depth);
 
   const groups = drawList.map((t) => {
-    const { markup } = stoneStack(t.stones, t.building, STONES_PER_TOWER, 0, uid);
+    const { markup } = stoneStack(t.stones, t.building, STONES_PER_TOWER, 0, uid, t.ch);
     // 안쪽 g를 한 겹 더 두는 이유: 바깥 g의 transform(위치·크기)을
     // CSS 애니메이션이 덮어쓰지 않도록 흔들림은 안쪽에서만 준다
-    return `<g class="tower${t.current ? " tower-current" : ""}" data-goal-id="${t.goal.id}"
+    return `<g class="tower ${t.ch.toneClass}${t.current ? " tower-current" : ""}" data-goal-id="${t.goal.id}"
       transform="translate(${t.x.toFixed(1)} ${t.y.toFixed(1)}) scale(${t.scale.toFixed(3)})"
       opacity="${t.opacity}"><g class="tower-inner">${markup}</g></g>`;
   });
@@ -477,10 +530,10 @@ function stoneCount(goal) {
  * 딱 맞추면 돌 한 개짜리 장과 다섯 개짜리 장의 확대율이 달라져서,
  * 같은 돌인데도 장마다 크기가 널뛰고 돌 하나짜리 장은 바닥 그림자만
  * 커다랗게 보인다. */
-function cairnSVG(stones, building, ghost = 0, max = MAX_STONES, frameTop = 0) {
+function cairnSVG(stones, building, ghost = 0, max = MAX_STONES, frameTop = 0, ch = STONE_CHARACTERS[0]) {
   // 정원의 탑과 같은 돌을 쓴다 — 축하 화면과 홈이 같은 재질로 보이도록
   const uid = ++stoneDefsSeq;
-  const { markup, top } = stoneStack(stones, building, max, ghost, uid);
+  const { markup, top } = stoneStack(stones, building, max, ghost, uid, ch);
   const pad = 12;
   const y = Math.min(top, frameTop) - pad;
   const height = pad - y;
@@ -523,6 +576,16 @@ function renderStats() {
   $("stat-cycles").textContent = cycles;
   $("stat-restarts").textContent = restarts;
   $("hero-garden").innerHTML = gardenSVG(goals);
+  // 탑을 누르면 그 작심의 기록이 열린다 — 돌 모양과 돌빛만으로 긴가민가할 때
+  // 손으로 확인할 수 있는 길. (정원은 aria-hidden이라 화면 낭독기에는
+  // 중복으로 읽히지 않고, 같은 일은 아래 카드에서도 할 수 있다.)
+  $("hero-garden").querySelectorAll(".tower").forEach((el) => {
+    el.style.cursor = "pointer";
+    el.addEventListener("click", () => {
+      const goal = state.goals.find((g) => g.id === el.dataset.goalId);
+      if (goal) openDetail(goal);
+    });
+  });
 
   const emptyCairn = document.querySelector(".empty-cairn");
   if (emptyCairn && !hasGoals) emptyCairn.innerHTML = cairnSVG(0, true, 2);
@@ -1088,7 +1151,9 @@ function showCheer(goal) {
   // 아니라 — 돌 예순 개짜리 탑은 화면에 담기지도 않고, 방금의 성취가
   // 어디에 얹혔는지도 안 보인다.
   const { done: towersDone, current: inTower } = towersOf(goal);
-  $("cheer-cairn").innerHTML = cairnSVG(inTower || STONES_PER_TOWER, false, 0, STONES_PER_TOWER);
+  const ch = goalCharacter(goal);
+  $("cheer-cairn").innerHTML = cairnSVG(inTower || STONES_PER_TOWER, false, 0, STONES_PER_TOWER, 0, ch);
+  $("cheer-cairn").className = "cheer-cairn " + ch.toneClass;
   /* 탑 하나를 다 채운 날은 그냥 넘어가서는 안 되는 날이다.
    * 돌 일곱 개 = 21일 — 이 앱에서 가장 큰 매듭이라 축하도 달라야 한다. */
   const towerDone = inTower === 0 && stones > 0;
@@ -1142,6 +1207,8 @@ function flyStoneToTower(fromEl, goalId, onLanded) {
 
   const stone = document.createElement("div");
   stone.className = "flying-stone";
+  const goal = state.goals.find((g) => g.id === goalId);
+  if (goal) stone.classList.add(goalCharacter(goal).toneClass);
   stone.style.left = from.left + from.width / 2 + "px";
   stone.style.top = from.top + from.height / 2 + "px";
   document.body.appendChild(stone);
