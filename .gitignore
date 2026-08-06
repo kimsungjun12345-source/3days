@@ -3,6 +3,7 @@ test/screenshot.png
 
 # 빌드로 만들어지는 것 (npm run build / cap sync 로 언제든 다시 생성)
 www/
+build-info.js
 
 # 네이티브 빌드 산출물 — 프로젝트 폴더 자체는 저장소에 둔다
 android/app/build/

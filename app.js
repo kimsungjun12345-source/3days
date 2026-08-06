@@ -1591,6 +1591,21 @@ function setupDevTools() {
   const banner = $("dev-banner");
   if (!about || !card || !banner) return;
 
+  const build = window.BUILD || { channel: "dev", commit: "" };
+
+  /* 어느 빌드가 깔렸는지 여기서 바로 보인다. "그 기능이 없다"는 말을 들었을 때
+   * 제일 먼저 확인해야 하는 것이 '그게 든 빌드가 맞느냐'인데, 그동안은
+   * 앱 안에서 확인할 길이 없었다. */
+  if (build.commit) {
+    $("about-sub").textContent = `기록은 이 기기에만 저장돼요 · v1.0 · ${build.commit}`;
+  }
+
+  /* 테스트하라고 만든 빌드에서 테스트 도구를 숨겨 두는 건 앞뒤가 맞지 않는다.
+   * 스토어에 올리는 빌드(release)에서만 숨기고, 그때도 정보 줄을 다섯 번
+   * 누르면 열린다 — 안드로이드가 빌드 번호를 다루는 방식과 같다. */
+  const openly = build.channel !== "release";
+  if (openly) card.hidden = false;
+
   let taps = 0;
   let tapTimer = null;
 
@@ -1616,6 +1631,12 @@ function setupDevTools() {
   };
 
   about.addEventListener("click", () => {
+    if (openly) {
+      // 대놓고 보이는 빌드에서는 접었다 폈다 하는 스위치로만 쓴다
+      card.hidden = !card.hidden;
+      haptic(6);
+      return;
+    }
     taps += 1;
     clearTimeout(tapTimer);
     tapTimer = setTimeout(() => (taps = 0), 1500);

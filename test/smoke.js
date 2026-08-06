@@ -787,13 +787,27 @@ function dstr(offset) {
   });
   await page.click('.tab[data-view="settings"]');
   await page.waitForTimeout(200);
-  assert(await page.locator("#dev-card").isHidden(), "the dev drawer stays out of the way");
 
-  for (let i = 0; i < 5; i++) {
-    await page.click("#row-about");
-    await page.waitForTimeout(80);
-  }
-  assert(await page.locator("#dev-card").isVisible(), "five taps on the version row open it");
+  /* 테스트하라고 만든 빌드에서 테스트 도구를 숨겨 두면 앞뒤가 맞지 않는다.
+   * 처음에는 정보 줄을 다섯 번 눌러야 열리게 해 뒀는데, 정작 그 빌드를
+   * 받은 사람이 "개발자 도구가 없다"고 했다. 아무 표시도 없는 손짓을
+   * 기억하라고 요구한 것이 문제였다. 이제 개발용 빌드에서는 대놓고 보인다. */
+  assert(await page.locator("#dev-card").isVisible(), "a dev build shows its dev tools plainly");
+
+  // 어느 빌드가 깔렸는지 앱 안에서 확인할 수 있어야 한다 —
+  // '그 기능이 없다'는 말을 들었을 때 제일 먼저 봐야 하는 것이 이것이다
+  assert(
+    /v\d/.test(await page.locator("#about-sub").textContent()),
+    "the version row says which build this is"
+  );
+
+  // 정보 줄은 접었다 펴는 스위치가 된다
+  await page.click("#row-about");
+  await page.waitForTimeout(150);
+  assert(await page.locator("#dev-card").isHidden(), "tapping the version row folds it away");
+  await page.click("#row-about");
+  await page.waitForTimeout(150);
+  assert(await page.locator("#dev-card").isVisible(), "and brings it back");
 
   await page.click("#dev-seed");
   await page.waitForTimeout(400);
@@ -917,6 +931,25 @@ function dstr(offset) {
     return { before, after };
   });
   assert(movedLanes.before === movedLanes.after, "a goal keeps its place in the garden as counts change");
+
+  // 29. 스토어에 올리는 빌드에는 개발자 도구가 드러나지 않는다
+  await page.route("**/build-info.js", (route) =>
+    route.fulfill({
+      contentType: "text/javascript",
+      body: 'window.BUILD = {"channel":"release","commit":"abc1234"};',
+    })
+  );
+  await page.reload();
+  await page.waitForFunction(() => !!window.BUILD, null, { timeout: 5000 });
+  await page.click('.tab[data-view="settings"]');
+  await page.waitForTimeout(250);
+  assert(await page.locator("#dev-card").isHidden(), "a store build keeps the dev tools out of sight");
+  for (let i = 0; i < 5; i++) {
+    await page.click("#row-about");
+    await page.waitForTimeout(80);
+  }
+  assert(await page.locator("#dev-card").isVisible(), "but five taps still reach them");
+  await page.unroute("**/build-info.js");
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 

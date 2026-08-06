@@ -50,6 +50,10 @@ jobs:
         run: npm ci
 
       - name: 웹 자산 빌드 후 네이티브에 동기화
+        # 디버그 APK는 테스트용이므로 개발자 도구를 대놓고 보여 준다.
+        # 스토어용 빌드는 아래에서 BUILD_CHANNEL=release 로 다시 만든다.
+        env:
+          BUILD_CHANNEL: dev
         run: |
           npm run build
           npx cap sync android
@@ -120,6 +124,14 @@ jobs:
             exit 1
           fi
           echo "$KEYSTORE" | base64 -d > android/app/release.keystore
+
+      - name: 스토어용으로 웹 자산 다시 빌드 (개발자 도구 없이)
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release
+        env:
+          BUILD_CHANNEL: release
+        run: |
+          npm run build
+          npx cap sync android
 
       - name: 서명된 AAB
         if: startsWith(github.ref, 'refs/tags/v') || inputs.release
