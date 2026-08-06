@@ -10,18 +10,19 @@ name: 웹 배포
 # 저장소 Settings → Pages → Source 를 "GitHub Actions"로 바꾼다.
 # 비공개 저장소에서 Pages를 쓰려면 GitHub Pro 이상이 필요하다.
 # (무료 계정이라면 저장소를 공개로 돌리거나, 다른 정적 호스팅을 쓴다.)
+#
+# 그 준비가 되기 전까지는 이 워크플로가 돌아 봐야 실패만 한다. 그래서
+# 손으로 돌릴 때만 실행된다 — Actions 탭 → '웹 배포' → Run workflow.
+# 준비가 끝난 뒤 푸시마다 자동으로 올리고 싶으면 아래 push 트리거의
+# 주석을 풀면 된다.
+#
+#  on:
+#    push:
+#      branches: ["claude/jaksim-samil-app-salp5o", "main"]
+#      paths: ["index.html", "*.css", "*.js", "manifest.webmanifest",
+#              "icons/**", "fonts/**", "scripts/build.js"]
 
 on:
-  push:
-    branches: ["claude/jaksim-samil-app-salp5o", "main"]
-    paths:
-      - "index.html"
-      - "*.css"
-      - "*.js"
-      - "manifest.webmanifest"
-      - "icons/**"
-      - "scripts/build.js"
-      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -50,7 +51,32 @@ jobs:
       - name: 웹 자산 모으기
         run: node scripts/build.js
 
-      - uses: actions/configure-pages@v5
+      # Pages가 아직 안 켜져 있으면 여기서 켜 본다. 권한이 없으면
+      # (무료 계정 + 비공개 저장소) 아래 안내를 남기고 멈춘다.
+      - id: pages
+        uses: actions/configure-pages@v5
+        continue-on-error: true
+        with:
+          enablement: true
+
+      - name: Pages가 준비되지 않았다면 알려 주기
+        if: steps.pages.outcome == 'failure'
+        run: |
+          echo "::error::GitHub Pages를 쓸 수 없습니다."
+          {
+            echo "### 웹 배포를 하려면 준비가 하나 필요합니다"
+            echo ""
+            echo "저장소 **Settings → Pages → Source** 를 \`GitHub Actions\` 로 바꿔 주세요."
+            echo ""
+            echo "이 저장소는 비공개라, 무료 계정에서는 Pages를 쓸 수 없습니다. 셋 중 하나입니다."
+            echo ""
+            echo "1. 저장소를 공개로 전환 (이 앱은 서버도 API 키도 없어 유출될 비밀이 없습니다)"
+            echo "2. GitHub Pro 결제"
+            echo "3. Cloudflare Pages 등 다른 정적 호스팅 사용"
+            echo ""
+            echo "그때까지는 APK를 받아 설치하는 방식이 그대로 동작합니다."
+          } >> $GITHUB_STEP_SUMMARY
+          exit 1
 
       - uses: actions/upload-pages-artifact@v3
         with:

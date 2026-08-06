@@ -68,7 +68,10 @@ npm run build
 
 **3. 화면만 웹에 올려 두기 (컴퓨터 없이, 폰만으로)**
 
-`.github/workflows/pages.yml`이 화면을 정적 호스팅에 올립니다. 그 주소를
+`.github/workflows/pages.yml`이 화면을 정적 호스팅에 올립니다.
+이 워크플로는 **손으로 돌릴 때만** 실행됩니다 (Actions 탭 → 웹 배포 →
+Run workflow). Pages 준비가 안 된 상태에서 푸시마다 돌면 실패 알림만
+쌓이기 때문입니다. 준비가 끝나면 파일 안의 push 트리거 주석을 풀면 됩니다. 그 주소를
 저장소 변수 `LIVE_URL`에 넣어 두면, `android.yml`이 '살아있는 빌드'
 (`jaksimsamil-live-*.apk`)를 함께 만듭니다. 이걸 한 번만 설치하면 그 뒤로는
 **앱을 다시 여는 것만으로** 최신 화면이 뜹니다.
