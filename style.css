@@ -1016,34 +1016,6 @@ body {
   font-weight: 700;
 }
 
-/* 무너진 카드에만 붙는 귀띔 — 누르면 달력이 열린다.
-   되살리는 일 자체는 달력에서 하고, 여기서는 그런 길이 있다는 것만 말한다 */
-.btn-yesterday {
-  display: block;
-  width: 100%;
-  margin-top: 9px;
-  padding: 9px 8px;
-  border: none;
-  border-radius: 11px;
-  background: none;
-  font-family: inherit;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--gray);
-  cursor: pointer;
-  word-break: keep-all;
-}
-
-.btn-yesterday:active {
-  background: var(--chip);
-}
-
-/* 무너진 카드에서는 이게 더 정확한 선택지라 조금 더 또렷하게 */
-.state-broken .btn-yesterday {
-  color: var(--sage);
-  font-weight: 700;
-}
-
 /* ── 손맛: 돌 얹는 순간 ───────────────
  * 체크한 칸이 톡 튀고, 3일을 채우면 돌이 카드에서 돌탑으로 날아가 얹힌다.
  */
@@ -1418,75 +1390,11 @@ body {
   background: var(--chip);
 }
 
-/* 눌러서 되살릴 수 있는 칸 — 점선으로 '여기 문이 있다'만 조용히 */
-.mcal-cell.pickable {
-  cursor: pointer;
-  box-shadow: inset 0 0 0 1px var(--line);
-}
-
-.mcal-cell.picked {
-  box-shadow: inset 0 0 0 2px var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent-ink);
-  font-weight: 700;
-}
-
-/* 고른 날에 대해 뭘 할 수 있는지 — 달력 바로 아래에 붙는다 */
-.mcal-pick {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 10px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: var(--chip);
-  animation: pick-in 0.18s ease-out;
-}
-
-@keyframes pick-in {
-  from { transform: translateY(-4px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
-.pick-what {
-  flex: 1;
-  min-width: 0;
-}
-
-.pick-what b {
-  display: block;
-  font-size: 0.86rem;
-  color: var(--ink);
-}
-
-.pick-what span {
-  font-size: 0.72rem;
-  color: var(--gray);
-  word-break: keep-all;
-}
-
-.pick-act {
-  flex-shrink: 0;
-  padding: 9px 14px;
-  border: none;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--on-accent);
-  font-family: inherit;
-  font-size: 0.82rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.pick-act:active {
-  transform: scale(0.96);
-}
-
 .mcal-cell.blank {
   background: none;
 }
 
-/* 돌을 얹은 날 — 채워진 원으로 한눈에 */
+/* 돌을 얹은 날 — 채워진 칸으로 한눈에 */
 .mcal-cell.done {
   background: var(--accent);
   color: var(--on-accent);
@@ -1500,6 +1408,83 @@ body {
 .mcal-cell.future {
   background: none;
   color: var(--dot-empty);
+}
+
+/* 여러 작심이 겹치는 달력(기록 탭)에서는 칸을 통째로 칠하지 않는다.
+   '뭔가 한 날'이 아니라 '무엇을 한 날'이 보여야 하므로, 옅게 깔고
+   날짜 아래에 작심별 점을 찍는다. */
+.mcal-cell.marked {
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 3px;
+}
+
+.mcal-cell.marked.done {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+.gdots {
+  display: flex;
+  gap: 2px;
+  height: 5px;
+  align-items: center;
+}
+
+.gdot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--goal-1);
+}
+
+/* 작심별 색.
+ *
+ * 돌은 일부러 색으로 구별하지 않는다 — 정원에 알록달록한 돌이 서 있으면
+ * 돌탑이 아니라 사탕 더미가 된다. 그건 돌의 결과 톤으로 구별한다.
+ *
+ * 하지만 기록 탭은 그림이 아니라 표다. 여기서는 "그날 무엇을 했나"가
+ * 한눈에 읽혀야 하고, 그러려면 색만 한 게 없다. 그래서 색은 이 탭 안에서만
+ * 쓰고, 팔레트도 앱의 흙빛 안에 머무는 낮은 채도로 골랐다. */
+:root {
+  --goal-0: #c2583f;   /* 붉은 흙 */
+  --goal-1: #5f7d54;   /* 이끼 */
+  --goal-2: #6d7f99;   /* 흐린 하늘 */
+  --goal-3: #a8792f;   /* 마른 볏짚 */
+  --goal-4: #8d6180;   /* 저문 자두 */
+  --goal-5: #3f7f76;   /* 물빛 */
+}
+
+:root[data-theme="dark"] {
+  --goal-0: #e2775c;
+  --goal-1: #8fb182;
+  --goal-2: #9aadc7;
+  --goal-3: #d6a752;
+  --goal-4: #bd8fb0;
+  --goal-5: #63b3a8;
+}
+
+.gdot.g0 { background: var(--goal-0); }
+.gdot.g1 { background: var(--goal-1); }
+.gdot.g2 { background: var(--goal-2); }
+.gdot.g3 { background: var(--goal-3); }
+.gdot.g4 { background: var(--goal-4); }
+.gdot.g5 { background: var(--goal-5); }
+
+/* 기록 목록의 아이콘 칩이 그 색을 들고 있어, 달력의 점이 무슨 뜻인지
+   따로 범례를 두지 않아도 통한다 */
+.record-row.g0 .record-ico { color: var(--goal-0); }
+.record-row.g1 .record-ico { color: var(--goal-1); }
+.record-row.g2 .record-ico { color: var(--goal-2); }
+.record-row.g3 .record-ico { color: var(--goal-3); }
+.record-row.g4 .record-ico { color: var(--goal-4); }
+.record-row.g5 .record-ico { color: var(--goal-5); }
+
+/* 칩 바탕도 그 색을 아주 옅게 물들여 둔다 — 글리프 하나만 물들이는 것보다
+   달력의 점과 짝이 지어진다는 게 멀리서도 보인다 */
+.record-row .record-ico {
+  background: color-mix(in srgb, currentColor 12%, transparent);
 }
 
 /* 지나간 날짜는 읽을 수 있어야 한다 — 흐린 것과 안 보이는 것은 다르다 */

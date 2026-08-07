@@ -140,90 +140,23 @@ function addGoal(title, icon) {
   toast(icon, "약속했어요. 딱 3일만 가봐요!");
 }
 
-/* ── 지나간 날 되살리기 ──────────────────
+/* ── 지나간 날은 지나간 대로 ─────────────
  *
- * 이 앱이 벌하고 있던 것은 '하지 않은 것'이 아니라 '기록하지 않은 것'이었다.
- * 물은 마셨는데 앱을 안 열었으면 사이클이 깨졌다. 무너져도 괜찮다는 앱이
- * 정작 가장 억울한 실패를 막지 못한 셈이다.
+ * 한동안 '어제 것도 표시하기'가 있었다. 카드에 버튼으로 뒀다가 헷갈린다는
+ * 말을 듣고 달력으로 옮겼는데, 옮기고 나니 더 분명해졌다 — 지난 칸을 눌러
+ * 되살려도 돌이 쌓이지도, 칸이 차지도 않는다. 아무 일도 일어나지 않는
+ * 버튼이었다. 억지로 반응을 만들어 붙일 수도 있었지만, 그러려면 지나간
+ * 사흘을 소급해 돌로 바꿔 줘야 한다.
  *
- * 처음에는 카드에 '어제 것도 표시하기' 버튼을 달았는데, 오늘 할 일 옆에
- * 어제 이야기가 붙어 있으니 오히려 헷갈린다는 말을 들었다. 맞는 말이다 —
- * 지난 날 이야기는 지난 날이 그려진 곳, 달력에서 해야 한다. 그래서 지금은
- * 상세 화면의 달력에서 빈 날짜를 눌러 되살린다.
+ * 그래서 아예 없앴다. 이 앱에서 하루를 놓치는 값은 원래 크지 않다 —
+ * 쌓아 둔 돌은 하나도 잃지 않고, 다시 3일 약속하면 그만이다. 그런 앱에서
+ * 기록을 소급해 고치게 하는 건 오히려 "기록은 완벽해야 한다"고 말하는
+ * 셈이라, 이 앱이 하려는 말과 정면으로 어긋난다.
  *
- * 되살릴 수 있는 범위는 최근 RETRO_DAYS일까지다. 무제한이면 기록이 기억이
- * 아니라 창작이 된다. 그리고 '어제'만이 특별하다 — 어제는 아직 지금 돌고
- * 있는 사흘의 일부라서, 되살리면 사이클에도 들어가고 돌이 완성될 수도 있다.
- * 그보다 오래된 날은 달력과 '함께한 날'에만 남는다. 돌은 지나간 사흘을
- * 소급해서 만들어 주지 않는다.
+ * 대신 놓치지 않도록 도와주는 쪽에 건다: 정해진 시각의 알림 한 번, 그리고
+ * 그 알림에서 앱을 열지 않고 바로 누르는 '오늘 했어요'. 그걸로도 놓쳤다면
+ * 그건 무너진 것이고, 무너져도 괜찮다는 게 이 앱의 전부다.
  */
-const RETRO_DAYS = 7;
-
-function canFillYesterday(goal) {
-  if (goal.filledYesterday) return false;          // 이번 사이클에 이미 썼다
-  if (goal.checks.includes(todayStr(-1))) return false; // 어제는 이미 채워져 있다
-  const st = goalStatus(goal);
-  // 진행 중이거나 하루 놓쳐 무너진 직후에만 — 오래 쉰 뒤에 소급하지는 않는다
-  if (st === "active") return true;
-  return st === "broken" && goal.checks[goal.checks.length - 1] === todayStr(-2);
-}
-
-function fillYesterday(goal) {
-  if (!canFillYesterday(goal)) return;
-  const y = todayStr(-1);
-  goal.checks.push(y);
-  goal.checks.sort();
-  if (!goal.history.includes(y)) goal.history.push(y);
-  goal.totalDays += 1;
-  goal.filledYesterday = true;
-  if (!goal.lastCheckDate || goal.lastCheckDate < y) goal.lastCheckDate = y;
-
-  // 어제를 채워 세 칸이 다 찼다면 그것도 완주다 — 돌이 얹혀야 한다
-  if (goal.checks.length === 3) {
-    pendingAnim = { goalId: goal.id, dotIndex: 2, completed: true, silent: false };
-    if (!reduceMotion) heldGoalId = goal.id;
-  }
-  save();
-  render();
-  haptic(10);
-  if (goal.checks.length < 3) toast("stone", "어제 몫을 채웠어요");
-}
-
-/* 달력에서 고른 날을 되살릴 수 있는가 — 되살린다면 어떤 뜻인가 */
-function retroKind(goal, key) {
-  if (!key || key >= todayStr()) return null;
-  if ((goal.history || []).includes(key)) return null;
-  if (key < todayStr(-RETRO_DAYS)) return "tooOld";
-  return key === todayStr(-1) && canFillYesterday(goal) ? "cycle" : "history";
-}
-
-function markPastDay(goal, key) {
-  const kind = retroKind(goal, key);
-  if (!kind || kind === "tooOld") return;
-
-  if (kind === "cycle") {
-    // 세 칸이 다 차면 돌이 카드에서 탑으로 날아간다. 그 장면은 홈에서 보여야
-    // 하므로 상세를 먼저 걷는다
-    if (goal.checks.length === 2) closeDetail();
-    fillYesterday(goal);
-  } else {
-    goal.history.push(key);
-    goal.history.sort();
-    goal.totalDays += 1;
-    save();
-    render();
-    haptic(8);
-    toast("stone", `${dayLabel(key)} 기록을 되살렸어요`);
-  }
-}
-
-/* '8월 3일 (수)' — 고른 칸이 어느 날인지 글로도 한 번 더 말해 준다 */
-function dayLabel(key) {
-  const d = new Date(key + "T00:00:00");
-  const w = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
-  if (key === todayStr(-1)) return "어제";
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${w})`;
-}
 
 function checkToday(goal, opts = {}) {
   if (checkedToday(goal) || goal.checks.length >= 3) return;
@@ -250,7 +183,6 @@ function checkToday(goal, opts = {}) {
 function nextCycle(goal, from) {
   goal.completedCycles += 1;
   goal.checks = [];
-  goal.filledYesterday = false;
   haptic(10);
   // 완성한 날 바로 누르면 오늘은 이미 카운트됐으므로 내일부터 첫째 날
   if (!checkedToday(goal)) {
@@ -268,7 +200,6 @@ function nextCycle(goal, from) {
 function restart(goal) {
   goal.restarts += 1;
   goal.checks = [];
-  goal.filledYesterday = false;
   haptic(10);
   if (!checkedToday(goal)) {
     checkToday(goal, { silent: true });
@@ -677,11 +608,12 @@ function renderStats() {
   const emptyCairn = document.querySelector(".empty-cairn");
   if (emptyCairn && !hasGoals) emptyCairn.innerHTML = cairnSVG(0, true, 2);
 
-  /* 처음 만든 사람에게는 규칙을 여기서 한 줄로 알려 준다.
-   * 만들기 전에 다섯 장을 읽히는 대신, 실제로 칸을 보고 있는 지금
-   * '이 칸이 무엇인지'만 말하면 된다 — 필요한 순간에, 필요한 만큼. */
+  /* 첫 돌을 얹기 전까지는 규칙을 한 줄로 계속 붙여 둔다.
+   * 안내를 읽었더라도 한 번 읽고 외워지는 규칙이 아니고, 지금 눈앞의
+   * 칸 세 개를 가리키며 말하는 이 한 줄이 다섯 장보다 잘 남는다.
+   * 돌을 하나 얹고 나면 스스로 알게 되므로 그때 걷는다. */
   const note = $("note");
-  if (hasGoals && !localStorage.getItem(ONBOARD_SEEN_KEY) && totalStones() === 0) {
+  if (hasGoals && totalStones() === 0) {
     note.hidden = false;
     note.innerHTML = "오늘 해내면 칸이 하나 채워져요. <b>세 칸을 다 채우면 돌 하나</b>가 쌓입니다.";
   } else if (hasGoals && restarts >= 1) {
@@ -856,24 +788,6 @@ function renderGoalCard(goal) {
     btn.addEventListener("click", () => checkToday(goal));
   }
   card.appendChild(btn);
-
-  /* 어제 해놓고 표시를 못 한 사람은 카드가 아니라 달력에서 되살린다.
-   * 여기에 버튼을 두었더니 오늘 할 일 옆에 어제 이야기가 붙어 헷갈렸다.
-   * 다만 무너진 카드에서는 그런 길이 있다는 것 자체를 모를 수 있어,
-   * 한 줄만 귀띔해 둔다 — 누르면 달력이 열린다. */
-  if (status === "broken" && canFillYesterday(goal)) {
-    const back = document.createElement("button");
-    back.type = "button";
-    back.className = "btn-yesterday";
-    back.textContent = "어제 했는데 표시를 못 했나요?";
-    back.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      openDetail(goal);
-      detailPick = todayStr(-1);
-      paintDetailCal();
-    });
-    card.appendChild(back);
-  }
 
   return card;
 }
@@ -1068,10 +982,10 @@ function monthOf(offset) {
   return { y: d.getFullYear(), m: d.getMonth() };
 }
 
-/* pick을 켜면 '아직 비어 있는 지난 날'이 버튼이 된다.
-   눌러서 뒤늦게 되살릴 수 있는 칸은 이것뿐이라, 눌리는 곳과 눌리지 않는 곳이
-   모양으로 갈리는 편이 헤매지 않는다. */
-function monthCalHTML(doneSet, y, m, pick) {
+/* marks를 주면 '어느 작심이었는지'까지 그린다 — 날짜 아래 작은 점.
+   기록 탭처럼 여러 작심이 한 달력에 겹칠 때만 쓴다. 상세 화면은 작심이
+   하나뿐이라 점이 필요 없고, 그때는 칸을 통째로 칠하는 편이 잘 읽힌다. */
+function monthCalHTML(doneSet, y, m, marks) {
   const first = new Date(y, m, 1);
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const todayKey = todayStr();
@@ -1080,30 +994,32 @@ function monthCalHTML(doneSet, y, m, pick) {
   for (let d = 1; d <= daysInMonth; d++) {
     const key = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const done = doneSet.has(key);
-    const openable = pick && !done && key < todayKey;
     const cls = [
       "mcal-cell",
       done ? "done" : "",
+      marks ? "marked" : "",
       key === todayKey ? "today" : "",
       key > todayKey ? "future" : "",
-      openable ? "pickable" : "",
     ]
       .filter(Boolean)
       .join(" ");
-    parts.push(
-      openable
-        ? `<button type="button" class="${cls}" data-key="${key}"><i>${d}</i></button>`
-        : `<span class="${cls}"><i>${d}</i></span>`
-    );
+    // 점은 네 개까지만 — 그 이상은 칸이 좁아 뭉치기만 한다
+    const dots = marks
+      ? (marks.get(key) || [])
+          .slice(0, 4)
+          .map((i) => `<b class="gdot g${i}"></b>`)
+          .join("")
+      : "";
+    parts.push(`<span class="${cls}"><i>${d}</i>${dots ? `<em class="gdots">${dots}</em>` : ""}</span>`);
   }
   return parts.join("");
 }
 
 /* 달력 하나(제목 + 격자 + 이동 버튼)를 통째로 관리한다 */
-function paintMonthCal(prefix, offset, doneSet, pick) {
+function paintMonthCal(prefix, offset, doneSet, marks) {
   const { y, m } = monthOf(offset);
   $(`${prefix}-cal-title`).textContent = `${y}년 ${m + 1}월`;
-  $(`${prefix}-mcal`).innerHTML = monthCalHTML(doneSet, y, m, pick);
+  $(`${prefix}-mcal`).innerHTML = monthCalHTML(doneSet, y, m, marks);
   // 미래 달로는 넘어가지 않는다
   $(`${prefix}-cal-next`).disabled = offset >= 0;
   const ym = `${y}-${String(m + 1).padStart(2, "0")}`;
@@ -1131,54 +1047,24 @@ function historyWord(goal) {
 
 let detailGoalId = null;
 let detailMonth = 0; // 0 = 이번 달
-let detailPick = null; // 달력에서 고른 지난 날짜
 
 function paintDetailCal() {
   const goal = state.goals.find((g) => g.id === detailGoalId);
   if (!goal) return;
   const done = new Set(goal.history || []);
-  const count = paintMonthCal("detail", detailMonth, done, true);
+  const count = paintMonthCal("detail", detailMonth, done);
   $("detail-word").textContent =
     count > 0 ? `이 달에 ${count}일 돌을 얹었어요` : historyWord(goal);
-  paintDetailPick(goal);
-}
-
-/* 고른 날짜 아래에 뜨는 한 줄.
-   되살릴 수 있으면 버튼을, 없으면 왜 없는지를 준다 — 눌리지 않는 이유를
-   말해 주지 않으면 고장 난 것처럼 보인다. */
-function paintDetailPick(goal) {
-  const bar = $("detail-pick");
-  const cell = detailPick && $("detail-mcal").querySelector(`[data-key="${detailPick}"]`);
-  if (!cell) {
-    detailPick = null;
-    bar.hidden = true;
-    return;
-  }
-  cell.classList.add("picked");
-  bar.hidden = false;
-  $("detail-pick-day").textContent = dayLabel(detailPick);
-
-  const kind = retroKind(goal, detailPick);
-  const act = $("detail-pick-act");
-  act.hidden = kind === "tooOld";
-  act.textContent = "해냈어요";
-  $("detail-pick-hint").textContent =
-    kind === "tooOld"
-      ? `${RETRO_DAYS}일이 지난 날은 되살릴 수 없어요`
-      : kind === "cycle"
-        ? "어제는 지금 사흘에도 들어가요"
-        : "달력과 함께한 날에 남아요";
 }
 
 function openDetail(goal) {
   detailGoalId = goal.id;
   detailMonth = 0;
-  detailPick = null;
   $("detail-ico").innerHTML = iconSVG(goalIcon(goal), 20);
   $("detail-title").textContent = goal.title;
   const built = towersOf(goal);
   $("detail-stats").innerHTML =
-    `<div><b>${goal.totalDays}</b><span>함께한 날</span></div>` +
+    `<div><b>${goal.totalDays}</b><span>해낸 날</span></div>` +
     `<div><b>${stoneCount(goal)}</b><span>쌓은 돌</span></div>` +
     // 완성한 탑은 돌 일곱 개(21일)마다 하나 — 돌보다 큰 단위의 성취다
     (built.done ? `<div><b>${built.done}</b><span>완성한 탑</span></div>` : "") +
@@ -1191,7 +1077,6 @@ function openDetail(goal) {
 function closeDetail() {
   $("detail").hidden = true;
   detailGoalId = null;
-  detailPick = null;
 }
 
 /* ── 기록 탭 ─────────────────────────
@@ -1201,10 +1086,28 @@ function closeDetail() {
 
 let recordMonth = 0;
 
+/* 이 작심의 자리 번호 — 돌 성격, 정원 자리, 기록 탭 색이 모두 이 번호를
+   공유한다. 목록에서의 순서라 목표를 지우면 뒤가 한 칸씩 당겨진다. */
+function goalIndex(goal) {
+  const i = state.goals.findIndex((g) => g.id === goal.id);
+  return (i < 0 ? 0 : i) % 6;
+}
+
 function paintRecordCal() {
   const done = new Set();
-  for (const g of state.goals) for (const d of g.history || []) done.add(d);
-  const count = paintMonthCal("record", recordMonth, done);
+  /* 어느 날 어느 작심을 했는지까지 모은다. 합쳐 놓기만 하면 '뭔가 하긴 한 날'
+     밖에 안 보이는데, 대개 알고 싶은 건 '그날 무엇을 했나'다. */
+  const marks = new Map();
+  for (const g of state.goals) {
+    const gi = goalIndex(g);
+    for (const d of g.history || []) {
+      done.add(d);
+      if (!marks.has(d)) marks.set(d, []);
+      if (!marks.get(d).includes(gi)) marks.get(d).push(gi);
+    }
+  }
+  for (const list of marks.values()) list.sort((a, b) => a - b);
+  const count = paintMonthCal("record", recordMonth, done, marks);
   const note = $("record-cal-note");
   if (state.goals.length === 0) {
     note.textContent = "첫 작심을 만들면 여기에 기록이 쌓여요.";
@@ -1234,7 +1137,8 @@ function renderRecord() {
   for (const goal of state.goals) {
     const row = document.createElement("button");
     row.type = "button";
-    row.className = "record-row";
+    // 달력의 점과 같은 색을 여기서도 쓴다 — 이 줄이 곧 달력의 범례다
+    row.className = `record-row g${goalIndex(goal)}`;
     row.innerHTML =
       `<span class="record-ico">${iconSVG(goalIcon(goal), 20)}</span>` +
       `<span class="record-tt"><b></b><span></span></span>` +
@@ -1667,6 +1571,20 @@ function setupModal() {
     $("input-title").value = "";
     syncTitleState();
     closeModal();
+
+    /* 첫 작심을 만든 직후에 사용법을 한 번 보여 준다.
+     *
+     * 한때는 앱을 열자마자 다섯 장을 읽혔다. 아무것도 만들지 않은 사람에게
+     * 규칙부터 들이미는 셈이라 첫 화면을 '하기'로 바꿨는데, 그러고 나니
+     * 이번엔 규칙을 알려 줄 자리가 아예 없어졌다. 3일에 돌 하나라는 건
+     * 짐작으로 알 수 있는 규칙이 아니다.
+     *
+     * 그래서 순서만 뒤집는다 — 먼저 만들고, 그다음에 읽는다. 지금은 뒤에
+     * 진짜 카드가 세 칸을 비운 채 놓여 있어서, 안내의 그림이 설명이 아니라
+     * 바로 그 카드 이야기가 된다. 건너뛸 수 있고, 설정에도 그대로 있다. */
+    if (!localStorage.getItem(ONBOARD_SEEN_KEY) && state.goals.length === 1) {
+      setTimeout(openOnboard, 620);
+    }
   });
 
   setupThemeToggle();
@@ -1695,23 +1613,6 @@ function setupModal() {
     const goal = state.goals.find((g) => g.id === detailGoalId);
     closeDetail();
     if (goal) removeGoal(goal);
-  });
-
-  // 달력에서 빈 지난 날을 고르기 (한 번 더 누르면 접힌다)
-  $("detail-mcal").addEventListener("click", (ev) => {
-    const cell = ev.target.closest(".mcal-cell[data-key]");
-    if (!cell) return;
-    detailPick = detailPick === cell.dataset.key ? null : cell.dataset.key;
-    haptic(4);
-    paintDetailCal();
-  });
-
-  $("detail-pick-act").addEventListener("click", () => {
-    const goal = state.goals.find((g) => g.id === detailGoalId);
-    if (!goal || !detailPick) return;
-    markPastDay(goal, detailPick);
-    detailPick = null;
-    if (!$("detail").hidden) paintDetailCal();
   });
 
   $("cheer-share").addEventListener("click", async (ev) => {
@@ -2130,9 +2031,9 @@ function setupIntro() {
      * 대부분은 아무것도 해 보기 전에 첫 세션에서 떠나는데, 그 앞에 읽을거리를
      * 여섯 화면 세워 둔 셈이었다.
      *
-     * 규칙은 만든 다음에 문맥에서 한 줄씩 알려 주면 된다. 처음 열었을 때
-     * 필요한 건 '무엇을 3일 해볼까'라는 질문 하나다. 다섯 장짜리 안내는
-     * 설정에 그대로 있고, 첫 돌을 얹은 뒤 한 번 더 권한다. */
+     * 처음 열었을 때 필요한 건 '무엇을 3일 해볼까'라는 질문 하나다.
+     * 안내를 없앤 게 아니라 순서를 미뤘을 뿐이라, 작심을 하나 만들고 나면
+     * 곧바로 다섯 장이 뜬다(setupModal의 submit 참고). 설정에도 남아 있다. */
     if (!localStorage.getItem(ONBOARD_SEEN_KEY) && state.goals.length === 0) {
       setTimeout(() => openModal({ first: true }), 260);
     }

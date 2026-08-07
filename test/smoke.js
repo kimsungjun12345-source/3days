@@ -1003,50 +1003,73 @@ function dstr(offset) {
   );
   await first.close();
 
-  // 31. 어제 해놓고 표시를 못 했을 때
-  // 이 앱은 '한 것'이 아니라 '기록한 것'을 기준으로 무너뜨리고 있었다.
+  // 31. 여러 작심이 겹친 달력에서 '그날 무엇을 했나'가 보인다
   await page.click('.tab[data-view="home"]');
   await page.evaluate((d) => {
-    state.goals = [{ id: "y", title: "10분 걷기", icon: "run", createdAt: "",
-      checks: [d], history: [d], lastCheckDate: d,
-      totalDays: 1, completedCycles: 0, restarts: 0 }];
+    state.goals = [
+      { id: "m1", title: "아침에 물 한 잔", icon: "water", createdAt: "",
+        checks: [d[0]], history: [d[0], d[1]], lastCheckDate: d[0],
+        totalDays: 2, completedCycles: 0, restarts: 0 },
+      { id: "m2", title: "10분 걷기", icon: "run", createdAt: "",
+        checks: [d[0]], history: [d[0]], lastCheckDate: d[0],
+        totalDays: 1, completedCycles: 0, restarts: 0 },
+    ];
     save();
     render();
-  }, dstr(-2));
-  await page.waitForTimeout(300);
-  assert(await page.locator(".goal-card.state-broken").isVisible(), "missing a day still breaks the run");
+  }, [dstr(0), dstr(-1)]);
+  await page.click('.tab[data-view="record"]');
+  await page.waitForTimeout(350);
 
-  // 되살리는 자리는 카드가 아니라 달력이다 — 무너진 카드의 귀띔이 그 문을 연다
-  assert(await page.locator(".btn-yesterday").isVisible(), "a broken card points at the way back");
-  await page.click(".btn-yesterday");
-  await page.waitForTimeout(300);
-  assert(await page.locator("#detail").isVisible(), "which opens this goal's calendar");
+  const todayCell = page.locator(`#record-mcal .mcal-cell.done`).last();
   assert(
-    (await page.locator("#detail-pick-day").textContent()) === "어제",
-    "with yesterday already picked out"
+    (await todayCell.locator(".gdot").count()) === 2,
+    "a day with two goals carries two marks"
+  );
+  assert(
+    (await page.locator("#record-mcal .mcal-cell.done").count()) === 2,
+    "and the days without any are left plain"
+  );
+  // 목록의 칩 색이 달력의 점과 짝이 되어야 범례 없이 읽힌다
+  assert(
+    (await page.locator(".record-row.g0").count()) === 1 &&
+      (await page.locator(".record-row.g1").count()) === 1,
+    "each goal keeps one colour across the calendar and the list"
   );
 
-  await page.click("#detail-pick-act");
-  await page.waitForTimeout(400);
-  assert((await page.locator(".goal-card .dot.done").count()) === 2, "claiming yesterday fills its square");
-  assert(await page.locator(".goal-card.state-broken").count() === 0, "and the run is no longer broken");
+  // 지나간 칸은 눌러도 아무 일이 없다 — 되살리기는 없앴다
+  assert(
+    (await page.locator("#record-mcal .mcal-cell[data-key]").count()) === 0,
+    "past days are a record, not a form"
+  );
+  await page.evaluate(() => { switchView("home"); });
 
-  // 달력에서 아무 날이나 눌러 사흘을 지어낼 수는 없다
-  await page.evaluate(() => openDetail(state.goals[0]));
-  await page.waitForTimeout(300);
+  // 32. 만들고 나면 그때 사용법을 보여 준다
+  // 읽기부터 시키지도, 아예 안 알려 주지도 않는다 — 순서만 뒤로 미룬다.
+  const learn = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const lp = await learn.newPage();
+  lp.on("pageerror", (e) => errors.push("learn pageerror: " + e.message));
+  await lp.addInitScript(() => {
+    if (navigator.serviceWorker) navigator.serviceWorker.register = () => new Promise(() => {});
+  });
+  await lp.goto(APP);
+  await lp.waitForFunction(() => !document.getElementById("intro"), null, { timeout: 8000 });
+  await lp.waitForTimeout(400);
+  assert(await lp.locator("#onboard").isHidden(), "nothing to read before there is anything to read about");
+  await lp.click(".suggest-chip");
+  await lp.click("#btn-submit-goal");
+  await lp.waitForTimeout(900);
+  assert(await lp.locator("#onboard").isVisible(), "the walkthrough arrives once a goal exists");
   assert(
-    await page.locator(`.mcal-cell[data-key="${dstr(-1)}"]`).count() === 0,
-    "a day already claimed is no longer a button"
+    (await lp.locator(".goal-card").count()) === 1,
+    "and the real card is waiting behind it"
   );
-  await page.evaluate(() => { detailMonth = -1; paintDetailCal(); });
-  await page.waitForTimeout(200);
-  await page.locator(".mcal-cell[data-key]").first().click();
-  await page.waitForTimeout(200);
-  assert(
-    await page.locator("#detail-pick-act").isHidden(),
-    "a forgotten day can be saved, a forgotten month cannot"
-  );
-  await page.evaluate(() => closeDetail());
+  await lp.click("#ob-skip");
+  await lp.waitForTimeout(200);
+  assert(await lp.locator("#onboard").isHidden(), "it can be skipped");
+  await lp.reload();
+  await lp.waitForTimeout(900);
+  assert(await lp.locator("#onboard").isHidden(), "and it never asks twice");
+  await learn.close();
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 
