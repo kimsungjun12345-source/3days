@@ -74,12 +74,15 @@
 
       <section class="empty" id="empty" hidden>
         <div class="empty-cairn" aria-hidden="true"></div>
-        <h2>첫 돌을 쌓아볼까요?</h2>
+        <h2>3일만 해볼 것 하나</h2>
         <p>
-          약속은 딱 3일. 3일을 채우면 돌 하나가 쌓여요.<br />
-          무너져도 괜찮아요 — 돌탑은 원래<br />
-          무너지면 다시 쌓는 거니까요.
+          거창하지 않아도 돼요.<br />
+          3일을 채우면 돌 하나가 쌓이고,<br />
+          무너져도 그 돌은 그대로 남습니다.
         </p>
+        <button type="button" class="btn btn-primary empty-cta" id="btn-empty-add">
+          첫 작심 만들기
+        </button>
       </section>
 
       <div class="section-head" id="section-head" hidden>
@@ -273,9 +276,15 @@
         <p class="cheer-word" id="cheer-word"></p>
         <button class="btn btn-primary" id="cheer-next">또 작심하기 — 다음 3일</button>
         <div class="cheer-foot">
-          <button type="button" class="btn btn-ghost" id="cheer-share">이 순간 저장하기</button>
+          <button type="button" class="btn btn-ghost" id="cheer-share" hidden>이 순간 저장하기</button>
           <button type="button" class="btn btn-ghost" id="cheer-close">오늘은 여기까지</button>
         </div>
+
+        <!-- 탑을 세운 날에만, 축하가 지나간 뒤에 조용히 -->
+        <button type="button" class="backup-note" id="backup-note" hidden>
+          <b>기록을 파일로 남겨 둘까요?</b>
+          <span>이 기록은 이 기기에만 있어요. 앱을 지우면 함께 사라집니다.</span>
+        </button>
       </div>
     </div>
 
@@ -289,7 +298,7 @@
 
         <form id="form-add">
           <div class="sheet-scroll" id="sheet-scroll">
-            <p class="modal-sub">거창할 필요 없어요. 딱 3일만 해볼 것 하나.</p>
+            <p class="modal-sub" id="modal-sub">거창할 필요 없어요. 딱 3일만 해볼 것 하나.</p>
 
             <p class="field-label">골라 볼까요</p>
             <div class="suggest-row" id="suggest-row"></div>
@@ -318,6 +327,24 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- 첫 돌을 얹은 직후에만 뜨는 권유. 진짜 권한 요청은 여기서 '네'를 눌러야 나간다 -->
+    <div class="modal-backdrop" id="ask-notify" hidden>
+      <div class="modal ask-sheet" role="dialog" aria-modal="true" aria-labelledby="ask-notify-title">
+        <div class="ask-art" aria-hidden="true"></div>
+        <h2 id="ask-notify-title">내일도 잊지 않게 알려드릴까요?</h2>
+        <p class="ask-body">
+          <b>잔소리는 하지 않아요.</b> 정해진 시각에 한 번,
+          그리고 며칠 쉬었을 때 “쌓아 둔 돌은 그대로예요” 하고
+          돌아올 자리만 알려드립니다.
+        </p>
+        <p class="ask-time" id="ask-notify-time">저녁 9시에 알려드릴게요 · 시간은 언제든 바꿀 수 있어요</p>
+        <div class="ask-actions">
+          <button type="button" class="btn btn-primary" id="ask-notify-yes">네, 알려주세요</button>
+          <button type="button" class="btn btn-ghost" id="ask-notify-no">아니요, 혼자 할게요</button>
+        </div>
       </div>
     </div>
 

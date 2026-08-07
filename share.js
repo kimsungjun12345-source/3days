@@ -152,11 +152,12 @@ function renderShareCard(info) {
   ctx.ellipse(SHARE_W / 2, groundY - 12, 400, 92, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  drawTower(ctx, SHARE_W / 2, groundY, Math.min(info.stones, 9), 2.3);
+  // 지금 그 탑을 그린다 — 지금까지 쌓은 돌 전체가 아니라
+  drawTower(ctx, SHARE_W / 2, groundY, Math.max(1, Math.min(info.inTower || info.stones, 7)), 2.3);
 
   ctx.fillStyle = C.accent;
   ctx.font = font(30, 700);
-  ctx.fillText("작 심 삼 일   완 주", SHARE_W / 2, cardY + 562);
+  ctx.fillText(info.kicker || "작 심 삼 일   완 주", SHARE_W / 2, cardY + 562);
 
   fitText(info.title, cardY + 640, 62, 800, C.ink, innerW);
   fitText(info.goalTitle, cardY + 698, 34, 500, C.grayStrong, innerW);
@@ -186,8 +187,16 @@ function renderShareCard(info) {
     ctx.fillText(s.label, x, cardY + 888);
   });
 
-  // 한마디 — 카드 안에 머물도록
-  fitText(info.word, cardY + 948, 32, 500, C.grayStrong, innerW);
+  /* 마지막 한마디.
+   *
+   * 다시 쌓은 적이 있으면 그 이야기를 앞세운다. 자랑하는 숫자는 부러움을
+   * 사지만, 무너졌다 돌아온 숫자는 공감을 산다 — 그리고 공감이 훨씬 멀리 간다.
+   * 이 앱이 남과 다른 지점도 정확히 거기다. */
+  const line = info.restarts > 0
+    ? `${info.restarts}번 무너지고 ${info.restarts}번 다시 왔어요`
+    : info.word;
+  fitText(line, cardY + 948, info.restarts > 0 ? 36 : 32, info.restarts > 0 ? 700 : 500,
+    info.restarts > 0 ? C.sage : C.grayStrong, innerW);
 
   // 워터마크 — 카드 안 아래쪽에
   ctx.fillStyle = C.gray;

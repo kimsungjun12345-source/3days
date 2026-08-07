@@ -376,17 +376,39 @@ function dstr(offset) {
   await page.waitForTimeout(200);
   assert((await page.locator(".goal-card").count()) === 2, "a wrong file never wipes existing records");
 
-  // 16. 공유 카드 — 완주한 순간을 이미지로
+  // 16. 공유 카드 — 자랑이 성립하는 순간에만
+
+  /* 평범한 돌 하나에는 공유를 권하지 않는다. 매번 권하면 소음이 되어
+   * 아무도 누르지 않고, 그러면 공유가 유입 경로 노릇을 못 한다.
+   * 탑 한 채를 세운 날이 이 앱에서 자랑이 성립하는 유일한 순간이다. */
   await page.evaluate(([d2, d1]) => {
     localStorage.setItem("jaksim3.v1", JSON.stringify({ goals: [
       { id: "sh", title: "아침에 물 한 잔 마시기", icon: "water", createdAt: "",
         checks: [d2, d1], history: [d2, d1], lastCheckDate: d1,
-        totalDays: 17, completedCycles: 5, restarts: 3 }]}));
+        totalDays: 5, completedCycles: 1, restarts: 3 }]}));
   }, [dstr(-2), dstr(-1)]);
   await reload();
   await page.click(".goal-card .btn-primary");
   await page.waitForTimeout(1800);
-  assert(await page.locator("#cheer-share").isVisible(), "celebration offers to save the moment");
+  assert(await page.locator("#cheer-share").isHidden(), "an ordinary stone is not asked to be shared");
+  await page.click("#cheer-close");
+  await page.waitForTimeout(300);
+
+  // 탑을 세운 날 — 이때만 권한다
+  await page.evaluate(([d2, d1, per]) => {
+    localStorage.setItem("jaksim3.v1", JSON.stringify({ goals: [
+      { id: "sh", title: "아침에 물 한 잔 마시기", icon: "water", createdAt: "",
+        checks: [d2, d1], history: [d2, d1], lastCheckDate: d1,
+        totalDays: 17, completedCycles: per - 1, restarts: 3 }]}));
+  }, [dstr(-2), dstr(-1), await page.evaluate(() => STONES_PER_TOWER)]);
+  await reload();
+  await page.click(".goal-card .btn-primary");
+  await page.waitForTimeout(1800);
+  assert(await page.locator("#cheer-share").isVisible(), "finishing a tower is worth sharing");
+  assert(
+    (await page.locator("#cheer-kicker").textContent()).includes("완성"),
+    "and the celebration says so"
+  );
 
   const card = await page.evaluate(() => {
     const c = renderShareCard({ title: "여섯 번째 돌을 얹었어요", goalTitle: "아침에 물 한 잔 마시기",
@@ -950,6 +972,59 @@ function dstr(offset) {
   }
   assert(await page.locator("#dev-card").isVisible(), "but five taps still reach them");
   await page.unroute("**/build-info.js");
+
+  // 30. 처음 온 사람은 읽는 대신 만들기부터
+  // 예전에는 인트로가 끝나면 설명 다섯 장이 먼저 떴다. 신규 사용자 대부분은
+  // 아무것도 해 보기 전에 첫 세션에서 떠나는데, 그 앞에 읽을거리를 여섯 화면
+  // 세워 둔 셈이었다. 규칙은 만든 다음에 문맥에서 알려 주면 된다.
+  const first = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const fp = await first.newPage();
+  fp.on("pageerror", (e) => errors.push("first-run pageerror: " + e.message));
+  await fp.addInitScript(() => {
+    if (navigator.serviceWorker) navigator.serviceWorker.register = () => new Promise(() => {});
+  });
+  await fp.goto(APP);
+  await fp.waitForFunction(() => !document.getElementById("intro"), null, { timeout: 8000 });
+  await fp.waitForTimeout(400);
+  assert(await fp.locator("#modal").isVisible(), "a brand-new user is asked what to try, not made to read");
+  assert(await fp.locator("#onboard").isHidden(), "the five-page walkthrough no longer blocks the door");
+  assert(
+    (await fp.locator("#modal-title").textContent()).includes("3일"),
+    "and it is asked as a question"
+  );
+
+  // 만들고 나면 그때 규칙을 한 줄로
+  await fp.click(".suggest-chip");
+  await fp.click("#btn-submit-goal");
+  await fp.waitForTimeout(400);
+  assert(
+    (await fp.locator("#note").textContent()).includes("세 칸"),
+    "the rule arrives once there is something to apply it to"
+  );
+  await first.close();
+
+  // 31. 어제 해놓고 표시를 못 했을 때
+  // 이 앱은 '한 것'이 아니라 '기록한 것'을 기준으로 무너뜨리고 있었다.
+  await page.click('.tab[data-view="home"]');
+  await page.evaluate((d) => {
+    state.goals = [{ id: "y", title: "10분 걷기", icon: "run", createdAt: "",
+      checks: [d], history: [d], lastCheckDate: d,
+      totalDays: 1, completedCycles: 0, restarts: 0 }];
+    save();
+    render();
+  }, dstr(-2));
+  await page.waitForTimeout(300);
+  assert(await page.locator(".goal-card.state-broken").isVisible(), "missing a day still breaks the run");
+  assert(await page.locator(".btn-yesterday").isVisible(), "but yesterday can still be claimed");
+
+  await page.click(".btn-yesterday");
+  await page.waitForTimeout(400);
+  assert((await page.locator(".goal-card .dot.done").count()) === 2, "claiming yesterday fills its square");
+  assert(await page.locator(".goal-card.state-broken").count() === 0, "and the run is no longer broken");
+  assert(
+    await page.locator(".btn-yesterday").count() === 0,
+    "only once per cycle — a forgotten day can be saved, three invented days cannot"
+  );
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 

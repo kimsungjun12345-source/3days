@@ -140,6 +140,46 @@ function addGoal(title, icon) {
   toast(icon, "약속했어요. 딱 3일만 가봐요!");
 }
 
+/* ── 어제를 되살리기 ────────────────────
+ *
+ * 이 앱이 벌하고 있던 것은 '하지 않은 것'이 아니라 '기록하지 않은 것'이었다.
+ * 물은 마셨는데 앱을 안 열었으면 사이클이 깨졌다. 무너져도 괜찮다는 앱이
+ * 정작 가장 억울한 실패를 막지 못한 셈이다.
+ *
+ * 그래서 어제 몫을 오늘 안에 한 번 채울 수 있게 한다. 사이클당 한 번으로
+ * 묶어 두는 이유: 무제한이면 기록이 기억이 아니라 창작이 된다. 한 번이면
+ * 잊어버린 하루는 건지고, 안 한 사흘을 지어내지는 못한다.
+ */
+function canFillYesterday(goal) {
+  if (goal.filledYesterday) return false;          // 이번 사이클에 이미 썼다
+  if (goal.checks.includes(todayStr(-1))) return false; // 어제는 이미 채워져 있다
+  const st = goalStatus(goal);
+  // 진행 중이거나 하루 놓쳐 무너진 직후에만 — 오래 쉰 뒤에 소급하지는 않는다
+  if (st === "active") return true;
+  return st === "broken" && goal.checks[goal.checks.length - 1] === todayStr(-2);
+}
+
+function fillYesterday(goal) {
+  if (!canFillYesterday(goal)) return;
+  const y = todayStr(-1);
+  goal.checks.push(y);
+  goal.checks.sort();
+  if (!goal.history.includes(y)) goal.history.push(y);
+  goal.totalDays += 1;
+  goal.filledYesterday = true;
+  if (!goal.lastCheckDate || goal.lastCheckDate < y) goal.lastCheckDate = y;
+
+  // 어제를 채워 세 칸이 다 찼다면 그것도 완주다 — 돌이 얹혀야 한다
+  if (goal.checks.length === 3) {
+    pendingAnim = { goalId: goal.id, dotIndex: 2, completed: true, silent: false };
+    if (!reduceMotion) heldGoalId = goal.id;
+  }
+  save();
+  render();
+  haptic(10);
+  if (goal.checks.length < 3) toast("stone", "어제 몫을 채웠어요");
+}
+
 function checkToday(goal, opts = {}) {
   if (checkedToday(goal) || goal.checks.length >= 3) return;
   goal.checks.push(todayStr());
@@ -165,6 +205,7 @@ function checkToday(goal, opts = {}) {
 function nextCycle(goal, from) {
   goal.completedCycles += 1;
   goal.checks = [];
+  goal.filledYesterday = false;
   haptic(10);
   // 완성한 날 바로 누르면 오늘은 이미 카운트됐으므로 내일부터 첫째 날
   if (!checkedToday(goal)) {
@@ -182,6 +223,7 @@ function nextCycle(goal, from) {
 function restart(goal) {
   goal.restarts += 1;
   goal.checks = [];
+  goal.filledYesterday = false;
   haptic(10);
   if (!checkedToday(goal)) {
     checkToday(goal, { silent: true });
@@ -590,8 +632,14 @@ function renderStats() {
   const emptyCairn = document.querySelector(".empty-cairn");
   if (emptyCairn && !hasGoals) emptyCairn.innerHTML = cairnSVG(0, true, 2);
 
+  /* 처음 만든 사람에게는 규칙을 여기서 한 줄로 알려 준다.
+   * 만들기 전에 다섯 장을 읽히는 대신, 실제로 칸을 보고 있는 지금
+   * '이 칸이 무엇인지'만 말하면 된다 — 필요한 순간에, 필요한 만큼. */
   const note = $("note");
-  if (hasGoals && restarts >= 1) {
+  if (hasGoals && !localStorage.getItem(ONBOARD_SEEN_KEY) && totalStones() === 0) {
+    note.hidden = false;
+    note.innerHTML = "오늘 해내면 칸이 하나 채워져요. <b>세 칸을 다 채우면 돌 하나</b>가 쌓입니다.";
+  } else if (hasGoals && restarts >= 1) {
     note.hidden = false;
     note.innerHTML = `<b>다시 쌓음 ${restarts}회.</b> 무너지고도 돌아온 사람이 결국 탑을 완성해요.`;
   } else if (hasGoals && cycles >= 1) {
@@ -764,6 +812,23 @@ function renderGoalCard(goal) {
   }
   card.appendChild(btn);
 
+  /* 어제 해놓고 앱을 안 연 사람을 위한 작은 문.
+   * 눈에 띄되 앞서지 않게 — 주된 행동은 어디까지나 오늘 것이다.
+   * '무너진' 카드에서는 다시 쌓기보다 이쪽이 먼저 눈에 들어와야 한다,
+   * 사흘을 날리는 대신 하루를 되찾는 쪽이 사실에 가까우므로. */
+  if (canFillYesterday(goal)) {
+    const back = document.createElement("button");
+    back.type = "button";
+    back.className = "btn-yesterday";
+    back.textContent =
+      status === "broken" ? "어제 했는데 표시를 못 했어요" : "어제 것도 표시하기";
+    back.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      fillYesterday(goal);
+    });
+    card.appendChild(back);
+  }
+
   return card;
 }
 
@@ -840,6 +905,33 @@ function runPendingAnim() {
       setTimeout(() => toast("stone", msg), 180);
     }
   }
+
+  /* 첫 칸을 채운 직후가 알림을 권할 자리다. 방금 뭔가를 해냈고,
+   * 내일도 하고 싶은 마음이 가장 클 때.
+   * 토스트가 완전히 사라진 뒤에 띄운다 — 겹치면 시트의 아래쪽 버튼을 가린다. */
+  if (!job.silent) setTimeout(askNotify, job.completed ? 3200 : 2600);
+}
+
+/* ── 기록을 잃지 않게 ──────────────────
+ *
+ * 기록은 localStorage에만 있다. 안드로이드가 저장소를 정리하거나 앱을
+ * 지우면 그대로 사라진다. '쌓아온 것'이 전부인 앱에서 그걸 잃는 건 재앙인데,
+ * 백업은 설정 깊숙한 곳의 수동 버튼 하나뿐이었다 — 아무도 누르지 않는.
+ *
+ * 그래서 탑 한 채를 세운 날 한 번 권한다. 잃으면 가장 아까워지는 시점이자,
+ * 방금 뭔가를 해내서 귀를 열어 둔 시점이다. 거절하면 다음 탑까지 묻지 않는다.
+ */
+const BACKUP_ASKED_KEY = "jaksim3.backupAskedAt";
+
+function maybeOfferBackup() {
+  const towers = state.goals.reduce((n, g) => n + towersOf(g).done, 0);
+  const asked = Number(localStorage.getItem(BACKUP_ASKED_KEY) || 0);
+  if (towers <= asked) return;
+  localStorage.setItem(BACKUP_ASKED_KEY, String(towers));
+  // 축하를 먼저 보게 하고, 그 뒤에 조용히 띄운다
+  setTimeout(() => {
+    if (!$("cheer").hidden) $("backup-note").hidden = false;
+  }, 1800);
 }
 
 /* ── 기록 지키기 ──────────────────────
@@ -1173,6 +1265,14 @@ function showCheer(goal) {
     ? "다음 돌부터는 이 탑 옆에 새 탑이 섭니다."
     : cheerWord(stones, restarts, stones === 1);
 
+  /* 공유는 자랑할 만한 순간에만 권한다.
+   *
+   * Wordle이 마케팅비 0원으로 퍼진 이유는 공유물 자체가 유입 경로였기
+   * 때문이다. 매번 권하면 소음이 되고 아무도 누르지 않는다. 탑 한 채를
+   * 세운 날 — 15일 — 이 이 앱에서 자랑이 성립하는 유일한 순간이다. */
+  $("cheer-share").hidden = !towerDone;
+  $("cheer-share").textContent = towerDone ? "이 탑 자랑하기" : "이 순간 저장하기";
+
   cheerGoalId = goal.id;
   const el = $("cheer");
   el.hidden = false;
@@ -1180,12 +1280,15 @@ function showCheer(goal) {
   void el.offsetWidth;
   el.classList.add("show");
   haptic([10, 40, 18]);
+
+  if (towerDone) maybeOfferBackup();
 }
 
 function closeCheer() {
   const el = $("cheer");
   el.classList.remove("show");
   setTimeout(() => (el.hidden = true), 220);
+  $("backup-note").hidden = true;
   cheerGoalId = null;
 }
 
@@ -1465,7 +1568,8 @@ function setupModal() {
 
   $("input-title").addEventListener("input", syncTitleState);
 
-  $("btn-add").addEventListener("click", openModal);
+  $("btn-add").addEventListener("click", () => openModal());
+  $("btn-empty-add").addEventListener("click", () => openModal({ first: true }));
   $("btn-cancel").addEventListener("click", closeModal);
 
   $("form-add").addEventListener("submit", (ev) => {
@@ -1480,6 +1584,7 @@ function setupModal() {
 
   setupThemeToggle();
   setupNotifyToggle();
+  setupAskNotify();
   setupDevTools();
 
   $("btn-export").addEventListener("click", exportData);
@@ -1488,6 +1593,11 @@ function setupModal() {
     const file = ev.target.files && ev.target.files[0];
     if (file) importData(file);
     ev.target.value = ""; // 같은 파일을 다시 골라도 동작하도록
+  });
+
+  $("backup-note").addEventListener("click", () => {
+    $("backup-note").hidden = true;
+    exportData();
   });
 
   $("detail-close").addEventListener("click", closeDetail);
@@ -1506,8 +1616,15 @@ function setupModal() {
     const btn = ev.currentTarget;
     btn.disabled = true;
     try {
+      const built = towersOf(goal);
       const res = await shareCard({
-        title: `${ordinal(stoneCount(goal))} 돌을 얹었어요`,
+        kicker: built.current === 0 && stoneCount(goal) > 0
+          ? `돌 탑   ${built.done} 채   완 성`
+          : "작 심 삼 일   완 주",
+        inTower: built.current || STONES_PER_TOWER,
+        title: built.current === 0 && stoneCount(goal) > 0
+          ? `${STONES_PER_TOWER * 3}일을 쌓았어요`
+          : `${ordinal(stoneCount(goal))} 돌을 얹었어요`,
         goalTitle: goal.title,
         stones: stoneCount(goal),
         days: goal.totalDays,
@@ -1574,6 +1691,60 @@ function setupThemeToggle() {
     // 돌탑은 CSS 변수로 색을 받으므로 알아서 따라오지만,
     // 네이티브 상태바는 따로 알려 줘야 같이 바뀐다
     if (typeof applyStatusBarTheme === "function") applyStatusBarTheme();
+  });
+}
+
+/* ── 알림을 권하는 순간 ─────────────────
+ *
+ * 이 앱에만 있는 기능은 '돌아올 명분을 주는 알림'이다. 며칠 쉰 사람에게
+ * "쌓아 둔 돌 3개는 그대로예요" 하고 말을 거는 것 — 다른 습관 앱은 연속
+ * 기록이 끊긴 사용자에게 할 말이 없지만 이 앱은 그 순간을 위해 만들어졌다.
+ *
+ * 그런데 그게 설정 탭 안 토글로만 켜졌다. 설정에 들어가는 사람은 드물다.
+ * 제품의 심장이 기본값 꺼짐에, 발견되지도 않는 자리에 있었던 셈이다.
+ *
+ * 그래서 첫 돌을 얹은 직후에 묻는다. 방금 뭔가를 해낸 순간이라 동기가
+ * 가장 높고, 왜 필요한지가 설명 없이도 통하는 유일한 자리다.
+ * OS 권한 창을 바로 띄우지 않는 이유: 한 번 거절당하면 다시 물을 수 없다.
+ * 먼저 우리 화면으로 이유를 말하고, '네'를 누른 사람에게만 진짜로 묻는다.
+ */
+const NOTIFY_ASKED_KEY = "jaksim3.notifyAsked";
+
+function shouldAskNotify() {
+  if (typeof IS_NATIVE === "undefined" || !IS_NATIVE) return false;
+  if (localStorage.getItem(NOTIFY_ASKED_KEY)) return false;
+  return !notifyEnabled();
+}
+
+function askNotify() {
+  if (!shouldAskNotify()) return;
+  localStorage.setItem(NOTIFY_ASKED_KEY, "1");
+  // 시간 계산이 어긋나도 토스트가 버튼을 가리지 않도록 확실히 걷는다
+  $("toast").hidden = true;
+  $("ask-notify-time").textContent =
+    `${friendlyTime(notifyHour(), notifyMinute())}에 알려드릴게요 · 시간은 언제든 바꿀 수 있어요`;
+  $("ask-notify").hidden = false;
+}
+
+function closeAskNotify() {
+  $("ask-notify").hidden = true;
+}
+
+function setupAskNotify() {
+  const sheet = $("ask-notify");
+  if (!sheet) return;
+
+  $("ask-notify-yes").addEventListener("click", async () => {
+    const ok = await setNotifyEnabled(true);
+    closeAskNotify();
+    toast(ok ? "stone" : "sleep",
+      ok ? `${friendlyTime(notifyHour(), notifyMinute())}에 알려드릴게요` : "설정에서 언제든 다시 켤 수 있어요");
+  });
+
+  // 거절도 존중한다 — 다시 묻지 않고, 설정에 자리는 남겨 둔다
+  $("ask-notify-no").addEventListener("click", () => {
+    closeAskNotify();
+    toast("sleep", "알림 없이 갈게요. 설정에서 언제든 켤 수 있어요");
   });
 }
 
@@ -1823,8 +1994,19 @@ function setupIntro() {
     done = true;
     el.classList.add("gone");
     setTimeout(() => el.remove(), 500);
-    // 처음 온 사람에게는 인트로가 끝난 뒤 사용법을 보여 준다
-    if (!localStorage.getItem(ONBOARD_SEEN_KEY)) setTimeout(openOnboard, 260);
+
+    /* 처음 온 사람을 설명 다섯 장으로 맞이하지 않는다.
+     *
+     * 예전에는 인트로가 끝나면 규칙을 다섯 장에 걸쳐 읽혔다. 신규 사용자의
+     * 대부분은 아무것도 해 보기 전에 첫 세션에서 떠나는데, 그 앞에 읽을거리를
+     * 여섯 화면 세워 둔 셈이었다.
+     *
+     * 규칙은 만든 다음에 문맥에서 한 줄씩 알려 주면 된다. 처음 열었을 때
+     * 필요한 건 '무엇을 3일 해볼까'라는 질문 하나다. 다섯 장짜리 안내는
+     * 설정에 그대로 있고, 첫 돌을 얹은 뒤 한 번 더 권한다. */
+    if (!localStorage.getItem(ONBOARD_SEEN_KEY) && state.goals.length === 0) {
+      setTimeout(() => openModal({ first: true }), 260);
+    }
   };
   el.addEventListener("click", dismiss);
   setTimeout(dismiss, reduceMotion ? 300 : 2300);
@@ -1833,6 +2015,10 @@ function setupIntro() {
 /* 열려 있는 시트 중 가장 위의 것을 닫는다.
  * 안드로이드 뒤로가기와 ESC가 같은 규칙을 쓰도록 한곳에 모아 둔다. */
 function closeTopLayer() {
+  if (!$("ask-notify").hidden) {
+    closeAskNotify();
+    return true;
+  }
   if (!$("onboard").hidden) {
     closeOnboard();
     return true;
@@ -1864,10 +2050,16 @@ function closeTopLayer() {
  * 둔다. 칩 하나를 누르면 제목과 아이콘이 함께 채워져서 키보드를 아예
  * 만나지 않고도 작심을 만들 수 있다. 직접 쓰고 싶은 사람만 입력창을
  * 누르면 된다. */
-function openModal() {
+function openModal(opts = {}) {
   selectIcon(ICON_KEYS[0]);
   $("input-title").value = "";
   syncTitleState();
+  // 처음 여는 사람에게는 '새 작심'이 아니라 질문으로 말을 건다
+  $("modal-title").textContent = opts.first ? "무엇을 3일 해볼까요?" : "새 작심";
+  $("modal-sub").textContent = opts.first
+    ? "거창하지 않아도 돼요. 딱 3일만 해볼 것 하나면 충분해요."
+    : "거창할 필요 없어요. 딱 3일만 해볼 것 하나.";
+  $("btn-cancel").hidden = !!opts.first;
   $("modal").hidden = false;
   document.body.classList.add("sheet-open");
   $("sheet-scroll") && ($("sheet-scroll").scrollTop = 0);

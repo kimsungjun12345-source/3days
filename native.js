@@ -14,14 +14,26 @@ const NOTIFY_MIN_KEY = "jaksim3.notifyMin";
 const NOTIFY_HOUR_DEFAULT = 21; // 저녁 9시 — 하루를 정리하며 아직 만회할 수 있는 시간
 const NOTIFY_MIN_DEFAULT = 0;
 
+/* 저장된 값이 없을 때 기본값으로 돌아가야 한다.
+ *
+ * 여기 오래 숨어 있던 버그가 있었다. localStorage.getItem은 값이 없으면
+ * null을 주고 Number(null)은 0이다. 0은 "0시부터 23시 사이"를 통과하므로
+ * 기본값 21시가 한 번도 쓰이지 않았다 — 시간을 손대지 않은 사람에게는
+ * 하루 알림이 저녁 9시가 아니라 자정에 울리고 있었다는 뜻이다.
+ * 숫자로 바꾸기 전에 '값이 있기는 한가'를 먼저 묻는다. */
+function storedNumber(key, min, max, fallback) {
+  const raw = localStorage.getItem(key);
+  if (raw === null || raw === "") return fallback;
+  const v = Number(raw);
+  return Number.isFinite(v) && v >= min && v <= max ? Math.floor(v) : fallback;
+}
+
 function notifyHour() {
-  const v = Number(localStorage.getItem(NOTIFY_HOUR_KEY));
-  return Number.isFinite(v) && v >= 0 && v <= 23 ? Math.floor(v) : NOTIFY_HOUR_DEFAULT;
+  return storedNumber(NOTIFY_HOUR_KEY, 0, 23, NOTIFY_HOUR_DEFAULT);
 }
 
 function notifyMinute() {
-  const v = Number(localStorage.getItem(NOTIFY_MIN_KEY));
-  return Number.isFinite(v) && v >= 0 && v <= 59 ? Math.floor(v) : NOTIFY_MIN_DEFAULT;
+  return storedNumber(NOTIFY_MIN_KEY, 0, 59, NOTIFY_MIN_DEFAULT);
 }
 
 /* 시각은 사용자가 분 단위로 자유롭게 고른다.
@@ -130,12 +142,54 @@ async function setNotifyEnabled(on) {
     const ok = await requestNotifyPermission();
     if (!ok) return false;
     localStorage.setItem(NOTIFY_PREF_KEY, "1");
+    await registerNotifyActions();
     await rescheduleNotifications();
     return true;
   }
   localStorage.setItem(NOTIFY_PREF_KEY, "0");
   await clearNotifications();
   return true;
+}
+
+/* ── 알림에서 바로 체크하기 ─────────────
+ *
+ * 물 한 잔 마신 걸 표시하려고 앱을 열고, 카드를 찾고, 버튼을 누른다 —
+ * 실제 행동보다 기록하는 쪽이 번거로우면 사람은 기록을 그만둔다.
+ * 알림에 버튼을 달아 두면 알림창에서 한 번으로 끝난다.
+ *
+ * 안드로이드는 액션 유형을 미리 등록해 둬야 알림에 버튼이 붙는다. */
+const NOTIFY_ACTION_ID = "jaksim-today";
+
+async function registerNotifyActions() {
+  if (!IS_NATIVE || !NP.LocalNotifications) return;
+  try {
+    await NP.LocalNotifications.registerActionTypes({
+      types: [
+        {
+          id: NOTIFY_ACTION_ID,
+          actions: [{ id: "done", title: "오늘 했어요" }],
+        },
+      ],
+    });
+    // 버튼을 눌렀을 때 — 앱을 열지 않고도 그 작심의 오늘 칸이 채워진다
+    NP.LocalNotifications.addListener("localNotificationActionPerformed", (ev) => {
+      if (!ev || ev.actionId !== "done") return;
+      const goalId = ev.notification && ev.notification.extra && ev.notification.extra.goalId;
+      if (typeof state === "undefined" || !state.goals) return;
+      const goal = goalId
+        ? state.goals.find((g) => g.id === goalId)
+        : state.goals.find((g) => {
+            const st = goalStatus(g);
+            return (st === "fresh" || st === "active") && !checkedToday(g);
+          });
+      if (goal && typeof checkToday === "function") {
+        checkToday(goal);
+        if (typeof toast === "function") toast("stone", `'${goal.title}' 오늘 칸을 채웠어요`);
+      }
+    });
+  } catch (e) {
+    /* 액션을 못 붙여도 알림 자체는 그대로 간다 */
+  }
 }
 
 async function clearNotifications() {
@@ -181,15 +235,18 @@ async function rescheduleNotifications() {
   const passed = clock.getHours() * 60 + clock.getMinutes() >= hour * 60 + minute;
   if (todo.length && !passed) {
     const near = todo.find((g) => g.checks.length === 2);
+    // 대상이 하나로 좁혀질 때만 버튼을 단다 — 무엇이 체크될지 모르면 안 된다
+    const only = near || (todo.length === 1 ? todo[0] : null);
     items.push({
       id: id++,
       title: "작심삼일",
       body: near
         ? `오늘만 넘기면 '${near.title}' 돌 하나가 완성돼요`
         : todo.length === 1
-          ? `'${todo[0].title}', 아직 오늘 돌을 안 얹었어요`
-          : `오늘 얹을 돌이 ${todo.length}개 남았어요`,
+          ? `'${todo[0].title}', 아직 오늘 칸이 비어 있어요`
+          : `오늘 채울 칸이 ${todo.length}개 남았어요`,
       schedule: { at: atHour(0, hour, minute) },
+      ...(only ? { actionTypeId: NOTIFY_ACTION_ID, extra: { goalId: only.id } } : {}),
     });
   }
 
@@ -265,6 +322,8 @@ async function setupNativeShell() {
   } catch (e) {
     /* 무시 */
   }
+
+  if (notifyEnabled()) await registerNotifyActions();
 
   if (!NP.App) return;
 
