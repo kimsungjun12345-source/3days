@@ -1570,7 +1570,6 @@ function setupModal() {
     addGoal(title, selectedIcon);
     $("input-title").value = "";
     syncTitleState();
-    closeModal();
 
     /* 첫 작심을 만든 직후에 사용법을 한 번 보여 준다.
      *
@@ -1579,11 +1578,23 @@ function setupModal() {
      * 이번엔 규칙을 알려 줄 자리가 아예 없어졌다. 3일에 돌 하나라는 건
      * 짐작으로 알 수 있는 규칙이 아니다.
      *
-     * 그래서 순서만 뒤집는다 — 먼저 만들고, 그다음에 읽는다. 지금은 뒤에
-     * 진짜 카드가 세 칸을 비운 채 놓여 있어서, 안내의 그림이 설명이 아니라
-     * 바로 그 카드 이야기가 된다. 건너뛸 수 있고, 설정에도 그대로 있다. */
-    if (!localStorage.getItem(ONBOARD_SEEN_KEY) && state.goals.length === 1) {
-      setTimeout(openOnboard, 620);
+     * 그래서 순서만 뒤집는다 — 먼저 만들고, 그다음에 읽는다. 뒤에 진짜
+     * 카드가 세 칸을 비운 채 놓여 있어서, 안내의 그림이 설명이 아니라
+     * 바로 그 카드 이야기가 된다. 건너뛸 수 있고, 설정에도 그대로 있다.
+     *
+     * 순서가 중요하다: 안내를 먼저 덮고 그다음에 시트를 걷는다. 반대로 하면
+     * 그 사이 한 프레임 동안 홈이 보였다가 다시 덮이는데, 그 깜빡임 하나가
+     * 앱 전체를 엉성해 보이게 만든다. */
+    const teach = !localStorage.getItem(ONBOARD_SEEN_KEY) && state.goals.length === 1;
+    if (teach) {
+      openOnboard();
+      // 안내가 대신 말해 주므로 토스트는 접는다
+      $("toast").hidden = true;
+      // 안내가 다 덮인 뒤에 시트를 걷는다. 페이드가 도는 중에 걷으면
+      // 반투명한 그 틈으로 홈이 비쳐서 결국 같은 깜빡임이 된다.
+      setTimeout(closeModal, 320);
+    } else {
+      closeModal();
     }
   });
 

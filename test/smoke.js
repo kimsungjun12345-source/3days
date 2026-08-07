@@ -1056,8 +1056,32 @@ function dstr(offset) {
   await lp.waitForTimeout(400);
   assert(await lp.locator("#onboard").isHidden(), "nothing to read before there is anything to read about");
   await lp.click(".suggest-chip");
+
+  /* 시트 → 안내로 넘어가는 사이에 홈이 한 프레임이라도 비치면 안 된다.
+   * 예전에는 시트를 먼저 걷고 0.6초 뒤에 안내를 띄웠는데, 그 틈에 홈이
+   * 보였다가 다시 덮이는 깜빡임이 앱을 통째로 엉성해 보이게 만들었다.
+   * 눈으로는 놓치기 쉬우니 프레임마다 재서 확인한다. */
+  const handoff = lp.evaluate(() => new Promise((res) => {
+    const out = [];
+    let n = 0;
+    const tick = () => {
+      const ob = document.getElementById("onboard");
+      const md = document.getElementById("modal");
+      // 안내가 아직 다 덮지 못했는데 시트도 없으면, 그 프레임엔 홈이 보인다
+      const covered = !ob.hidden && Number(getComputedStyle(ob).opacity) > 0.995;
+      out.push(!covered && md.hidden);
+      if (++n < 45) requestAnimationFrame(tick);
+      else res(out.filter(Boolean).length);
+    };
+    document
+      .getElementById("form-add")
+      .addEventListener("submit", () => requestAnimationFrame(tick), { once: true });
+  }));
   await lp.click("#btn-submit-goal");
-  await lp.waitForTimeout(900);
+  const peeked = await handoff;
+  assert(peeked === 0, `the home screen never flashes between the two (${peeked} frames)`);
+
+  await lp.waitForTimeout(500);
   assert(await lp.locator("#onboard").isVisible(), "the walkthrough arrives once a goal exists");
   assert(
     (await lp.locator(".goal-card").count()) === 1,

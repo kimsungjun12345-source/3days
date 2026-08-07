@@ -255,7 +255,9 @@ async function rescheduleNotifications() {
     items.push({
       id: id++,
       title: "작심삼일",
-      body: "오늘의 돌, 하나 얹어 볼까요?",
+      // 돌은 사흘에 하나다. 매일 오는 알림이 '오늘의 돌'이라고 하면
+      // 돌 하나가 하루라는 뜻이 되어 앱 전체의 규칙과 어긋난다.
+      body: "오늘 한 칸, 채워 볼까요?",
       schedule: { at: atHour(d, hour, minute) },
     });
   }
