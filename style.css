@@ -1,4 +1,9 @@
 :root {
+  /* UA가 알아서 칠하는 것들 — 버튼 기본 글자색, 폼 컨트롤, 스크롤바 —
+     은 이 값을 따른다. 기기 설정이 아니라 앱이 정한 테마를 따라야 한다.
+     (자세한 사연은 아래 [data-theme] 블록의 주석에) */
+  color-scheme: light;
+
   --bg: #f7f6f3;
   --card: #ffffff;
   --line: #ece8e1;
@@ -62,6 +67,8 @@
    data-theme="dark|light"로 박아 준다. 덕분에 어두운 팔레트를
    (기기 설정용 / 직접 고른 용) 두 벌로 복사해 두지 않아도 된다. */
 :root[data-theme="dark"] {
+  color-scheme: dark;
+
   --bg: #161513;
   --card: #201f1c;
   --line: #2d2b26;
@@ -680,6 +687,7 @@ body {
   color: var(--gray);
   font-size: 0.86rem;
   margin: 4px 0 16px;
+  word-break: keep-all;
 }
 
 /* 추천 문구 칩 */
@@ -869,24 +877,21 @@ body {
   margin-top: 22px;
 }
 
-/* ── 새 작심: 한 화면 ─────────────────
- * 아래에 붙은 시트 위에서 글을 쓰면 키보드가 올라올 때마다 시트가 통째로
- * 밀려 화면이 덜컹인다. 이 화면만 시트를 걷어내고 한 장을 다 쓴다.
- * 머리말·본문·바닥 세 칸으로 나눠 두면 키보드가 올라와도 움직이는 것은
- * 가운데 본문의 스크롤뿐이고, 약속 버튼은 늘 키보드 바로 위에 남는다.
- */
-.sheet-full {
-  align-items: stretch;
-  background: var(--bg);
-}
-
+/* ── 새 작심 시트 ────────────────────
+ *
+ * 한때 화면을 통째로 썼다. 키보드가 올라올 때 시트가 덜컹거리는 걸 막으려던
+ * 것이었는데, 실기기에서 보니 아이콘 줄 아래로 화면 3분의 1이 텅 빈 채였다.
+ * "여백이 너무 많다"는 말이 맞았다.
+ *
+ * 그래서 내용만큼만 높이를 갖는 바텀시트로 되돌리되, 덜컹거림을 막아 준
+ * 구조 — 스크롤 영역과 바닥에 붙은 버튼 — 는 그대로 둔다. 아래에 붙어 있으니
+ * 키보드가 올라와도 버튼은 항상 키보드 바로 위에 남는다. */
 .sheet-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  width: 100%;
-  max-width: 100%;
-  border-radius: 0;
+  max-height: 88vh;
+  /* 키보드가 올라오면 화면이 줄어든다. vh는 그걸 모르지만 dvh는 안다 */
+  max-height: 88dvh;
   padding: 0;
   background: var(--bg);
   animation: sheet-rise 0.26s cubic-bezier(0.22, 1, 0.36, 1);
@@ -900,9 +905,9 @@ body {
 .sheet-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   flex-shrink: 0;
-  padding: calc(8px + env(safe-area-inset-top)) 14px 8px;
+  padding: 8px 12px 2px;
 }
 
 .sheet-head h2 {
@@ -941,14 +946,19 @@ body {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 2px 22px 22px;
+  padding: 2px 20px 14px;
 }
 
 .sheet-foot {
   flex-shrink: 0;
-  padding: 12px 22px calc(12px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--line);
+  padding: 10px 20px calc(14px + env(safe-area-inset-bottom));
   background: var(--bg);
+}
+
+/* 스크롤이 실제로 생길 때에만 경계선을 긋는다.
+   내용이 다 보이는데 선까지 있으면 잘린 것처럼 보인다 */
+.sheet-page.scrolls .sheet-foot {
+  border-top: 1px solid var(--line);
 }
 
 .sheet-foot .btn {
@@ -964,7 +974,7 @@ body {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin: 20px 0 9px;
+  margin: 15px 0 8px;
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--gray-strong);
@@ -977,12 +987,25 @@ body {
 }
 
 .sheet-scroll .modal-sub {
-  margin: 0;
+  margin: 0 0 2px;
 }
 
 .sheet-scroll .suggest-row,
 .sheet-scroll .icon-row {
   margin: 0;
+}
+
+/* 아이콘은 10개다. 한 줄에 6개씩 두 줄로 두면 폭이 남아 헐거워 보인다.
+   칸을 균등하게 나눠 두 줄 다 꽉 차게 */
+.sheet-scroll .icon-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.sheet-scroll .icon-option {
+  width: 100%;
+  height: 46px;
 }
 
 /* 고른 칩은 눈에 띄게 — 키보드를 열지 않고도 뭘 골랐는지 보인다 */
@@ -993,7 +1016,8 @@ body {
   font-weight: 700;
 }
 
-/* 어제를 되찾는 문 — 있되 앞서지 않게. 오늘 할 일이 주인공이다 */
+/* 무너진 카드에만 붙는 귀띔 — 누르면 달력이 열린다.
+   되살리는 일 자체는 달력에서 하고, 여기서는 그런 길이 있다는 것만 말한다 */
 .btn-yesterday {
   display: block;
   width: 100%;
@@ -1385,8 +1409,77 @@ body {
   justify-content: center;
   border-radius: 10px;
   font-size: 0.78rem;
+  /* 칸 일부는 <button>이다. 색과 글꼴을 명시하지 않으면 브라우저 기본값이
+     끼어들어 같은 달력 안에서 숫자 모양이 달라진다 */
+  border: none;
+  padding: 0;
+  font-family: inherit;
   color: var(--gray-strong);
   background: var(--chip);
+}
+
+/* 눌러서 되살릴 수 있는 칸 — 점선으로 '여기 문이 있다'만 조용히 */
+.mcal-cell.pickable {
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.mcal-cell.picked {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+/* 고른 날에 대해 뭘 할 수 있는지 — 달력 바로 아래에 붙는다 */
+.mcal-pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--chip);
+  animation: pick-in 0.18s ease-out;
+}
+
+@keyframes pick-in {
+  from { transform: translateY(-4px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.pick-what {
+  flex: 1;
+  min-width: 0;
+}
+
+.pick-what b {
+  display: block;
+  font-size: 0.86rem;
+  color: var(--ink);
+}
+
+.pick-what span {
+  font-size: 0.72rem;
+  color: var(--gray);
+  word-break: keep-all;
+}
+
+.pick-act {
+  flex-shrink: 0;
+  padding: 9px 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pick-act:active {
+  transform: scale(0.96);
 }
 
 .mcal-cell.blank {
@@ -1559,6 +1652,33 @@ body {
   font-size: 0.86rem;
   color: var(--gray-strong);
   word-break: keep-all;
+}
+
+/* 한때 축하 화면에 '또 작심하기'와 '오늘은 여기까지'가 나란히 있었다.
+   갈림길처럼 보이지만 실은 한쪽이 아무것도 하지 않는 쪽이었고, 그게
+   "왜 굳이 물어보나"라는 말을 낳았다. 지금은 할 일이 하나뿐이고,
+   안 하겠다는 뜻은 이 ✕로 말한다. */
+.cheer {
+  position: relative;
+}
+
+.cheer-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--gray);
+  font-family: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.cheer-x:active {
+  background: var(--chip);
 }
 
 .cheer-foot {
@@ -1779,7 +1899,13 @@ body {
   gap: 10px;
 }
 
+/* 버튼은 color를 상속하지 않고 UA 기본값(buttontext)을 쓴다. 그 값은
+   color-scheme을 따르는데, 예전에는 그게 기기 설정이었다. 그래서 기기가
+   어둡고 앱에서는 '밝게'를 고른 사람에게 설정 화면의 큰 글자가 흰색으로
+   찍혔다 — 흰 카드 위에 흰 글자라 아예 보이지 않았다.
+   color-scheme을 앱 테마에 묶어 두었고, 여기서 색을 한 번 더 못 박는다. */
 .row-card {
+  color: var(--ink);
   display: flex;
   align-items: center;
   gap: 12px;

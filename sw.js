@@ -5,7 +5,7 @@
  * 기록은 localStorage에 있으므로 오프라인에서도 그대로 동작한다.
  */
 
-const VERSION = "v3";
+const VERSION = "v4";
 const APP_CACHE = `jaksim3-app-${VERSION}`;
 const FONT_CACHE = `jaksim3-font-${VERSION}`;
 

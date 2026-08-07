@@ -110,12 +110,28 @@ const AUDIT = (dimmed) => {
     }
   };
 
-  for (const scheme of ["light", "dark"]) {
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: scheme });
+  /* 기기 설정과 앱 설정이 어긋난 조합까지 본다.
+   *
+   * 예전에는 light/light와 dark/dark만 봤다. 그런데 실제로 글자가 사라진 곳은
+   * '기기는 어둡고 앱에서는 밝게를 고른' 조합이었다. <button>은 color를
+   * 상속하지 않고 UA 기본값을 쓰는데, 그 값이 기기 설정을 따라 흰색이 되면서
+   * 흰 카드 위에 흰 글자가 됐다. 엇갈린 조합을 보지 않으면 영원히 못 잡는다. */
+  const COMBOS = [
+    { device: "light", app: null, label: "기기 밝음" },
+    { device: "dark", app: null, label: "기기 어두움" },
+    { device: "dark", app: "light", label: "기기 어두움 + 앱 밝게" },
+    { device: "light", app: "dark", label: "기기 밝음 + 앱 어둡게" },
+  ];
+
+  for (const combo of COMBOS) {
+    const scheme = combo.label;
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: combo.device });
     const page = await ctx.newPage();
 
     await page.addInitScript((d) => {
       localStorage.setItem("jaksim3.onboarded", "1");
+      if (d[3]) localStorage.setItem("jaksim3.theme", d[3]);
+      else localStorage.removeItem("jaksim3.theme");
       localStorage.setItem("jaksim3.v1", JSON.stringify({ goals: [
         { id: "a", title: "아침에 물 한 잔", icon: "water", createdAt: "",
           checks: [d[0]], history: [d[1], d[0]], lastCheckDate: d[0],
@@ -127,7 +143,7 @@ const AUDIT = (dimmed) => {
       s.textContent = ".intro{display:none !important}";
       const put = () => document.head && document.head.appendChild(s);
       document.head ? put() : document.addEventListener("DOMContentLoaded", put);
-    }, [dstr(0), dstr(-1), dstr(-9)]);
+    }, [dstr(0), dstr(-1), dstr(-9), combo.app]);
 
     await page.goto(APP);
     await page.waitForTimeout(500);
@@ -153,7 +169,15 @@ const AUDIT = (dimmed) => {
         await page.evaluate(() => { for (let i = 0; i < 4; i++) document.getElementById("ob-next").click(); });
       },
       "기록 상세": async () => { await page.evaluate(() => { closeOnboard(); openDetail(state.goals[0]); }); },
+      // 달력에서 지난 날을 골랐을 때 열리는 줄
+      "기록 상세 · 되살리기": async () => {
+        await page.evaluate(() => {
+          const cell = document.querySelector("#detail-mcal .mcal-cell[data-key]");
+          if (cell) cell.click();
+        });
+      },
       "축하": async () => { await page.evaluate(() => { closeDetail(); showCheer(state.goals[0]); }); },
+      // 눌러 볼 것은 하나뿐이고, 안 하겠다는 뜻은 모서리의 ✕로 말한다
       // 탑을 세운 날에만 뜨는 백업 권유
       "축하+백업": async () => { await page.evaluate(() => { document.getElementById("backup-note").hidden = false; }); },
       // 첫 돌을 얹은 직후의 알림 권유

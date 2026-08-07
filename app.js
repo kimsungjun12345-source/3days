@@ -140,16 +140,25 @@ function addGoal(title, icon) {
   toast(icon, "약속했어요. 딱 3일만 가봐요!");
 }
 
-/* ── 어제를 되살리기 ────────────────────
+/* ── 지나간 날 되살리기 ──────────────────
  *
  * 이 앱이 벌하고 있던 것은 '하지 않은 것'이 아니라 '기록하지 않은 것'이었다.
  * 물은 마셨는데 앱을 안 열었으면 사이클이 깨졌다. 무너져도 괜찮다는 앱이
  * 정작 가장 억울한 실패를 막지 못한 셈이다.
  *
- * 그래서 어제 몫을 오늘 안에 한 번 채울 수 있게 한다. 사이클당 한 번으로
- * 묶어 두는 이유: 무제한이면 기록이 기억이 아니라 창작이 된다. 한 번이면
- * 잊어버린 하루는 건지고, 안 한 사흘을 지어내지는 못한다.
+ * 처음에는 카드에 '어제 것도 표시하기' 버튼을 달았는데, 오늘 할 일 옆에
+ * 어제 이야기가 붙어 있으니 오히려 헷갈린다는 말을 들었다. 맞는 말이다 —
+ * 지난 날 이야기는 지난 날이 그려진 곳, 달력에서 해야 한다. 그래서 지금은
+ * 상세 화면의 달력에서 빈 날짜를 눌러 되살린다.
+ *
+ * 되살릴 수 있는 범위는 최근 RETRO_DAYS일까지다. 무제한이면 기록이 기억이
+ * 아니라 창작이 된다. 그리고 '어제'만이 특별하다 — 어제는 아직 지금 돌고
+ * 있는 사흘의 일부라서, 되살리면 사이클에도 들어가고 돌이 완성될 수도 있다.
+ * 그보다 오래된 날은 달력과 '함께한 날'에만 남는다. 돌은 지나간 사흘을
+ * 소급해서 만들어 주지 않는다.
  */
+const RETRO_DAYS = 7;
+
 function canFillYesterday(goal) {
   if (goal.filledYesterday) return false;          // 이번 사이클에 이미 썼다
   if (goal.checks.includes(todayStr(-1))) return false; // 어제는 이미 채워져 있다
@@ -178,6 +187,42 @@ function fillYesterday(goal) {
   render();
   haptic(10);
   if (goal.checks.length < 3) toast("stone", "어제 몫을 채웠어요");
+}
+
+/* 달력에서 고른 날을 되살릴 수 있는가 — 되살린다면 어떤 뜻인가 */
+function retroKind(goal, key) {
+  if (!key || key >= todayStr()) return null;
+  if ((goal.history || []).includes(key)) return null;
+  if (key < todayStr(-RETRO_DAYS)) return "tooOld";
+  return key === todayStr(-1) && canFillYesterday(goal) ? "cycle" : "history";
+}
+
+function markPastDay(goal, key) {
+  const kind = retroKind(goal, key);
+  if (!kind || kind === "tooOld") return;
+
+  if (kind === "cycle") {
+    // 세 칸이 다 차면 돌이 카드에서 탑으로 날아간다. 그 장면은 홈에서 보여야
+    // 하므로 상세를 먼저 걷는다
+    if (goal.checks.length === 2) closeDetail();
+    fillYesterday(goal);
+  } else {
+    goal.history.push(key);
+    goal.history.sort();
+    goal.totalDays += 1;
+    save();
+    render();
+    haptic(8);
+    toast("stone", `${dayLabel(key)} 기록을 되살렸어요`);
+  }
+}
+
+/* '8월 3일 (수)' — 고른 칸이 어느 날인지 글로도 한 번 더 말해 준다 */
+function dayLabel(key) {
+  const d = new Date(key + "T00:00:00");
+  const w = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
+  if (key === todayStr(-1)) return "어제";
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${w})`;
 }
 
 function checkToday(goal, opts = {}) {
@@ -812,19 +857,20 @@ function renderGoalCard(goal) {
   }
   card.appendChild(btn);
 
-  /* 어제 해놓고 앱을 안 연 사람을 위한 작은 문.
-   * 눈에 띄되 앞서지 않게 — 주된 행동은 어디까지나 오늘 것이다.
-   * '무너진' 카드에서는 다시 쌓기보다 이쪽이 먼저 눈에 들어와야 한다,
-   * 사흘을 날리는 대신 하루를 되찾는 쪽이 사실에 가까우므로. */
-  if (canFillYesterday(goal)) {
+  /* 어제 해놓고 표시를 못 한 사람은 카드가 아니라 달력에서 되살린다.
+   * 여기에 버튼을 두었더니 오늘 할 일 옆에 어제 이야기가 붙어 헷갈렸다.
+   * 다만 무너진 카드에서는 그런 길이 있다는 것 자체를 모를 수 있어,
+   * 한 줄만 귀띔해 둔다 — 누르면 달력이 열린다. */
+  if (status === "broken" && canFillYesterday(goal)) {
     const back = document.createElement("button");
     back.type = "button";
     back.className = "btn-yesterday";
-    back.textContent =
-      status === "broken" ? "어제 했는데 표시를 못 했어요" : "어제 것도 표시하기";
+    back.textContent = "어제 했는데 표시를 못 했나요?";
     back.addEventListener("click", (ev) => {
       ev.stopPropagation();
-      fillYesterday(goal);
+      openDetail(goal);
+      detailPick = todayStr(-1);
+      paintDetailCal();
     });
     card.appendChild(back);
   }
@@ -1022,7 +1068,10 @@ function monthOf(offset) {
   return { y: d.getFullYear(), m: d.getMonth() };
 }
 
-function monthCalHTML(doneSet, y, m) {
+/* pick을 켜면 '아직 비어 있는 지난 날'이 버튼이 된다.
+   눌러서 뒤늦게 되살릴 수 있는 칸은 이것뿐이라, 눌리는 곳과 눌리지 않는 곳이
+   모양으로 갈리는 편이 헤매지 않는다. */
+function monthCalHTML(doneSet, y, m, pick) {
   const first = new Date(y, m, 1);
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const todayKey = todayStr();
@@ -1030,24 +1079,31 @@ function monthCalHTML(doneSet, y, m) {
   for (let i = 0; i < first.getDay(); i++) parts.push(`<span class="mcal-cell blank"></span>`);
   for (let d = 1; d <= daysInMonth; d++) {
     const key = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const done = doneSet.has(key);
+    const openable = pick && !done && key < todayKey;
     const cls = [
       "mcal-cell",
-      doneSet.has(key) ? "done" : "",
+      done ? "done" : "",
       key === todayKey ? "today" : "",
       key > todayKey ? "future" : "",
+      openable ? "pickable" : "",
     ]
       .filter(Boolean)
       .join(" ");
-    parts.push(`<span class="${cls}"><i>${d}</i></span>`);
+    parts.push(
+      openable
+        ? `<button type="button" class="${cls}" data-key="${key}"><i>${d}</i></button>`
+        : `<span class="${cls}"><i>${d}</i></span>`
+    );
   }
   return parts.join("");
 }
 
 /* 달력 하나(제목 + 격자 + 이동 버튼)를 통째로 관리한다 */
-function paintMonthCal(prefix, offset, doneSet) {
+function paintMonthCal(prefix, offset, doneSet, pick) {
   const { y, m } = monthOf(offset);
   $(`${prefix}-cal-title`).textContent = `${y}년 ${m + 1}월`;
-  $(`${prefix}-mcal`).innerHTML = monthCalHTML(doneSet, y, m);
+  $(`${prefix}-mcal`).innerHTML = monthCalHTML(doneSet, y, m, pick);
   // 미래 달로는 넘어가지 않는다
   $(`${prefix}-cal-next`).disabled = offset >= 0;
   const ym = `${y}-${String(m + 1).padStart(2, "0")}`;
@@ -1075,19 +1131,49 @@ function historyWord(goal) {
 
 let detailGoalId = null;
 let detailMonth = 0; // 0 = 이번 달
+let detailPick = null; // 달력에서 고른 지난 날짜
 
 function paintDetailCal() {
   const goal = state.goals.find((g) => g.id === detailGoalId);
   if (!goal) return;
   const done = new Set(goal.history || []);
-  const count = paintMonthCal("detail", detailMonth, done);
+  const count = paintMonthCal("detail", detailMonth, done, true);
   $("detail-word").textContent =
     count > 0 ? `이 달에 ${count}일 돌을 얹었어요` : historyWord(goal);
+  paintDetailPick(goal);
+}
+
+/* 고른 날짜 아래에 뜨는 한 줄.
+   되살릴 수 있으면 버튼을, 없으면 왜 없는지를 준다 — 눌리지 않는 이유를
+   말해 주지 않으면 고장 난 것처럼 보인다. */
+function paintDetailPick(goal) {
+  const bar = $("detail-pick");
+  const cell = detailPick && $("detail-mcal").querySelector(`[data-key="${detailPick}"]`);
+  if (!cell) {
+    detailPick = null;
+    bar.hidden = true;
+    return;
+  }
+  cell.classList.add("picked");
+  bar.hidden = false;
+  $("detail-pick-day").textContent = dayLabel(detailPick);
+
+  const kind = retroKind(goal, detailPick);
+  const act = $("detail-pick-act");
+  act.hidden = kind === "tooOld";
+  act.textContent = "해냈어요";
+  $("detail-pick-hint").textContent =
+    kind === "tooOld"
+      ? `${RETRO_DAYS}일이 지난 날은 되살릴 수 없어요`
+      : kind === "cycle"
+        ? "어제는 지금 사흘에도 들어가요"
+        : "달력과 함께한 날에 남아요";
 }
 
 function openDetail(goal) {
   detailGoalId = goal.id;
   detailMonth = 0;
+  detailPick = null;
   $("detail-ico").innerHTML = iconSVG(goalIcon(goal), 20);
   $("detail-title").textContent = goal.title;
   const built = towersOf(goal);
@@ -1105,6 +1191,7 @@ function openDetail(goal) {
 function closeDetail() {
   $("detail").hidden = true;
   detailGoalId = null;
+  detailPick = null;
 }
 
 /* ── 기록 탭 ─────────────────────────
@@ -1610,6 +1697,23 @@ function setupModal() {
     if (goal) removeGoal(goal);
   });
 
+  // 달력에서 빈 지난 날을 고르기 (한 번 더 누르면 접힌다)
+  $("detail-mcal").addEventListener("click", (ev) => {
+    const cell = ev.target.closest(".mcal-cell[data-key]");
+    if (!cell) return;
+    detailPick = detailPick === cell.dataset.key ? null : cell.dataset.key;
+    haptic(4);
+    paintDetailCal();
+  });
+
+  $("detail-pick-act").addEventListener("click", () => {
+    const goal = state.goals.find((g) => g.id === detailGoalId);
+    if (!goal || !detailPick) return;
+    markPastDay(goal, detailPick);
+    detailPick = null;
+    if (!$("detail").hidden) paintDetailCal();
+  });
+
   $("cheer-share").addEventListener("click", async (ev) => {
     const goal = state.goals.find((g) => g.id === cheerGoalId);
     if (!goal) return;
@@ -1677,9 +1781,19 @@ function setupThemeToggle() {
       el.classList.toggle("on", on);
       el.setAttribute("aria-checked", on ? "true" : "false");
     });
-    $("theme-sub").textContent = THEME_LABEL[pref];
+    /* '기기 설정 따르기'가 기본값이다. 그래서 어두운 폰에서는 앱도 어둡게
+       열리는데, 그걸 "왜 어두운 게 기본이지?"로 읽는 사람이 있었다.
+       지금 어느 쪽으로 풀렸는지를 함께 적어 두면 물어볼 일이 없다. */
+    $("theme-sub").textContent =
+      pref === "auto"
+        ? `${THEME_LABEL.auto} · 지금은 ${document.documentElement.dataset.theme === "dark" ? "어두움" : "밝음"}`
+        : THEME_LABEL[pref];
   };
   paint();
+  // 기기가 해질녘에 알아서 어두워지면 설명도 같이 따라가야 한다
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if (themePref() === "auto") setTimeout(paint, 0);
+  });
 
   seg.addEventListener("click", (ev) => {
     const btn = ev.target.closest(".seg-item");
@@ -1703,10 +1817,18 @@ function setupThemeToggle() {
  * 그런데 그게 설정 탭 안 토글로만 켜졌다. 설정에 들어가는 사람은 드물다.
  * 제품의 심장이 기본값 꺼짐에, 발견되지도 않는 자리에 있었던 셈이다.
  *
- * 그래서 첫 돌을 얹은 직후에 묻는다. 방금 뭔가를 해낸 순간이라 동기가
+ * 그래서 첫 체크인 직후에 묻는다. 방금 뭔가를 해낸 순간이라 동기가
  * 가장 높고, 왜 필요한지가 설명 없이도 통하는 유일한 자리다.
  * OS 권한 창을 바로 띄우지 않는 이유: 한 번 거절당하면 다시 물을 수 없다.
  * 먼저 우리 화면으로 이유를 말하고, '네'를 누른 사람에게만 진짜로 묻는다.
+ *
+ * 뜨는 조건을 한자리에 적어 둔다 (shouldAskNotify):
+ *   1. 앱으로 감싼 상태일 것 — 웹에는 예약할 알림이 없다
+ *   2. 아직 한 번도 안 물었을 것 (jaksim3.notifyAsked)
+ *   3. 알림이 아직 꺼져 있을 것
+ * 세 가지가 다 맞으면, 체크한 뒤 토스트가 지나가고 2.6초(돌을 완성한
+ * 날은 3.2초) 뒤에 한 번 뜬다. 네든 아니요든 그걸로 끝이고, 이후로는
+ * 설정에서만 켜고 끈다.
  */
 const NOTIFY_ASKED_KEY = "jaksim3.notifyAsked";
 
@@ -1718,11 +1840,18 @@ function shouldAskNotify() {
 
 function askNotify() {
   if (!shouldAskNotify()) return;
+  /* 축하 화면이 떠 있으면 그 뒤에 깔려 보이지도 않은 채 '물어봤다'로
+     기록된다 — 다시 물을 수 없는 질문이라 그건 잃는 것이다. 축하가
+     걷힐 때까지 기다린다. */
+  if (!$("cheer").hidden) {
+    setTimeout(askNotify, 900);
+    return;
+  }
   localStorage.setItem(NOTIFY_ASKED_KEY, "1");
   // 시간 계산이 어긋나도 토스트가 버튼을 가리지 않도록 확실히 걷는다
   $("toast").hidden = true;
   $("ask-notify-time").textContent =
-    `${friendlyTime(notifyHour(), notifyMinute())}에 알려드릴게요 · 시간은 언제든 바꿀 수 있어요`;
+    `${friendlyTime(notifyHour(), notifyMinute())} · 언제든 바꿀 수 있어요`;
   $("ask-notify").hidden = false;
 }
 
@@ -2045,11 +2174,14 @@ function closeTopLayer() {
  * 두 번 덜컹였다. 게다가 첫 화면이 빈 입력창과 커서라 '뭐라고 써야 하지'
  * 앞에서 멈추게 된다.
  *
- * 그래서 두 가지를 바꿨다. 하나, 이 화면은 바텀시트가 아니라 한 화면을
- * 통째로 쓴다 — 키보드가 올라와도 밀려날 시트가 없다. 둘, 추천 칩을 먼저
- * 둔다. 칩 하나를 누르면 제목과 아이콘이 함께 채워져서 키보드를 아예
+ * 그래서 두 가지를 바꿨다. 하나, 약속 버튼을 시트 바닥에 고정한다 —
+ * 키보드가 올라와도 버튼은 키보드 바로 위에 그대로 있다. 둘, 추천 칩을
+ * 먼저 둔다. 칩 하나를 누르면 제목과 아이콘이 함께 채워져서 키보드를 아예
  * 만나지 않고도 작심을 만들 수 있다. 직접 쓰고 싶은 사람만 입력창을
- * 누르면 된다. */
+ * 누르면 된다.
+ *
+ * (한동안은 화면을 통째로 쓰기도 했는데, 그러면 아이콘 줄 아래가 텅 비어
+ * 보였다. 지금은 내용만큼만 높이를 갖는다.) */
 function openModal(opts = {}) {
   selectIcon(ICON_KEYS[0]);
   $("input-title").value = "";
@@ -2057,12 +2189,19 @@ function openModal(opts = {}) {
   // 처음 여는 사람에게는 '새 작심'이 아니라 질문으로 말을 건다
   $("modal-title").textContent = opts.first ? "무엇을 3일 해볼까요?" : "새 작심";
   $("modal-sub").textContent = opts.first
-    ? "거창하지 않아도 돼요. 딱 3일만 해볼 것 하나면 충분해요."
+    ? "딱 3일만 해볼 것 하나면 충분해요."
     : "거창할 필요 없어요. 딱 3일만 해볼 것 하나.";
   $("btn-cancel").hidden = !!opts.first;
   $("modal").hidden = false;
   document.body.classList.add("sheet-open");
-  $("sheet-scroll") && ($("sheet-scroll").scrollTop = 0);
+  const scroll = $("sheet-scroll");
+  if (scroll) {
+    scroll.scrollTop = 0;
+    // 실제로 넘칠 때에만 바닥 경계선을 긋는다 (레이아웃이 잡힌 뒤에 잰다)
+    requestAnimationFrame(() => {
+      scroll.closest(".sheet-page").classList.toggle("scrolls", scroll.scrollHeight > scroll.clientHeight + 1);
+    });
+  }
 }
 
 function closeModal() {

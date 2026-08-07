@@ -1015,16 +1015,38 @@ function dstr(offset) {
   }, dstr(-2));
   await page.waitForTimeout(300);
   assert(await page.locator(".goal-card.state-broken").isVisible(), "missing a day still breaks the run");
-  assert(await page.locator(".btn-yesterday").isVisible(), "but yesterday can still be claimed");
 
+  // 되살리는 자리는 카드가 아니라 달력이다 — 무너진 카드의 귀띔이 그 문을 연다
+  assert(await page.locator(".btn-yesterday").isVisible(), "a broken card points at the way back");
   await page.click(".btn-yesterday");
+  await page.waitForTimeout(300);
+  assert(await page.locator("#detail").isVisible(), "which opens this goal's calendar");
+  assert(
+    (await page.locator("#detail-pick-day").textContent()) === "어제",
+    "with yesterday already picked out"
+  );
+
+  await page.click("#detail-pick-act");
   await page.waitForTimeout(400);
   assert((await page.locator(".goal-card .dot.done").count()) === 2, "claiming yesterday fills its square");
   assert(await page.locator(".goal-card.state-broken").count() === 0, "and the run is no longer broken");
+
+  // 달력에서 아무 날이나 눌러 사흘을 지어낼 수는 없다
+  await page.evaluate(() => openDetail(state.goals[0]));
+  await page.waitForTimeout(300);
   assert(
-    await page.locator(".btn-yesterday").count() === 0,
-    "only once per cycle — a forgotten day can be saved, three invented days cannot"
+    await page.locator(`.mcal-cell[data-key="${dstr(-1)}"]`).count() === 0,
+    "a day already claimed is no longer a button"
   );
+  await page.evaluate(() => { detailMonth = -1; paintDetailCal(); });
+  await page.waitForTimeout(200);
+  await page.locator(".mcal-cell[data-key]").first().click();
+  await page.waitForTimeout(200);
+  assert(
+    await page.locator("#detail-pick-act").isHidden(),
+    "a forgotten day can be saved, a forgotten month cannot"
+  );
+  await page.evaluate(() => closeDetail());
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 
