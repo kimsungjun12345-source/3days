@@ -190,6 +190,50 @@ body {
   height: auto;
 }
 
+/* ── 정원 탭 ─────────────────────────
+ * 홈의 정원이 요약이라면 여기는 전부다. 카드로 감싸지 않고 화면 폭을
+ * 그대로 쓴다 — 이 그림이 이 앱에서 가장 중요한 것이므로 테두리를 두르지
+ * 않는 편이 낫다. */
+.garden-page {
+  margin: 4px -4px 0;
+  background: radial-gradient(120% 74% at 50% 104%, var(--garden-glow) 0%, transparent 64%);
+}
+
+.garden-page svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* 홈의 정원 아래 한 줄 — 가려진 탑이 있을 때만 */
+.hero-more {
+  display: block;
+  width: 100%;
+  margin: 2px 0 -2px;
+  padding: 7px 8px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  font-family: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--gray);
+  cursor: pointer;
+  word-break: keep-all;
+}
+
+.hero-more:active {
+  background: var(--chip);
+}
+
+.garden-word {
+  margin: 6px 4px 18px;
+  text-align: center;
+  font-size: 0.86rem;
+  color: var(--gray-strong);
+  word-break: keep-all;
+}
+
 .hero-foot {
   display: flex;
   align-items: baseline;

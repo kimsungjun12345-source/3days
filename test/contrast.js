@@ -150,6 +150,8 @@ const AUDIT = (dimmed) => {
 
     const screens = {
       "홈": async () => {},
+      // 전부 서 있는 정원
+      "정원": async () => { await page.click('.tab[data-view="garden"]'); },
       "기록": async () => { await page.click('.tab[data-view="record"]'); },
       // 알림 줄은 앱으로 감쌌을 때만 보이지만, 색은 여기서 함께 확인해 둔다
       "설정": async () => {

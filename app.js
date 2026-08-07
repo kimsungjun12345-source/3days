@@ -455,10 +455,19 @@ function towersDrawn(goalCount) {
   return Math.max(2, Math.round(10 / Math.max(1, goalCount)));
 }
 
-function gardenSVG(goals) {
+function gardenSVG(goals, opts = {}) {
+  /* full 모드 — 정원 탭에서 쓴다. 홈의 정원은 화면 한 귀퉁이라 탑을 몇 채만
+     추려 그리는데, 오래 다닌 사람은 그걸 "예전 탑이 사라졌다"로 읽는다.
+     맞는 읽기다. 그래서 전부 보여 주는 자리를 따로 만들고, 여기서는 한 채도
+     빼지 않는다. 대신 캔버스가 탑 수만큼 세로로 자란다. */
+  const full = !!opts.full;
   const W = 340;
-  const H = 152;
-  const groundY = 132;
+  const deepest = full
+    ? Math.max(1, ...goals.slice(0, GARDEN_MAX).map((g) => towersOf(g).done + 1))
+    : 3;
+  // 정원 탭에서는 이 그림이 화면의 주인공이라 넉넉하게 잡는다
+  const H = full ? Math.min(440, 196 + Math.max(0, deepest - 2) * 26) : 152;
+  const groundY = H - 20;
   const uid = ++stoneDefsSeq;
 
   /* 작심마다 정원의 자리가 정해져 있다 — 만든 순서대로.
@@ -472,7 +481,11 @@ function gardenSVG(goals) {
    * 그 뒤로 물러난다. 뒤로 갈수록 작고 흐려서, 여러 채가 서 있어도
    * 화면이 시끄러워지지 않고 '오래 다닌 자리'처럼 보인다. */
   const drawList = [];
-  const perGoal = towersDrawn(lanes.length);
+  const perGoal = full ? Infinity : towersDrawn(lanes.length);
+  /* 몇 채가 되든 같은 깊이 범위 안에 눕힌다 — 탑이 늘수록 간격만 촘촘해지고
+     맨 뒤 탑이 화면 밖으로 밀려나거나 점처럼 작아지지 않는다. */
+  const depthStep = full ? Math.min(0.145, 0.82 / Math.max(1, deepest - 1)) : 0.145;
+  const rise = full ? H - 74 : 26;
   lanes.forEach(({ goal, lane: gi }) => {
     const ch = characterOf(gi);
     const held = heldGoalId === goal.id;
@@ -489,14 +502,14 @@ function gardenSVG(goals) {
     const shown = Math.min(done, perGoal - 1);
     for (let t = 0; t <= shown; t++) {
       // t = 0 이 지금 쌓는 탑(맨 앞), 클수록 오래전에 완성한 탑
-      const depth = Math.min(0.99, t * 0.145 + gi * 0.05);
+      const depth = Math.min(0.99, t * depthStep + gi * (full ? 0.02 : 0.05));
       // 뒤로 갈수록 좌우로 벌어지게 — 일부러 지그재그로 흩어 놓는다.
       // 앞의 두세 채는 넉넉히 떨어뜨리고, 뒤로 갈수록 간격을 좁혀
       // 화면 밖으로 나가지 않으면서 '멀리까지 이어진다'는 느낌만 남긴다.
       const step = t <= 2 ? 0.085 : 0.055;
       const spread = step * Math.ceil(t / 2) * (t % 2 === 0 ? -1 : 1);
       const x = Math.min(0.89, Math.max(0.11, baseX + spread)) * W;
-      const y = groundY - depth * 26;
+      const y = groundY - depth * rise;
       const scale = (1 - 0.44 * depth) * 0.62;
       const opacity = (1 - 0.42 * depth).toFixed(2);
       drawList.push({
@@ -594,6 +607,13 @@ function renderStats() {
   $("stat-cycles").textContent = cycles;
   $("stat-restarts").textContent = restarts;
   $("hero-garden").innerHTML = gardenSVG(goals);
+  /* 홈은 자리가 좁아 탑을 몇 채만 추려 그린다. 그걸 말해 주지 않으면
+     "예전 탑이 사라졌다"로 읽힌다 — 실제로 그렇게 읽혔다. */
+  const shownHere = $("hero-garden").querySelectorAll(".tower").length;
+  const allTowers = goals.reduce((s, g) => s + towersOf(g).done + 1, 0);
+  const more = $("hero-more");
+  more.hidden = !hasGoals || allTowers <= shownHere;
+  if (!more.hidden) more.textContent = `정원에 탑 ${allTowers}채가 서 있어요 — 전부 보기 ›`;
   // 탑을 누르면 그 작심의 기록이 열린다 — 돌 모양과 돌빛만으로 긴가민가할 때
   // 손으로 확인할 수 있는 길. (정원은 aria-hidden이라 화면 낭독기에는
   // 중복으로 읽히지 않고, 같은 일은 아래 카드에서도 할 수 있다.)
@@ -899,21 +919,35 @@ function maybeOfferBackup() {
  * 서버가 생기기 전까지는 파일로 꺼내 두는 것이 유일한 안전장치다.
  */
 
-function exportData() {
+async function exportData() {
   const payload = JSON.stringify({ app: "jaksim3", exportedAt: new Date().toISOString(), ...state }, null, 2);
+  // 파일명에 한글을 쓰면 브라우저가 통째로 무시하고 확장자 없는 'download'로
+  // 저장해 버린다 — 나중에 다시 가져올 수 없게 되므로 ASCII로 둔다
+  const name = `jaksimsamil-${todayStr()}.json`;
+
+  /* 앱으로 감쌌을 때는 공유 시트로 내보낸다.
+     <a download>는 안드로이드 WebView 안에서 아무 일도 하지 않아서,
+     예전에는 "저장했어요"라고만 하고 파일은 어디에도 없었다. */
+  if (typeof nativeSaveText === "function") {
+    const ok = await nativeSaveText(payload, name, "application/json");
+    if (ok) {
+      haptic(10);
+      toast("stone", `${name} — 저장할 곳을 골라 주세요`);
+      return;
+    }
+  }
+
   const blob = new Blob([payload], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  // 파일명에 한글을 쓰면 브라우저가 통째로 무시하고 확장자 없는 'download'로
-  // 저장해 버린다 — 나중에 다시 가져올 수 없게 되므로 ASCII로 둔다
-  a.download = `jaksimsamil-${todayStr()}.json`;
+  a.download = name;
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   haptic(10);
-  toast("stone", "기록을 파일로 저장했어요");
+  toast("stone", `${name} 으로 저장했어요`);
 }
 
 /* 남의 손을 탄 파일도 앱을 깨뜨리지 않게 필요한 모양으로 다듬는다 */
@@ -1154,13 +1188,64 @@ function renderRecord() {
   }
 }
 
+/* ── 정원 탭 ─────────────────────────
+ *
+ * 이 앱에서 가장 중요한 그림은 돌탑이다. 그런데 그 그림이 홈 화면 위쪽
+ * 152px 안에만 있었고, 자리가 좁으니 탑을 몇 채만 추려 그려야 했다.
+ * 오래 다닌 사람에게는 그게 "예전에 세운 탑이 사라졌다"로 보인다 —
+ * 가장 자랑스러워야 할 것이 가장 조용히 지워지고 있던 셈이다.
+ *
+ * 그래서 정원에 제 화면을 준다. 여기서는 한 채도 빼지 않고 전부 서 있다.
+ * 홈의 정원은 그대로 두되, 이제 그건 요약이고 진짜는 여기다.
+ */
+function renderGarden() {
+  const goals = state.goals;
+  $("garden-page").innerHTML = gardenSVG(goals, { full: true });
+  $("garden-page").querySelectorAll(".tower").forEach((el) => {
+    el.style.cursor = "pointer";
+    el.addEventListener("click", () => {
+      const goal = goals.find((g) => g.id === el.dataset.goalId);
+      if (goal) openDetail(goal);
+    });
+  });
+
+  const towers = goals.reduce((s, g) => s + towersOf(g).done, 0);
+  const stones = totalStones();
+  $("garden-word").textContent =
+    goals.length === 0
+      ? "작심을 하나 만들면 여기에 첫 탑이 섭니다."
+      : towers > 0
+        ? `탑 ${towers}채 · 돌 ${stones}개 — 전부 여기 그대로 서 있어요.`
+        : `돌 ${stones}개를 쌓았어요. ${STONES_PER_TOWER}개가 모이면 탑 한 채가 됩니다.`;
+
+  const list = $("garden-legend");
+  list.innerHTML = "";
+  for (const goal of goals) {
+    const t = towersOf(goal);
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = `record-row g${goalIndex(goal)}`;
+    row.innerHTML =
+      `<span class="record-ico">${iconSVG(goalIcon(goal), 20)}</span>` +
+      `<span class="record-tt"><b></b><span></span></span>` +
+      `<span class="record-num">${t.done}<i>채</i></span>`;
+    row.querySelector("b").textContent = goal.title;
+    row.querySelector(".record-tt span").textContent =
+      t.done > 0
+        ? `완성한 탑 ${t.done}채 · 지금 탑 ${t.current}/${STONES_PER_TOWER}`
+        : `지금 탑 ${t.current}/${STONES_PER_TOWER}`;
+    row.addEventListener("click", () => openDetail(goal));
+    list.appendChild(row);
+  }
+}
+
 /* ── 화면 전환 ─────────────────────── */
 
 let currentView = "home";
 
 function switchView(name) {
   currentView = name;
-  for (const v of ["home", "record", "settings"]) {
+  for (const v of ["home", "garden", "record", "settings"]) {
     $(`view-${v}`).hidden = v !== name;
   }
   document.querySelectorAll(".tab").forEach((t) => {
@@ -1168,6 +1253,7 @@ function switchView(name) {
     t.classList.toggle("on", on);
     t.setAttribute("aria-current", on ? "page" : "false");
   });
+  if (name === "garden") renderGarden();
   if (name === "record") renderRecord();
   window.scrollTo({ top: 0 });
   haptic(6);
@@ -1175,7 +1261,7 @@ function switchView(name) {
 
 function setupTabs() {
   document.querySelectorAll(".tab").forEach((tab) => {
-    const key = { home: "home", record: "calendar", settings: "gear" }[tab.dataset.view];
+    const key = { home: "home", garden: "stone", record: "calendar", settings: "gear" }[tab.dataset.view];
     tab.querySelector(".tab-ico").innerHTML = iconSVG(key, 22);
     tab.addEventListener("click", () => switchView(tab.dataset.view));
   });
@@ -1485,8 +1571,12 @@ function openOnboard() {
 }
 
 function closeOnboard() {
+  const first = !localStorage.getItem(ONBOARD_SEEN_KEY);
   $("onboard").hidden = true;
   localStorage.setItem(ONBOARD_SEEN_KEY, "1");
+  /* 안내를 막 끝낸 사람은 아직 아무것도 없다. 규칙을 읽은 직후가 만들기
+     가장 쉬운 순간이라, 설명에서 곧바로 첫 작심으로 이어 준다. */
+  if (first && state.goals.length === 0) setTimeout(() => openModal({ first: true }), 240);
 }
 
 /* 안내에서는 진동을 쓰지 않는다. 아직 아무것도 해내지 않은 사람에게
@@ -1559,6 +1649,8 @@ function setupModal() {
 
   $("input-title").addEventListener("input", syncTitleState);
 
+  $("hero-more").addEventListener("click", () => switchView("garden"));
+
   $("btn-add").addEventListener("click", () => openModal());
   $("btn-empty-add").addEventListener("click", () => openModal({ first: true }));
   $("btn-cancel").addEventListener("click", closeModal);
@@ -1570,32 +1662,7 @@ function setupModal() {
     addGoal(title, selectedIcon);
     $("input-title").value = "";
     syncTitleState();
-
-    /* 첫 작심을 만든 직후에 사용법을 한 번 보여 준다.
-     *
-     * 한때는 앱을 열자마자 다섯 장을 읽혔다. 아무것도 만들지 않은 사람에게
-     * 규칙부터 들이미는 셈이라 첫 화면을 '하기'로 바꿨는데, 그러고 나니
-     * 이번엔 규칙을 알려 줄 자리가 아예 없어졌다. 3일에 돌 하나라는 건
-     * 짐작으로 알 수 있는 규칙이 아니다.
-     *
-     * 그래서 순서만 뒤집는다 — 먼저 만들고, 그다음에 읽는다. 뒤에 진짜
-     * 카드가 세 칸을 비운 채 놓여 있어서, 안내의 그림이 설명이 아니라
-     * 바로 그 카드 이야기가 된다. 건너뛸 수 있고, 설정에도 그대로 있다.
-     *
-     * 순서가 중요하다: 안내를 먼저 덮고 그다음에 시트를 걷는다. 반대로 하면
-     * 그 사이 한 프레임 동안 홈이 보였다가 다시 덮이는데, 그 깜빡임 하나가
-     * 앱 전체를 엉성해 보이게 만든다. */
-    const teach = !localStorage.getItem(ONBOARD_SEEN_KEY) && state.goals.length === 1;
-    if (teach) {
-      openOnboard();
-      // 안내가 대신 말해 주므로 토스트는 접는다
-      $("toast").hidden = true;
-      // 안내가 다 덮인 뒤에 시트를 걷는다. 페이드가 도는 중에 걷으면
-      // 반투명한 그 틈으로 홈이 비쳐서 결국 같은 깜빡임이 된다.
-      setTimeout(closeModal, 320);
-    } else {
-      closeModal();
-    }
+    closeModal();
   });
 
   setupThemeToggle();
@@ -1946,6 +2013,17 @@ function setupDevTools() {
     toast("water", "돌 3개짜리 연습용 작심을 넣었어요");
   });
 
+  /* 알림이 오는지 확인하는 가장 빠른 길. 저녁 9시까지 기다려 볼 수는 없고,
+     안 오는 이유는 대개 앱이 아니라 기기 설정(알림 차단·절전)에 있다. */
+  $("dev-test-notify").addEventListener("click", async () => {
+    if (typeof sendTestNotification !== "function") {
+      toast("sleep", "앱으로 설치했을 때만 확인할 수 있어요");
+      return;
+    }
+    const ok = await sendTestNotification(5);
+    toast(ok ? "stone" : "sleep", ok ? "5초 뒤에 알림이 옵니다" : "알림 권한이 없어요");
+  });
+
   $("dev-reset").addEventListener("click", () => {
     if (!confirm("날짜를 원래대로 돌리고 기록을 전부 지울까요?\n(개발자 도구 전용 — 되돌릴 수 없어요)")) return;
     setDevDays(0);
@@ -1973,6 +2051,19 @@ function setupNotifyToggle() {
   timeInput.value = timeValue(notifyHour(), notifyMinute());
 
   const label = () => friendlyTime(notifyHour(), notifyMinute());
+
+  /* 예약이 진짜로 잡혔는지를 화면에 적는다.
+     "알림이 안 온다"를 확인할 방법이 앱 안에 없어서, 켜 두면 온다고 믿는
+     수밖에 없었다. 다음 알림 시각이 보이면 그것만으로 절반은 진단이 된다. */
+  const showNext = async () => {
+    if (!notifyEnabled() || typeof nextNotificationAt !== "function") return;
+    const at = await nextNotificationAt();
+    if (!notifyEnabled()) return;
+    $("notify-sub").textContent = at
+      ? `다음 알림 · ${at.getMonth() + 1}월 ${at.getDate()}일 ${friendlyTime(at.getHours(), at.getMinutes())}`
+      : "예약된 알림이 없어요 — 껐다 켜 보세요";
+  };
+
   const paint = () => {
     const on = notifyEnabled();
     btn.classList.toggle("on", on);
@@ -1981,7 +2072,8 @@ function setupNotifyToggle() {
     $("notify-hour-label").textContent = label();
     $("notify-sub").textContent = on
       ? `${label()}에 조용히 알려드려요`
-      : "쉬는 동안에도 돌아올 자리를 남겨둡니다";
+      : "정해둔 시각에 한 번만 알려드려요";
+    showNext();
   };
   paint();
 
@@ -2036,17 +2128,18 @@ function setupIntro() {
     el.classList.add("gone");
     setTimeout(() => el.remove(), 500);
 
-    /* 처음 온 사람을 설명 다섯 장으로 맞이하지 않는다.
+    /* 인트로가 끝나면 사용법부터 보여 준다.
      *
-     * 예전에는 인트로가 끝나면 규칙을 다섯 장에 걸쳐 읽혔다. 신규 사용자의
-     * 대부분은 아무것도 해 보기 전에 첫 세션에서 떠나는데, 그 앞에 읽을거리를
-     * 여섯 화면 세워 둔 셈이었다.
+     * 한동안은 반대로 했다 — 읽을거리를 세워 두면 첫 세션에서 떠난다는
+     * 걱정에 곧바로 '무엇을 3일 해볼까요?'를 띄웠다. 그런데 실제로 써 보니
+     * 규칙을 모른 채 목표부터 만들게 되고, 3일에 돌 하나라는 이 앱의 유일한
+     * 규칙을 알려 줄 자리가 계속 어정쩡해졌다. 만든 뒤에 띄워도 봤지만
+     * 그건 그것대로 '만들자마자 읽으라고 한다'가 된다.
      *
-     * 처음 열었을 때 필요한 건 '무엇을 3일 해볼까'라는 질문 하나다.
-     * 안내를 없앤 게 아니라 순서를 미뤘을 뿐이라, 작심을 하나 만들고 나면
-     * 곧바로 다섯 장이 뜬다(setupModal의 submit 참고). 설정에도 남아 있다. */
-    if (!localStorage.getItem(ONBOARD_SEEN_KEY) && state.goals.length === 0) {
-      setTimeout(() => openModal({ first: true }), 260);
+     * 다섯 장은 그림 위주라 넘기는 데 오래 걸리지 않고, 건너뛰기도 있다.
+     * 안내가 끝나면 그 자리에서 바로 첫 작심을 만들게 이어 준다. */
+    if (!localStorage.getItem(ONBOARD_SEEN_KEY)) {
+      setTimeout(openOnboard, 160);
     }
   };
   el.addEventListener("click", dismiss);

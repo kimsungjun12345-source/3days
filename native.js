@@ -118,6 +118,36 @@ async function nativeShareImage(blob, filename, text) {
   }
 }
 
+/* 글자 파일을 저장하고 '어디에 둘지'를 사용자에게 묻는다.
+ *
+ * 웹에서 쓰던 <a download>는 안드로이드 WebView 안에서 아무 일도 하지
+ * 않는다. 다운로드 매니저가 연결돼 있지 않아서 클릭이 그냥 삼켜진다 —
+ * 그래서 "저장했어요" 토스트만 뜨고 파일은 어디에도 없었다.
+ *
+ * 대신 파일을 만든 뒤 공유 시트를 연다. 저장 위치를 앱이 정해서 알려 주는
+ * 것보다, 드라이브든 파일 앱이든 사용자가 고르는 편이 확실하다 — 무엇보다
+ * 화면에 보인다. 권한을 하나도 요구하지 않는 것도 이 방식뿐이다. */
+async function nativeSaveText(text, filename, mime) {
+  if (!IS_NATIVE || !NP.Share || !NP.Filesystem) return false;
+  try {
+    const written = await NP.Filesystem.writeFile({
+      path: filename,
+      data: text,
+      directory: "CACHE",
+      encoding: "utf8",
+    });
+    await NP.Share.share({
+      title: filename,
+      text: "작심삼일 기록 백업",
+      files: [written.uri],
+    });
+    return true;
+  } catch (e) {
+    // 공유를 취소한 것도 여기로 온다 — 파일은 이미 만들어졌으므로 실패가 아니다
+    return e && /cancel|abort/i.test(String(e.message || e)) ? true : false;
+  }
+}
+
 /* ── 알림 ──────────────────────────
  * 이 앱에서 알림은 잔소리가 아니라 제품의 일부다. 무너진 뒤에 돌아올
  * 명분을 주는 것이 핵심이라, 문구에서 죄책감을 자극하지 않는다.
@@ -192,6 +222,50 @@ async function registerNotifyActions() {
   }
 }
 
+/* 예약된 알림 중 가장 먼저 울릴 것 — 없으면 null.
+ *
+ * "알림이 안 온다"를 확인할 방법이 앱 안에 하나도 없었다. 켜 두면 온다고
+ * 믿는 수밖에 없고, 안 오면 왜 안 오는지 알 길이 없다. 다음 알림이 언제인지
+ * 화면에 적어 두면 그것만으로 진단이 된다 — 시각이 안 보이면 예약이 안 된
+ * 것이고, 보이는데 안 울리면 기기 쪽 문제다. */
+async function nextNotificationAt() {
+  if (!IS_NATIVE || !NP.LocalNotifications) return null;
+  try {
+    const pending = await NP.LocalNotifications.getPending();
+    const list = (pending && pending.notifications) || [];
+    const times = list
+      .map((n) => n.schedule && n.schedule.at)
+      .filter(Boolean)
+      .map((t) => new Date(t).getTime())
+      .filter((t) => Number.isFinite(t) && t > Date.now());
+    return times.length ? new Date(Math.min(...times)) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/* 지금부터 몇 초 뒤에 한 번 — 알림이 실제로 오는지 확인할 때만 쓴다 */
+async function sendTestNotification(afterSeconds = 5) {
+  if (!IS_NATIVE || !NP.LocalNotifications) return false;
+  try {
+    const ok = await requestNotifyPermission();
+    if (!ok) return false;
+    await NP.LocalNotifications.schedule({
+      notifications: [
+        {
+          id: 9999,
+          title: "작심삼일",
+          body: "알림이 잘 오고 있어요.",
+          schedule: { at: new Date(Date.now() + afterSeconds * 1000) },
+        },
+      ],
+    });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 async function clearNotifications() {
   if (!IS_NATIVE || !NP.LocalNotifications) return;
   try {
@@ -204,9 +278,14 @@ async function clearNotifications() {
   }
 }
 
+/* 알림은 진짜 시계로 잡는다.
+ *
+ * 예전에는 앱이 믿는 '오늘'(개발자 모드로 밀 수 있는 날짜)을 따라갔다.
+ * 그런데 안드로이드 알람은 실제 시각에 울리므로, 날짜를 100일 뒤로 밀어
+ * 두고 테스트하면 알림도 100일 뒤로 예약된다 — 즉 영영 오지 않는다.
+ * 무엇을 알릴지는 앱의 날짜가 정하고, 언제 울릴지는 진짜 시계가 정한다. */
 function atHour(daysFromNow, hour, minute = 0) {
-  // 알림 시각도 앱이 믿는 '오늘'을 따라간다 (개발자 모드에서 날짜를 밀었을 때)
-  const d = typeof now === "function" ? now() : new Date();
+  const d = new Date();
   d.setDate(d.getDate() + daysFromNow);
   d.setHours(hour, minute, 0, 0);
   return d;
@@ -221,7 +300,8 @@ async function rescheduleNotifications() {
   await clearNotifications();
 
   const items = [];
-  const clock = typeof now === "function" ? now() : new Date();
+  // 오늘 저녁에 보낼지 말지는 진짜 시각으로 판단한다 (atHour와 같은 이유)
+  const clock = new Date();
   let id = 1;
 
   const todo = state.goals.filter((g) => {

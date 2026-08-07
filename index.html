@@ -61,6 +61,8 @@
     <main id="view-home" class="view">
       <section class="hero" id="stats" hidden>
         <div class="garden" id="hero-garden" aria-hidden="true"></div>
+        <!-- 홈의 정원은 요약이라 탑을 다 담지 못한다. 가려진 게 있으면 말해 준다 -->
+        <button type="button" class="hero-more" id="hero-more" hidden></button>
         <div class="hero-foot">
           <div>
             <span class="hero-label">돌탑과 함께한 날</span>
@@ -106,6 +108,14 @@
       <footer class="footer">
         <p>작심삼일도 여러 번 하면, 평생이 된다</p>
       </footer>
+    </main>
+
+    <!-- ── 정원 ────────────────────────── -->
+    <main id="view-garden" class="view" hidden>
+      <div class="garden-page" id="garden-page" aria-hidden="true"></div>
+      <p class="garden-word" id="garden-word"></p>
+      <div class="section-head"><h2>서 있는 탑</h2></div>
+      <div id="garden-legend" class="record-goals"></div>
     </main>
 
     <!-- ── 기록 ────────────────────────── -->
@@ -214,6 +224,7 @@
             <button type="button" class="dev-btn" id="dev-check-all">오늘 전부 해내기</button>
             <button type="button" class="dev-btn" id="dev-run-cycle">3일 한 바퀴 돌리기</button>
             <button type="button" class="dev-btn" id="dev-seed">연습용 작심 넣기</button>
+            <button type="button" class="dev-btn" id="dev-test-notify">5초 뒤 알림 보내기</button>
             <button type="button" class="dev-btn dev-warn" id="dev-reset">날짜·기록 되돌리기</button>
           </div>
         </div>
@@ -228,6 +239,9 @@
     <nav class="tabbar" aria-label="주요 화면">
       <button type="button" class="tab on" data-view="home">
         <span class="tab-ico" aria-hidden="true"></span>홈
+      </button>
+      <button type="button" class="tab" data-view="garden">
+        <span class="tab-ico" aria-hidden="true"></span>정원
       </button>
       <button type="button" class="tab" data-view="record">
         <span class="tab-ico" aria-hidden="true"></span>기록

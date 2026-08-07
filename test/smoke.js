@@ -524,7 +524,10 @@ function dstr(offset) {
   }, dstr(-1));
   await reload();
 
-  assert((await page.locator(".tab").count()) === 3, "three tabs are available");
+  assert((await page.locator(".tab").count()) === 4, "four tabs are available");
+  await page.click('.tab[data-view="garden"]');
+  await page.waitForTimeout(250);
+  assert(await page.locator("#view-garden").isVisible(), "garden tab opens");
   await page.click('.tab[data-view="record"]');
   await page.waitForTimeout(250);
   assert(await page.locator("#view-record").isVisible(), "record tab opens");
@@ -973,10 +976,11 @@ function dstr(offset) {
   assert(await page.locator("#dev-card").isVisible(), "but five taps still reach them");
   await page.unroute("**/build-info.js");
 
-  // 30. 처음 온 사람은 읽는 대신 만들기부터
-  // 예전에는 인트로가 끝나면 설명 다섯 장이 먼저 떴다. 신규 사용자 대부분은
-  // 아무것도 해 보기 전에 첫 세션에서 떠나는데, 그 앞에 읽을거리를 여섯 화면
-  // 세워 둔 셈이었다. 규칙은 만든 다음에 문맥에서 알려 주면 된다.
+  // 30. 처음 온 사람은 규칙을 먼저 읽고, 그 자리에서 첫 작심을 만든다
+  // 한동안 반대로도 해 봤다(만들기 먼저 → 나중에 안내). 그런데 3일에 돌
+  // 하나라는 이 앱의 유일한 규칙을 모른 채 목표부터 만들게 되고, 알려 줄
+  // 자리가 계속 어정쩡해졌다. 다섯 장은 그림 위주라 금방 넘어가고
+  // 건너뛰기도 있으니, 순서를 되돌리되 안내 끝에서 만들기로 이어 준다.
   const first = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const fp = await first.newPage();
   fp.on("pageerror", (e) => errors.push("first-run pageerror: " + e.message));
@@ -985,22 +989,31 @@ function dstr(offset) {
   });
   await fp.goto(APP);
   await fp.waitForFunction(() => !document.getElementById("intro"), null, { timeout: 8000 });
-  await fp.waitForTimeout(400);
-  assert(await fp.locator("#modal").isVisible(), "a brand-new user is asked what to try, not made to read");
-  assert(await fp.locator("#onboard").isHidden(), "the five-page walkthrough no longer blocks the door");
+  await fp.waitForTimeout(500);
+  assert(await fp.locator("#onboard").isVisible(), "a brand-new user meets the rules first");
+  assert(await fp.locator("#modal").isHidden(), "and nothing else is competing for the screen");
+
+  // 안내를 끝내면 그 자리에서 바로 첫 작심으로 이어진다
+  await fp.click("#ob-skip");
+  await fp.waitForTimeout(600);
+  assert(await fp.locator("#onboard").isHidden(), "the walkthrough can be skipped");
+  assert(await fp.locator("#modal").isVisible(), "and it hands straight over to making one");
   assert(
     (await fp.locator("#modal-title").textContent()).includes("3일"),
-    "and it is asked as a question"
+    "asked as a question"
   );
 
-  // 만들고 나면 그때 규칙을 한 줄로
+  // 만들고 나면 규칙을 한 줄로 계속 붙여 둔다 (첫 돌을 얹기 전까지)
   await fp.click(".suggest-chip");
   await fp.click("#btn-submit-goal");
   await fp.waitForTimeout(400);
   assert(
     (await fp.locator("#note").textContent()).includes("세 칸"),
-    "the rule arrives once there is something to apply it to"
+    "the rule stays on screen until the first stone"
   );
+  await fp.reload();
+  await fp.waitForTimeout(900);
+  assert(await fp.locator("#onboard").isHidden(), "and the walkthrough never asks twice");
   await first.close();
 
   // 31. 여러 작심이 겹친 달력에서 '그날 무엇을 했나'가 보인다
@@ -1043,57 +1056,43 @@ function dstr(offset) {
   );
   await page.evaluate(() => { switchView("home"); });
 
-  // 32. 만들고 나면 그때 사용법을 보여 준다
-  // 읽기부터 시키지도, 아예 안 알려 주지도 않는다 — 순서만 뒤로 미룬다.
-  const learn = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  const lp = await learn.newPage();
-  lp.on("pageerror", (e) => errors.push("learn pageerror: " + e.message));
-  await lp.addInitScript(() => {
-    if (navigator.serviceWorker) navigator.serviceWorker.register = () => new Promise(() => {});
+  // 32. 정원에서는 탑이 한 채도 사라지지 않는다
+  // 홈의 정원은 자리가 좁아 몇 채만 추려 그린다. 오래 다닌 사람에게는 그게
+  // "예전 탑이 사라졌다"로 보이므로, 전부 서 있는 자리를 따로 둔다.
+  await page.evaluate(() => {
+    state.goals = ["물 한 잔", "10분 걷기", "스트레칭", "책 읽기"].map((t, i) => ({
+      id: "t" + i, title: t, icon: "stone", createdAt: "",
+      checks: [], history: [], lastCheckDate: "",
+      totalDays: 60, completedCycles: 20, restarts: 0,
+    }));
+    save();
+    render();
   });
-  await lp.goto(APP);
-  await lp.waitForFunction(() => !document.getElementById("intro"), null, { timeout: 8000 });
-  await lp.waitForTimeout(400);
-  assert(await lp.locator("#onboard").isHidden(), "nothing to read before there is anything to read about");
-  await lp.click(".suggest-chip");
+  await page.waitForTimeout(300);
 
-  /* 시트 → 안내로 넘어가는 사이에 홈이 한 프레임이라도 비치면 안 된다.
-   * 예전에는 시트를 먼저 걷고 0.6초 뒤에 안내를 띄웠는데, 그 틈에 홈이
-   * 보였다가 다시 덮이는 깜빡임이 앱을 통째로 엉성해 보이게 만들었다.
-   * 눈으로는 놓치기 쉬우니 프레임마다 재서 확인한다. */
-  const handoff = lp.evaluate(() => new Promise((res) => {
-    const out = [];
-    let n = 0;
-    const tick = () => {
-      const ob = document.getElementById("onboard");
-      const md = document.getElementById("modal");
-      // 안내가 아직 다 덮지 못했는데 시트도 없으면, 그 프레임엔 홈이 보인다
-      const covered = !ob.hidden && Number(getComputedStyle(ob).opacity) > 0.995;
-      out.push(!covered && md.hidden);
-      if (++n < 45) requestAnimationFrame(tick);
-      else res(out.filter(Boolean).length);
-    };
-    document
-      .getElementById("form-add")
-      .addEventListener("submit", () => requestAnimationFrame(tick), { once: true });
-  }));
-  await lp.click("#btn-submit-goal");
-  const peeked = await handoff;
-  assert(peeked === 0, `the home screen never flashes between the two (${peeked} frames)`);
-
-  await lp.waitForTimeout(500);
-  assert(await lp.locator("#onboard").isVisible(), "the walkthrough arrives once a goal exists");
-  assert(
-    (await lp.locator(".goal-card").count()) === 1,
-    "and the real card is waiting behind it"
+  const towersAll = await page.evaluate(() =>
+    state.goals.reduce((s, g) => s + towersOf(g).done + 1, 0)
   );
-  await lp.click("#ob-skip");
-  await lp.waitForTimeout(200);
-  assert(await lp.locator("#onboard").isHidden(), "it can be skipped");
-  await lp.reload();
-  await lp.waitForTimeout(900);
-  assert(await lp.locator("#onboard").isHidden(), "and it never asks twice");
-  await learn.close();
+  const onHome = await page.locator("#hero-garden .tower").count();
+  assert(onHome < towersAll, `home shows a summary, not everything (${onHome}/${towersAll})`);
+  assert(
+    await page.locator("#hero-more").isVisible(),
+    "and it says so instead of letting the towers just vanish"
+  );
+
+  await page.click("#hero-more");
+  await page.waitForTimeout(400);
+  assert(await page.locator("#view-garden").isVisible(), "which opens the garden");
+  assert(
+    (await page.locator("#garden-page .tower").count()) === towersAll,
+    `where every tower is standing (${towersAll})`
+  );
+  assert(
+    (await page.locator("#garden-legend .record-row").count()) === 4,
+    "with one line per goal underneath"
+  );
+  await page.click('.tab[data-view="home"]');
+  await page.waitForTimeout(200);
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 
