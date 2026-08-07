@@ -190,8 +190,17 @@ async function setNotifyEnabled(on) {
  * 안드로이드는 액션 유형을 미리 등록해 둬야 알림에 버튼이 붙는다. */
 const NOTIFY_ACTION_ID = "jaksim-today";
 
+/* 액션 등록이 끝났는지. 이게 false인데 알림에 actionTypeId를 달면
+   안드로이드 쪽에서 등록되지 않은 그룹을 찾다가 예외가 나고, 그러면
+   그 알림 하나가 아니라 같이 넘긴 예약 전체가 실패한다. */
+let actionsReady = false;
+
+/* 마지막 예약이 어떻게 됐는지 — 개발자 도구에서 읽는다 */
+let notifyDebug = { tried: 0, scheduled: 0, error: "" };
+
 async function registerNotifyActions() {
-  if (!IS_NATIVE || !NP.LocalNotifications) return;
+  if (!IS_NATIVE || !NP.LocalNotifications) return false;
+  if (actionsReady) return true;
   try {
     await NP.LocalNotifications.registerActionTypes({
       types: [
@@ -217,8 +226,11 @@ async function registerNotifyActions() {
         if (typeof toast === "function") toast("stone", `'${goal.title}' 오늘 칸을 채웠어요`);
       }
     });
+    actionsReady = true;
+    return true;
   } catch (e) {
-    /* 액션을 못 붙여도 알림 자체는 그대로 간다 */
+    /* 액션을 못 붙여도 알림 자체는 그대로 가야 한다 */
+    return false;
   }
 }
 
@@ -297,6 +309,8 @@ async function rescheduleNotifications() {
   if (!IS_NATIVE || !NP.LocalNotifications || !notifyEnabled()) return;
   if (typeof state === "undefined" || !state.goals) return;
 
+  // 등록이 끝나기 전에 예약하면 버튼 달린 통이 예약 전체를 무너뜨린다
+  await registerNotifyActions();
   await clearNotifications();
 
   const items = [];
@@ -326,7 +340,7 @@ async function rescheduleNotifications() {
           ? `'${todo[0].title}', 아직 오늘 칸이 비어 있어요`
           : `오늘 채울 칸이 ${todo.length}개 남았어요`,
       schedule: { at: atHour(0, hour, minute) },
-      ...(only ? { actionTypeId: NOTIFY_ACTION_ID, extra: { goalId: only.id } } : {}),
+      ...(only && actionsReady ? { actionTypeId: NOTIFY_ACTION_ID, extra: { goalId: only.id } } : {}),
     });
   }
 
@@ -366,12 +380,44 @@ async function rescheduleNotifications() {
     }
   }
 
+  /* 한 통이 잘못되면 나머지까지 통째로 실패한다.
+   *
+   * 실기기에서 "테스트 알림은 오는데 매일 알림은 안 온다"가 나왔다. 둘의
+   * 차이는 하나뿐이었다 — 매일 알림 묶음에는 알림창에서 바로 체크하는
+   * 버튼(actionTypeId)이 달린 통이 하나 섞여 있다. 그 버튼 그룹이 아직
+   * 등록되지 않았으면 안드로이드가 예약 중에 예외를 내고, 같이 넘긴
+   * 대여섯 통이 전부 예약되지 않는다. 그리고 예전에는 그 예외를 조용히
+   * 삼키고 있어서, 앱에는 아무 흔적도 남지 않았다.
+   *
+   * 그래서 세 가지를 바꾼다. 버튼은 등록이 끝났을 때만 달고, 그래도
+   * 실패하면 버튼을 떼고 한 번 더 넣어 보고, 무슨 일이 있었는지는
+   * 남겨 둔다 — 알림은 안 왔을 때 이유를 알 수 있어야 고칠 수 있다. */
+  notifyDebug = { tried: items.length, scheduled: 0, error: "" };
+  const put = async (list) => {
+    await NP.LocalNotifications.schedule({ notifications: list });
+  };
+
   try {
-    await NP.LocalNotifications.schedule({ notifications: items });
+    await put(items);
   } catch (e) {
-    /* 예약에 실패해도 앱 사용에는 지장이 없다 */
+    notifyDebug.error = String((e && e.message) || e);
+    try {
+      // 버튼이 문제였을 수 있다 — 떼고 다시. 알림이 오는 편이 버튼보다 중요하다
+      await put(items.map(({ actionTypeId, extra, ...rest }) => rest));
+      notifyDebug.error += " (버튼 없이 재시도 성공)";
+    } catch (e2) {
+      notifyDebug.error += " / " + String((e2 && e2.message) || e2);
+    }
+  }
+
+  try {
+    const left = await NP.LocalNotifications.getPending();
+    notifyDebug.scheduled = ((left && left.notifications) || []).length;
+  } catch (e) {
+    /* 세어 보지 못해도 예약 자체에는 지장이 없다 */
   }
 }
+
 
 /* ── 앱 껍데기 ─────────────────────── */
 

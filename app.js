@@ -2024,6 +2024,23 @@ function setupDevTools() {
     toast(ok ? "stone" : "sleep", ok ? "5초 뒤에 알림이 옵니다" : "알림 권한이 없어요");
   });
 
+  /* 매일 알림이 실제로 몇 통 예약됐는지, 실패했다면 왜인지.
+     "테스트 알림은 오는데 매일 알림은 안 온다"를 이걸로 잡았다. */
+  $("dev-notify-state").addEventListener("click", async () => {
+    if (typeof rescheduleNotifications !== "function") {
+      toast("sleep", "앱으로 설치했을 때만 확인할 수 있어요");
+      return;
+    }
+    await rescheduleNotifications();
+    const d = typeof notifyDebug === "object" ? notifyDebug : { tried: 0, scheduled: 0, error: "" };
+    toast(
+      d.scheduled ? "stone" : "sleep",
+      d.error
+        ? `${d.tried}통 중 ${d.scheduled}통 · ${d.error}`.slice(0, 120)
+        : `${d.tried}통 넣어 ${d.scheduled}통 예약됨`
+    );
+  });
+
   $("dev-reset").addEventListener("click", () => {
     if (!confirm("날짜를 원래대로 돌리고 기록을 전부 지울까요?\n(개발자 도구 전용 — 되돌릴 수 없어요)")) return;
     setDevDays(0);
