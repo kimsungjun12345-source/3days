@@ -534,9 +534,9 @@ function dstr(offset) {
   assert(await page.locator("#view-home").isHidden(), "home is put away while on record");
   assert((await page.locator("#rstat-stones").textContent()) === "3", "record tab totals the stones");
   assert((await page.locator("#record-mcal .mcal-cell.done").count()) >= 1, "record calendar marks the days");
-  assert((await page.locator(".record-row").count()) === 1, "each goal gets a row in the record tab");
+  assert((await page.locator("#record-goals .record-row").count()) === 1, "each goal gets a row in the record tab");
 
-  await page.click(".record-row");
+  await page.click("#record-goals .record-row");
   await page.waitForTimeout(300);
   assert(await page.locator("#detail").isVisible(), "a record row opens that goal's sheet");
   await page.click("#detail-close");
@@ -906,7 +906,7 @@ function dstr(offset) {
   await page.click('.tab[data-view="record"]');
   await page.waitForTimeout(250);
   assert(
-    (await page.locator(".record-row .record-tt span").textContent()).includes(`탑 ${Math.floor(120 / per)}채`),
+    (await page.locator("#record-goals .record-row .record-tt span").textContent()).includes(`탑 ${Math.floor(120 / per)}채`),
     "the record tab counts the finished towers"
   );
   await page.click('.tab[data-view="home"]');
@@ -1044,8 +1044,8 @@ function dstr(offset) {
   );
   // 목록의 칩 색이 달력의 점과 짝이 되어야 범례 없이 읽힌다
   assert(
-    (await page.locator(".record-row.g0").count()) === 1 &&
-      (await page.locator(".record-row.g1").count()) === 1,
+    (await page.locator("#record-goals .record-row.g0").count()) === 1 &&
+      (await page.locator("#record-goals .record-row.g1").count()) === 1,
     "each goal keeps one colour across the calendar and the list"
   );
 
