@@ -170,12 +170,21 @@ body {
 }
 
 /* ── 히어로 ───────────────────────── */
+/* 홈의 정원 — 그림 하나뿐이라 <button>이다. 눌러서 정원 탭으로 간다 */
 .hero {
+  display: block;
+  width: 100%;
+  padding: 0;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
   box-shadow: var(--shadow-card);
+  cursor: pointer;
+}
+
+.hero:active {
+  transform: scale(0.995);
 }
 
 /* 작심마다 탑 하나 — 앞뒤로 늘어선 나의 정원 */
@@ -205,66 +214,12 @@ body {
   height: auto;
 }
 
-/* 홈의 정원 아래 한 줄 — 가려진 탑이 있을 때만 */
-.hero-more {
-  display: block;
-  width: 100%;
-  margin: 2px 0 -2px;
-  padding: 7px 8px;
-  border: none;
-  border-radius: 10px;
-  background: none;
-  font-family: inherit;
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: var(--gray);
-  cursor: pointer;
-  word-break: keep-all;
-}
-
-.hero-more:active {
-  background: var(--chip);
-}
-
 .garden-word {
   margin: 6px 4px 18px;
   text-align: center;
   font-size: 0.86rem;
   color: var(--gray-strong);
   word-break: keep-all;
-}
-
-.hero-foot {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 0 18px 16px;
-}
-
-.hero-label {
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--gray);
-  margin-right: 6px;
-}
-
-.hero-big {
-  font-family: var(--font-title);
-  font-size: 1.4rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.hero-sub {
-  font-size: 0.78rem;
-  color: var(--gray);
-  text-align: right;
-}
-
-.hero-sub b {
-  color: var(--gray-strong);
-  font-weight: 700;
 }
 
 /* ── 섹션 헤더 ─────────────────────── */
@@ -531,6 +486,7 @@ body {
 }
 
 /* ── 응원 배너 ─────────────────────── */
+/* 홈에 남은 유일한 문장 — 첫 돌을 얹기 전까지만 */
 .note {
   margin-top: 18px;
   background: var(--chip);
@@ -1810,7 +1766,7 @@ body {
 .record-stats {
   display: flex;
   gap: 8px;
-  margin-bottom: 16px;
+  margin: 4px 0 16px;
 }
 
 .record-stats div {

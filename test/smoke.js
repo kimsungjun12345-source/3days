@@ -532,11 +532,13 @@ function dstr(offset) {
   await page.waitForTimeout(250);
   assert(await page.locator("#view-record").isVisible(), "record tab opens");
   assert(await page.locator("#view-home").isHidden(), "home is put away while on record");
-  assert((await page.locator("#rstat-stones").textContent()) === "3", "record tab totals the stones");
+  assert((await page.locator("#stat-cycles").textContent()) === "3", "the garden totals the stones");
   assert((await page.locator("#record-mcal .mcal-cell.done").count()) >= 1, "record calendar marks the days");
-  assert((await page.locator("#record-goals .record-row").count()) === 1, "each goal gets a row in the record tab");
+  assert((await page.locator("#garden-legend .record-row").count()) === 1, "each goal gets a row in the garden");
 
-  await page.click("#record-goals .record-row");
+  await page.evaluate(() => switchView("garden"));
+  await page.waitForTimeout(200);
+  await page.click("#garden-legend .record-row");
   await page.waitForTimeout(300);
   assert(await page.locator("#detail").isVisible(), "a record row opens that goal's sheet");
   await page.click("#detail-close");
@@ -902,12 +904,12 @@ function dstr(offset) {
     `the garden keeps gaining stones (${per}→${gOver.stones}, ${per * 4}→${gMid.stones}, 120→${gYear.stones})`
   );
 
-  // 완성한 탑 수는 기록에도 남아야 한다
-  await page.click('.tab[data-view="record"]');
+  // 완성한 탑 수는 정원의 목록에도 적혀 있어야 한다
+  await page.click('.tab[data-view="garden"]');
   await page.waitForTimeout(250);
   assert(
-    (await page.locator("#record-goals .record-row .record-tt span").textContent()).includes(`탑 ${Math.floor(120 / per)}채`),
-    "the record tab counts the finished towers"
+    (await page.locator("#garden-legend .record-row .record-tt span").textContent()).includes(`탑 ${Math.floor(120 / per)}채`),
+    "the garden list counts the finished towers"
   );
   await page.click('.tab[data-view="home"]');
   await page.waitForTimeout(200);
@@ -1042,12 +1044,16 @@ function dstr(offset) {
     (await page.locator("#record-mcal .mcal-cell.done").count()) === 2,
     "and the days without any are left plain"
   );
-  // 목록의 칩 색이 달력의 점과 짝이 되어야 범례 없이 읽힌다
+  // 정원 목록의 칩 색이 달력의 점과 짝이 되어야 범례 없이 읽힌다
+  await page.click('.tab[data-view="garden"]');
+  await page.waitForTimeout(300);
   assert(
-    (await page.locator("#record-goals .record-row.g0").count()) === 1 &&
-      (await page.locator("#record-goals .record-row.g1").count()) === 1,
+    (await page.locator("#garden-legend .record-row.g0").count()) === 1 &&
+      (await page.locator("#garden-legend .record-row.g1").count()) === 1,
     "each goal keeps one colour across the calendar and the list"
   );
+  await page.click('.tab[data-view="record"]');
+  await page.waitForTimeout(250);
 
   // 지나간 칸은 눌러도 아무 일이 없다 — 되살리기는 없앴다
   assert(
@@ -1075,12 +1081,13 @@ function dstr(offset) {
   );
   const onHome = await page.locator("#hero-garden .tower").count();
   assert(onHome < towersAll, `home shows a summary, not everything (${onHome}/${towersAll})`);
+  // 홈에는 숫자도 설명도 없다 — 그림 하나뿐이고, 누르면 전부 보러 간다
   assert(
-    await page.locator("#hero-more").isVisible(),
-    "and it says so instead of letting the towers just vanish"
+    (await page.locator("#view-home").innerText()).indexOf("쌓은 돌") === -1,
+    "and home carries no numbers at all"
   );
 
-  await page.click("#hero-more");
+  await page.click("#stats");
   await page.waitForTimeout(400);
   assert(await page.locator("#view-garden").isVisible(), "which opens the garden");
   assert(

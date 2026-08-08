@@ -59,20 +59,11 @@
 
     <!-- ── 홈 ─────────────────────────── -->
     <main id="view-home" class="view">
-      <section class="hero" id="stats" hidden>
-        <div class="garden" id="hero-garden" aria-hidden="true"></div>
-        <!-- 홈의 정원은 요약이라 탑을 다 담지 못한다. 가려진 게 있으면 말해 준다 -->
-        <button type="button" class="hero-more" id="hero-more" hidden></button>
-        <div class="hero-foot">
-          <div>
-            <span class="hero-label">돌탑과 함께한 날</span>
-            <span class="hero-big"><b id="stat-total-days">0</b>일</span>
-          </div>
-          <div class="hero-sub">
-            쌓은 돌 <b id="stat-cycles">0</b> · 다시 쌓음 <b id="stat-restarts">0</b>
-          </div>
-        </div>
-      </section>
+      <!-- 홈에서는 그림만. 숫자는 정원 탭이 맡는다 — 홈이 답하는 질문은
+           '오늘 뭘 하지' 하나뿐이다. 누르면 정원으로 간다. -->
+      <button type="button" class="hero" id="stats" hidden aria-label="정원 보기">
+        <span class="garden" id="hero-garden" aria-hidden="true"></span>
+      </button>
 
       <section class="empty" id="empty" hidden>
         <div class="empty-cairn" aria-hidden="true"></div>
@@ -95,6 +86,7 @@
 
       <button class="add-card" id="btn-add">＋ <b>새 작심 만들기</b><span class="add-sub"> — 딱 3일만 약속해요</span></button>
 
+      <!-- 첫 돌을 얹기 전까지만. 이 앱의 유일한 규칙이라 여기서만은 글자를 쓴다 -->
       <p class="note" id="note" hidden></p>
 
       <button class="install-card" id="btn-install" hidden>
@@ -105,27 +97,26 @@
         </span>
       </button>
 
-      <footer class="footer">
-        <p>작심삼일도 여러 번 하면, 평생이 된다</p>
-      </footer>
     </main>
 
     <!-- ── 정원 ────────────────────────── -->
     <main id="view-garden" class="view" hidden>
       <div class="garden-page" id="garden-page" aria-hidden="true"></div>
       <p class="garden-word" id="garden-word"></p>
+
+      <!-- 앱을 통틀어 이 숫자들이 사는 곳은 여기 하나다 -->
+      <div class="record-stats">
+        <div><b id="stat-total-days">0</b><span>해낸 날</span></div>
+        <div><b id="stat-cycles">0</b><span>쌓은 돌</span></div>
+        <div class="again"><b id="stat-restarts">0</b><span>다시 쌓음</span></div>
+      </div>
+
       <div class="section-head"><h2>서 있는 탑</h2></div>
       <div id="garden-legend" class="record-goals"></div>
     </main>
 
     <!-- ── 기록 ────────────────────────── -->
     <main id="view-record" class="view" hidden>
-      <div class="record-stats">
-        <div><b id="rstat-days">0</b><span>함께한 날</span></div>
-        <div><b id="rstat-stones">0</b><span>쌓은 돌</span></div>
-        <div class="again"><b id="rstat-restarts">0</b><span>다시 쌓음</span></div>
-      </div>
-
       <section class="card-block">
         <div class="cal-head">
           <button type="button" class="cal-nav" id="record-cal-prev" aria-label="지난달">‹</button>
@@ -139,8 +130,7 @@
         <p class="mcal-note" id="record-cal-note"></p>
       </section>
 
-      <div class="section-head"><h2>작심별 기록</h2></div>
-      <div id="record-goals" class="record-goals"></div>
+      <!-- 작심별 목록은 정원 탭에 있다. 같은 줄을 두 화면에 두지 않는다 -->
     </main>
 
     <!-- ── 설정 ────────────────────────── -->

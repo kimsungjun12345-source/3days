@@ -588,62 +588,62 @@ function render() {
 
 function renderStats() {
   const goals = state.goals;
-  // '함께한 날'은 체크 횟수의 합이 아니라 실제로 돌을 얹은 날의 수.
-  // 목표 3개를 하루에 다 체크했다고 3일이 되면 안 된다.
-  const totalDays = totalDaysWithTower();
-
-  const cycles =
-    goals.reduce((s, g) => s + g.completedCycles, 0) +
-    goals.filter((g) => g.checks.length >= 3).length;
-  const restarts = goals.reduce((s, g) => s + g.restarts, 0);
   const hasGoals = goals.length > 0;
+
+  /* 숫자가 사는 곳은 정원 탭 하나지만, 값을 채우는 일은 여기서 한다.
+     탭을 열 때만 갱신하면 홈에서 체크하고 정원으로 넘어가기 전까지
+     옛 수가 남아 있게 된다. 어느 화면에 있든 값은 늘 지금이어야 한다.
+     '해낸 날'은 체크 횟수의 합이 아니라 실제로 무언가를 해낸 날의 수 —
+     작심 셋을 하루에 다 해도 하루로 센다. */
+  $("stat-total-days").textContent = totalDaysWithTower();
+  $("stat-cycles").textContent = totalStones();
+  $("stat-restarts").textContent = goals.reduce((s, g) => s + g.restarts, 0);
+
   $("stats").hidden = !hasGoals;
   $("section-head").hidden = !hasGoals;
   $("empty").hidden = hasGoals;
   // 아직 아무것도 없을 땐 추가 버튼이 유일한 할 일이므로 눈에 띄게 둔다
   $("btn-add").classList.toggle("first-cta", !hasGoals);
 
-  $("stat-total-days").textContent = totalDays;
-  $("stat-cycles").textContent = cycles;
-  $("stat-restarts").textContent = restarts;
+  /* 홈의 정원은 그림 하나뿐이다.
+   *
+   * 숫자(해낸 날·쌓은 돌·다시 쌓음)는 정원 탭에만 산다. 예전에는 홈·기록·
+   * 정원·상세 네 곳에 같은 수가 흩어져 있었는데, 같은 것을 네 번 말하면
+   * 정보가 네 배가 되는 게 아니라 어느 것도 눈에 안 들어온다.
+   *
+   * 홈이 답하는 질문은 '오늘 뭘 하지' 하나다. 그림을 남긴 이유는 하나뿐 —
+   * 앱을 열자마자 내가 쌓은 게 보이고, 그 아래에서 오늘 것을 누르는
+   * 순서가 좋아서다. 탭을 갈아타지 않고 눈으로 훑어 내려가면 된다.
+   * 자세히 보고 싶으면 그림을 누른다. */
   $("hero-garden").innerHTML = gardenSVG(goals);
-  /* 홈은 자리가 좁아 탑을 몇 채만 추려 그린다. 그걸 말해 주지 않으면
-     "예전 탑이 사라졌다"로 읽힌다 — 실제로 그렇게 읽혔다. */
-  const shownHere = $("hero-garden").querySelectorAll(".tower").length;
-  const allTowers = goals.reduce((s, g) => s + towersOf(g).done + 1, 0);
-  const more = $("hero-more");
-  more.hidden = !hasGoals || allTowers <= shownHere;
-  if (!more.hidden) more.textContent = `정원에 탑 ${allTowers}채가 서 있어요 — 전부 보기 ›`;
-  // 탑을 누르면 그 작심의 기록이 열린다 — 돌 모양과 돌빛만으로 긴가민가할 때
-  // 손으로 확인할 수 있는 길. (정원은 aria-hidden이라 화면 낭독기에는
-  // 중복으로 읽히지 않고, 같은 일은 아래 카드에서도 할 수 있다.)
+  // 탑 하나를 콕 집어 누르면 그 작심의 기록으로, 그 밖을 누르면 정원으로
   $("hero-garden").querySelectorAll(".tower").forEach((el) => {
     el.style.cursor = "pointer";
-    el.addEventListener("click", () => {
+    el.addEventListener("click", (ev) => {
       const goal = state.goals.find((g) => g.id === el.dataset.goalId);
-      if (goal) openDetail(goal);
+      if (!goal) return;
+      ev.stopPropagation();
+      openDetail(goal);
     });
   });
 
   const emptyCairn = document.querySelector(".empty-cairn");
   if (emptyCairn && !hasGoals) emptyCairn.innerHTML = cairnSVG(0, true, 2);
 
-  /* 첫 돌을 얹기 전까지는 규칙을 한 줄로 계속 붙여 둔다.
-   * 안내를 읽었더라도 한 번 읽고 외워지는 규칙이 아니고, 지금 눈앞의
-   * 칸 세 개를 가리키며 말하는 이 한 줄이 다섯 장보다 잘 남는다.
-   * 돌을 하나 얹고 나면 스스로 알게 되므로 그때 걷는다. */
+  /* 홈에 남은 유일한 문장.
+   *
+   * '3일을 채워야 돌 하나'는 짐작으로 알 수 없는 규칙이고, 한 번 읽고
+   * 외워지지도 않는다. 그래서 첫 돌을 얹기 전까지는 눈앞의 칸 세 개를
+   * 가리키며 계속 말해 준다. 돌을 하나 얹고 나면 스스로 알게 되므로 걷는다.
+   *
+   * 예전에는 여기에 '다시 쌓음 N회', '작심삼일 N번 = N일' 같은 줄도
+   * 돌아가며 떴는데, 그건 정원 탭의 숫자를 문장으로 한 번 더 말하는
+   * 것뿐이었다. 같은 것을 두 번 말하면 둘 다 흐려진다. */
   const note = $("note");
-  if (hasGoals && totalStones() === 0) {
-    note.hidden = false;
+  const teaching = hasGoals && totalStones() === 0;
+  note.hidden = !teaching;
+  if (teaching) {
     note.innerHTML = "오늘 해내면 칸이 하나 채워져요. <b>세 칸을 다 채우면 돌 하나</b>가 쌓입니다.";
-  } else if (hasGoals && restarts >= 1) {
-    note.hidden = false;
-    note.innerHTML = `<b>다시 쌓음 ${restarts}회.</b> 무너지고도 돌아온 사람이 결국 탑을 완성해요.`;
-  } else if (hasGoals && cycles >= 1) {
-    note.hidden = false;
-    note.innerHTML = `작심삼일 <b>${cycles}번 = ${cycles * 3}일.</b> 이렇게 평생 가는 거예요.`;
-  } else {
-    note.hidden = true;
   }
 }
 
@@ -1152,40 +1152,10 @@ function paintRecordCal() {
   }
 }
 
+/* 기록 탭은 달력 하나만 답한다 — '언제 했나'.
+   숫자는 정원, 작심별 줄도 정원. 같은 줄을 두 화면에 두지 않는다. */
 function renderRecord() {
-  $("rstat-days").textContent = totalDaysWithTower();
-  $("rstat-stones").textContent = totalStones();
-  $("rstat-restarts").textContent = state.goals.reduce((s, g) => s + g.restarts, 0);
   paintRecordCal();
-
-  const list = $("record-goals");
-  list.innerHTML = "";
-  if (state.goals.length === 0) {
-    const p = document.createElement("p");
-    p.className = "record-empty";
-    p.textContent = "아직 만든 작심이 없어요.";
-    list.appendChild(p);
-    return;
-  }
-
-  for (const goal of state.goals) {
-    const row = document.createElement("button");
-    row.type = "button";
-    // 달력의 점과 같은 색을 여기서도 쓴다 — 이 줄이 곧 달력의 범례다
-    row.className = `record-row g${goalIndex(goal)}`;
-    row.innerHTML =
-      `<span class="record-ico">${iconSVG(goalIcon(goal), 20)}</span>` +
-      `<span class="record-tt"><b></b><span></span></span>` +
-      `<span class="record-num">${stoneCount(goal)}<i>돌</i></span>`;
-    row.querySelector("b").textContent = goal.title;
-    const t = towersOf(goal);
-    row.querySelector(".record-tt span").textContent =
-      (t.done ? `탑 ${t.done}채 완성 · ` : "") +
-      `이 탑 ${t.current}/${STONES_PER_TOWER}` +
-      (goal.restarts ? ` · 다시 쌓음 ${goal.restarts}` : "");
-    row.addEventListener("click", () => openDetail(goal));
-    list.appendChild(row);
-  }
 }
 
 /* ── 정원 탭 ─────────────────────────
@@ -1209,8 +1179,8 @@ function renderGarden() {
     });
   });
 
-  const towers = goals.reduce((s, g) => s + towersOf(g).done, 0);
   const stones = totalStones();
+  const towers = goals.reduce((s, g) => s + towersOf(g).done, 0);
   $("garden-word").textContent =
     goals.length === 0
       ? "작심을 하나 만들면 여기에 첫 탑이 섭니다."
@@ -1649,7 +1619,8 @@ function setupModal() {
 
   $("input-title").addEventListener("input", syncTitleState);
 
-  $("hero-more").addEventListener("click", () => switchView("garden"));
+  // 정원 그림을 누르면 전부 서 있는 정원으로 (탑을 콕 집으면 그 작심 기록으로)
+  $("stats").addEventListener("click", () => switchView("garden"));
 
   $("btn-add").addEventListener("click", () => openModal());
   $("btn-empty-add").addEventListener("click", () => openModal({ first: true }));
