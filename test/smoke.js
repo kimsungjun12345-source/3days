@@ -660,7 +660,7 @@ function dstr(offset) {
   assert(await page.locator("#stats").isHidden(), "the garden really is hidden with no goals");
 
   const paint = await page.evaluate(() => {
-    const stone = document.querySelector(".ob-art svg ellipse[fill^='url(#stoneTop']");
+    const stone = document.querySelector(".ob-art svg .stone-top");
     if (!stone) return "그릴 돌이 없다";
     const ref = /url\(#(.+?)\)/.exec(stone.getAttribute("fill"))[1];
     const def = document.getElementById(ref);
@@ -717,7 +717,7 @@ function dstr(offset) {
         slot: !!t.querySelector(".building-stone"),
         waiting: !!t.querySelector(".building-stone.waiting"),
         // 다 쌓인 돌 (윗면 그라디언트를 쓰는 것만)
-        stones: t.querySelectorAll("ellipse[fill^='url(#stoneTop']").length,
+        stones: t.querySelectorAll(".stone-top").length,
         // 채워진 테두리 도막 = 이번 3일 중 해낸 날
         days: t.querySelectorAll(".slot-day").length,
       };
@@ -882,7 +882,7 @@ function dstr(offset) {
       return {
         towers: towers.length,
         current: document.querySelectorAll("#hero-garden .tower-current").length,
-        stones: towers.reduce((s, t) => s + t.querySelectorAll("ellipse[fill^='url(#stoneTop']").length, 0),
+        stones: towers.reduce((s, t) => s + t.querySelectorAll(".stone-top").length, 0),
       };
     }, stones);
 
@@ -931,9 +931,11 @@ function dstr(offset) {
       const el = document.querySelector(`#hero-garden .tower-current[data-goal-id="${id}"]`);
       return el ? getComputedStyle(el).filter : null;
     };
+    /* 돌은 타원이 아니라 조약돌 path라서 ry 같은 속성이 없다.
+       실제로 그려진 높이를 재는 편이 '납작함이 다른가'를 더 곧게 묻는다. */
     const width = (id) => {
-      const el = document.querySelector(`#hero-garden .tower-current[data-goal-id="${id}"] ellipse[fill^='url(#stoneTop']`);
-      return el ? Number(el.getAttribute("ry")) : 0;
+      const el = document.querySelector(`#hero-garden .tower-current[data-goal-id="${id}"] .stone-top`);
+      return el ? Math.round(el.getBBox().height * 10) : 0;
     };
     return {
       tones: ["s0", "s1", "s2"].map(tone),

@@ -261,20 +261,59 @@ function stoneDefs(uid) {
   </filter>`;
 }
 
+/* 돌 하나의 윤곽.
+ *
+ * 오랫동안 순수한 타원이었다. 멀리서는 괜찮은데 가까이 보면 전부 같은
+ * 공장 부품처럼 보인다 — 실제 조약돌은 어느 한 군데가 눌리거나 부풀어
+ * 있고, 돌탑이 정겨운 이유의 절반은 그 불규칙함이다.
+ *
+ * 그래서 타원 위의 점 열 개를 씨앗값에 따라 아주 조금씩 밀고 당겨
+ * 부드럽게 이어 붙인다. 밀어내는 폭은 반지름의 7% 안쪽이라 '찌그러진
+ * 돌'이 아니라 '손으로 주운 돌'로 읽힌다. 씨앗이 같으면 모양도 같으므로,
+ * 다시 그려도 그 돌은 늘 그 돌이다. */
+function wobble(seed, k) {
+  const x = Math.sin(seed * 12.9898 + k * 78.233) * 43758.5453;
+  return x - Math.floor(x) - 0.5; // -0.5 ~ 0.5
+}
+
+const PEBBLE_POINTS = 10;
+
+function pebblePath(cx, cy, rx, ry, seed) {
+  const pts = [];
+  for (let k = 0; k < PEBBLE_POINTS; k++) {
+    const a = (Math.PI * 2 * k) / PEBBLE_POINTS;
+    // 가로세로를 따로 흔들어야 한쪽으로만 눌린 돌이 나온다
+    const wx = 1 + wobble(seed, k) * 0.13;
+    const wy = 1 + wobble(seed + 7.3, k) * 0.11;
+    pts.push([cx + rx * wx * Math.cos(a), cy + ry * wy * Math.sin(a)]);
+  }
+  // 점을 그대로 잇지 않고 변의 중점을 지나는 2차 곡선으로 이으면
+  // 꼭짓점이 남지 않고 닫힌 곡선이 매끈하게 떨어진다
+  const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  const f = (n) => n.toFixed(1);
+  let d = "";
+  const start = mid(pts[PEBBLE_POINTS - 1], pts[0]);
+  d += `M${f(start[0])} ${f(start[1])}`;
+  for (let k = 0; k < PEBBLE_POINTS; k++) {
+    const cur = pts[k];
+    const m = mid(cur, pts[(k + 1) % PEBBLE_POINTS]);
+    d += `Q${f(cur[0])} ${f(cur[1])} ${f(m[0])} ${f(m[1])}`;
+  }
+  return d + "Z";
+}
+
 /* 돌 하나 — 납작한 조약돌을 위에서 비스듬히 본 모습.
- * 같은 타원을 두께(t)만큼 아래에 한 번 더 깔아 측면이 초승달처럼 드러나게 하고,
+ * 같은 윤곽을 두께(t)만큼 아래에 한 번 더 깔아 측면이 초승달처럼 드러나게 하고,
  * 그 위에 밝은 윗면을 얹는다. 이 두께가 있어야 쌓인 것으로 보인다. */
-function stonePiece(cx, cy, rx, ry, tilt, uid) {
+function stonePiece(cx, cy, rx, ry, tilt, uid, seed = 1) {
   const t = ry * 0.66;
   const rot = `rotate(${tilt} ${cx} ${cy})`;
   return `<g transform="${rot}">
     <ellipse cx="${(cx + rx * 0.09).toFixed(1)}" cy="${(cy + t + ry * 0.42).toFixed(1)}"
       rx="${(rx * 0.95).toFixed(1)}" ry="${(ry * 0.52).toFixed(1)}"
       fill="var(--stone-shadow)" filter="url(#softShadow-${uid})"/>
-    <ellipse cx="${cx.toFixed(1)}" cy="${(cy + t).toFixed(1)}"
-      rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="url(#stoneSide-${uid})"/>
-    <ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}"
-      rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="url(#stoneTop-${uid})"/>
+    <path d="${pebblePath(cx, cy + t, rx, ry, seed)}" fill="url(#stoneSide-${uid})"/>
+    <path class="stone-top" d="${pebblePath(cx, cy, rx, ry, seed)}" fill="url(#stoneTop-${uid})"/>
     <ellipse cx="${(cx - rx * 0.26).toFixed(1)}" cy="${(cy - ry * 0.32).toFixed(1)}"
       rx="${(rx * 0.28).toFixed(1)}" ry="${(ry * 0.24).toFixed(1)}"
       fill="var(--stone-shine)"/>
@@ -288,7 +327,7 @@ function stonePiece(cx, cy, rx, ry, tilt, uid) {
  */
 
 /* 바닥 중심을 원점으로 위로 쌓는 돌 무더기 */
-function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0, ch = STONE_CHARACTERS[0]) {
+function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0, ch = STONE_CHARACTERS[0], seed = 1) {
   const shown = Math.min(stones, max);
   let y = -4;
   let rx = 40;
@@ -300,15 +339,29 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0, ch =
   // 정원이 얼룩 하나처럼 보인다.
   const parts = [];
   let foot = 0;
+  // 마지막으로 놓인 돌의 실제 크기 — 다음 돌이 들어올 자리를 여기에 맞춘다
+  let lastW = rx;
+  let lastH = ry;
 
+  /* 층마다 크기를 조금씩 흔든다.
+   *
+   * 위로 갈수록 일정한 비율로 좁아지기만 하면 탑이 아니라 원뿔이 된다 —
+   * 여섯 채가 서 있으면 여섯 개의 똑같은 원뿔이라 울타리처럼 보였다.
+   * 실제 돌탑은 넓은 돌 위에 좁은 돌이 오기도, 그 반대이기도 하다.
+   * 가로는 ±11%, 세로는 ±9% 안에서만 흔들어 균형은 잃지 않게 한다. */
   for (let i = 0; i < shown; i++) {
-    y -= ry * 1.5;
-    const tilt = (i % 2 === 0 ? -1 : 1.05) * ch.tilt;
-    const cx = i % 2 === 0 ? -1.5 : 1.5;
-    parts.push(stonePiece(cx, y, rx, ry, tilt, uid));
-    foot = Math.max(foot, rx);
-    top = Math.min(top, y - ry);
-    y -= ry * 0.4;
+    const wr = rx * (1 + wobble(seed + 1.7, i) * 0.22);
+    const wy = ry * (1 + wobble(seed + 4.1, i) * 0.18);
+    y -= wy * 1.5;
+    // 층마다 좌우로 조금씩 어긋나게 — 실제로 손으로 쌓은 탑은 축이 곧지 않다
+    const tilt = (i % 2 === 0 ? -1 : 1.05) * ch.tilt + wobble(seed + 3, i) * 3.2;
+    const cx = (i % 2 === 0 ? -1.5 : 1.5) + wobble(seed, i) * rx * 0.09;
+    parts.push(stonePiece(cx, y, wr, wy, tilt, uid, seed * 31 + i));
+    lastW = wr;
+    lastH = wy;
+    foot = Math.max(foot, wr + Math.abs(cx));
+    top = Math.min(top, y - wy);
+    y -= wy * 0.4;
     rx *= ch.taper;
     ry *= 0.93;
   }
@@ -345,9 +398,13 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0, ch =
    * 정확히 3등분한 도막을 그릴 수 있다. */
   const slot = building === true ? { done: 0, waiting: true } : building || null;
   if (slot) {
-    const by = y - ry * 1.3;
-    const brx = Math.max(rx * 0.92, 15);
-    const bry = Math.max(ry * 0.88, 6);
+    /* 자리는 '다음 돌이 놓일 자리'다. 그러므로 크기도 위치도 마지막으로
+       놓인 돌을 기준으로 잡아야 한다. 예전에는 흔들리기 전의 이상적인
+       반지름을 썼는데, 층마다 크기를 흔들기 시작하면서 자리가 맨 위 돌보다
+       커지는 일이 생겼다 — 그러면 돌 자리가 아니라 공중에 뜬 굴렁쇠로 보인다. */
+    const by = y - lastH * 0.92;
+    const brx = Math.max(lastW * 0.8, 12);
+    const bry = Math.max(lastH * 0.78, 5);
     const done = Math.min(Math.max(slot.done, 0), 2);
     const ring = (cls, width, extra) =>
       `<ellipse class="${cls}" cx="0" cy="${by.toFixed(1)}" rx="${brx.toFixed(1)}" ry="${bry.toFixed(1)}"
@@ -374,7 +431,7 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0, ch =
       fill="var(--ground-shadow)" filter="url(#groundShadow-${uid})"/>`
   );
 
-  return { markup: parts.join("\n"), top };
+  return { markup: parts.join("\n"), top, foot: shadowRx };
 }
 
 /* ── 탑이 여러 개가 될 때 ──────────────
@@ -459,64 +516,78 @@ function gardenSVG(goals, opts = {}) {
   /* full 모드 — 정원 탭에서 쓴다. 홈의 정원은 화면 한 귀퉁이라 탑을 몇 채만
      추려 그리는데, 오래 다닌 사람은 그걸 "예전 탑이 사라졌다"로 읽는다.
      맞는 읽기다. 그래서 전부 보여 주는 자리를 따로 만들고, 여기서는 한 채도
-     빼지 않는다. 대신 캔버스가 탑 수만큼 세로로 자란다. */
+     빼지 않는다. */
   const full = !!opts.full;
-  const W = 340;
-  const deepest = full
-    ? Math.max(1, ...goals.slice(0, GARDEN_MAX).map((g) => towersOf(g).done + 1))
-    : 3;
-  // 정원 탭에서는 이 그림이 화면의 주인공이라 넉넉하게 잡는다
-  const H = full ? Math.min(440, 196 + Math.max(0, deepest - 2) * 26) : 152;
-  const groundY = H - 20;
   const uid = ++stoneDefsSeq;
+  const lanesAll = goals.slice(0, GARDEN_MAX);
+  const deepest = Math.max(1, ...lanesAll.map((g) => towersOf(g).done + 1), 1);
+
+  /* 좌표계는 '땅'을 기준으로 잡는다. W·H는 그림을 다 그린 뒤에 정한다 —
+     아래 auto-fit 참고. 여기서 쓰는 수는 전부 이 가상의 땅 위의 값이다. */
+  const W = 340;
+  const groundY = 0;
+  /* 뒤로 물러나는 깊이. 홈이든 정원이든 같은 규칙으로 눕히되, 탑이 많으면
+     간격만 촘촘해진다 — 맨 뒤 탑이 점처럼 작아지거나 화면 밖으로 나가지
+     않게 깊이 범위 자체는 늘 같다. */
+  const drawn = full ? Infinity : towersDrawn(lanesAll.length);
+  const rows = Math.min(deepest, full ? deepest : drawn);
+  const depthStep = 0.86 / Math.max(1, rows - 1);
+  /* 물러남의 값 두 개는 따로 놀면 안 된다.
+   *
+   * 처음에는 '뒤로 갈수록 얼마나 위에 놓이나'와 '얼마나 작아지나'를 각각
+   * 눈대중으로 잡았다. 그랬더니 뒤 탑이 땅에서 떠서 공중에 뜬 것처럼
+   * 보였다 — 사람 눈은 이 둘의 비율로 거리를 읽기 때문에, 비율이 어긋나면
+   * 곧바로 '멀리 있다'가 아니라 '떠 있다'가 된다.
+   *
+   * 그래서 하나만 정하고 나머지는 계산한다. 작아지는 만큼만 올라간다:
+   *   올라간 높이 = HORIZON × (1 − 축소율)
+   * HORIZON은 눈높이까지의 거리로, 이 값이 클수록 정원이 넓게 펼쳐진다. */
+  const SHRINK = 0.42; // 맨 뒤 줄은 앞줄의 58% 크기
+  // 정원 탭은 화면을 통째로 쓰므로 눈높이를 더 멀리 둔다 — 줄 사이가 벌어져
+  // 앞 탑이 뒤 탑을 덜 가리고, 같은 그림이 더 넓은 뜰처럼 읽힌다
+  const HORIZON = full ? 205 : 150;
 
   /* 작심마다 정원의 자리가 정해져 있다 — 만든 순서대로.
    *
    * 예전에는 많이 쌓은 순서로 자리를 줬는데, 그러면 어제까지 가운데 있던
    * 탑이 오늘 옆으로 밀린다. 정원의 지형이 바뀌면 "왼쪽 저건 내 걷기 탑"
    * 같은 기억이 만들어지지 않는다. 자리는 고정이어야 내 정원이 된다. */
-  const lanes = goals.slice(0, GARDEN_MAX).map((g, i) => ({ goal: g, lane: i }));
-
-  /* 작심 하나가 탑 여러 채가 된다. 지금 쌓는 탑이 맨 앞, 완성한 탑들이
-   * 그 뒤로 물러난다. 뒤로 갈수록 작고 흐려서, 여러 채가 서 있어도
-   * 화면이 시끄러워지지 않고 '오래 다닌 자리'처럼 보인다. */
   const drawList = [];
-  const perGoal = full ? Infinity : towersDrawn(lanes.length);
-  /* 몇 채가 되든 같은 깊이 범위 안에 눕힌다 — 탑이 늘수록 간격만 촘촘해지고
-     맨 뒤 탑이 화면 밖으로 밀려나거나 점처럼 작아지지 않는다. */
-  const depthStep = full ? Math.min(0.145, 0.82 / Math.max(1, deepest - 1)) : 0.145;
-  const rise = full ? H - 74 : 26;
-  lanes.forEach(({ goal, lane: gi }) => {
+  lanesAll.forEach((goal, gi) => {
     const ch = characterOf(gi);
     const held = heldGoalId === goal.id;
     const { done, current } = towersOf(goal, held);
     const st = goalStatus(goal);
     // 이번 3일이 도는 동안에는 쌓는 중인 돌 자리를 계속 지킨다.
-    // 점선이 깜빡이는 것은 '오늘 아직 남았다'는 뜻이라, 오늘 할 걸 다 하면
-    // 깜빡임만 멎고 자리는 그대로 남는다.
     const running = st === "fresh" || st === "active";
     const checks = held ? goal.checks.length - 1 : goal.checks.length;
     const building = held || running ? { done: checks, waiting: running && !checkedToday(goal) } : null;
 
     const baseX = GOAL_LANES[gi];
-    const shown = Math.min(done, perGoal - 1);
+    const shown = Math.min(done, drawn - 1);
     for (let t = 0; t <= shown; t++) {
       // t = 0 이 지금 쌓는 탑(맨 앞), 클수록 오래전에 완성한 탑
-      const depth = Math.min(0.99, t * depthStep + gi * (full ? 0.02 : 0.05));
-      // 뒤로 갈수록 좌우로 벌어지게 — 일부러 지그재그로 흩어 놓는다.
-      // 앞의 두세 채는 넉넉히 떨어뜨리고, 뒤로 갈수록 간격을 좁혀
-      // 화면 밖으로 나가지 않으면서 '멀리까지 이어진다'는 느낌만 남긴다.
-      const step = t <= 2 ? 0.085 : 0.055;
-      const spread = step * Math.ceil(t / 2) * (t % 2 === 0 ? -1 : 1);
-      const x = Math.min(0.89, Math.max(0.11, baseX + spread)) * W;
-      const y = groundY - depth * rise;
-      const scale = (1 - 0.44 * depth) * 0.62;
-      const opacity = (1 - 0.42 * depth).toFixed(2);
+      const depth = Math.min(0.94, t * depthStep);
+      /* 뒤로 갈수록 좌우로도 벌어진다. 줄마다 반 칸씩 어긋나게 밀어
+         앞 탑이 뒤 탑을 정면으로 가리지 않는다 — 바둑판처럼 줄을 맞추면
+         정원이 아니라 진열대가 된다. */
+      const sway = (t % 2 === 0 ? -1 : 1) * (0.05 + 0.02 * Math.floor(t / 2));
+      const jitter = wobble(gi * 17 + t, 2) * 0.03;
+      const x = Math.min(0.93, Math.max(0.07, baseX + sway + jitter)) * W;
+      const shrink = 1 - SHRINK * depth;
+      const scale = shrink * 0.62;
+      // 작아진 만큼만 눈높이 쪽으로 올라간다 — 그래야 땅 위에 선 것으로 읽힌다
+      const y = groundY - HORIZON * (1 - shrink);
+      // 멀어질수록 공기에 잠긴다 — 옅어지고 대비도 함께 낮아진다
+      const opacity = (1 - 0.34 * depth).toFixed(2);
       drawList.push({
         goal, ch,
         current: t === 0,
         stones: t === 0 ? current : STONES_PER_TOWER,
         building: t === 0 ? building : null,
+        // 완성한 탑도 채마다 조금씩 다르게 생겨야 한다. 같은 작심의 탑이
+        // 여러 채 서 있는데 전부 같은 실루엣이면 울타리처럼 보인다.
+        seed: gi * 101 + t * 13 + 1,
         depth, x, y, scale, opacity,
       });
     }
@@ -525,8 +596,16 @@ function gardenSVG(goals, opts = {}) {
   // 뒤에 있는 탑부터 그려야 앞 탑이 위에 겹친다
   drawList.sort((a, b) => b.depth - a.depth);
 
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
   const groups = drawList.map((t) => {
-    const { markup } = stoneStack(t.stones, t.building, STONES_PER_TOWER, 0, uid, t.ch);
+    const { markup, top, foot } = stoneStack(
+      t.stones, t.building, STONES_PER_TOWER, 0, uid, t.ch, t.seed
+    );
+    minX = Math.min(minX, t.x - foot * t.scale);
+    maxX = Math.max(maxX, t.x + foot * t.scale);
+    minY = Math.min(minY, t.y + top * t.scale);
     // 안쪽 g를 한 겹 더 두는 이유: 바깥 g의 transform(위치·크기)을
     // CSS 애니메이션이 덮어쓰지 않도록 흔들림은 안쪽에서만 준다
     return `<g class="tower ${t.ch.toneClass}${t.current ? " tower-current" : ""}" data-goal-id="${t.goal.id}"
@@ -534,16 +613,60 @@ function gardenSVG(goals, opts = {}) {
       opacity="${t.opacity}"><g class="tower-inner">${markup}</g></g>`;
   });
 
-  // 탑들이 허공이 아니라 땅 위에 선 것처럼 보이도록 옅은 지면을 깔아 둔다
-  // 뒤쪽 탑의 발까지 덮도록 세로로 넉넉하게, 경계가 드러나지 않을 만큼 옅게
-  const ground = `<ellipse cx="${W / 2}" cy="${groundY - 8}" rx="${W * 0.64}" ry="46" fill="url(#gardenGround-${uid})"/>`;
+  /* 틀을 그림에 맞춘다.
+   *
+   * 예전에는 340×152 고정이었다. 그래서 돌 두 개짜리 탑 하나는 허허벌판
+   * 한가운데 점처럼 놓였고, 스무 채가 서면 서로 밀려 잘렸다. 실기기에서
+   * "탑이 사라진다"고 느낀 것도 절반은 이 틀 때문이다.
+   *
+   * 지금은 다 그린 뒤에 실제로 차지한 자리를 재서 그만큼만 담는다. 대신
+   * 최소 폭을 두어, 탑 하나뿐일 때 그 하나가 화면을 가득 채우며 우스꽝
+   * 스러워지는 것은 막는다. */
+  if (!drawList.length) {
+    minX = W * 0.35;
+    maxX = W * 0.65;
+    minY = -60;
+  }
+  const padX = 16;
+  const padTop = 12;
+  const padBottom = 20;
+  let vx = minX - padX;
+  let vw = maxX - minX + padX * 2;
+  const minW = full ? 210 : 190;
+  if (vw < minW) {
+    vx -= (minW - vw) / 2;
+    vw = minW;
+  }
+  const vy = minY - padTop;
+  const vh = groundY + padBottom - vy;
 
-  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+  /* 땅은 탑들이 실제로 선 자리를 따라 깔린다. 늘 화면 한가운데 큰 타원을
+     두면 탑이 한쪽에 몰렸을 때 빈 땅만 넓게 보인다. */
+  const gx = (minX + maxX) / 2;
+  /* 그라데이션이 다 사라진 뒤에 틀이 와야 한다. 색이 남은 채로 잘리면
+     땅이 아니라 밝은 사각형 띠로 보인다 — 어두운 화면에서 특히 눈에 띈다.
+     아래 r="62%"와 짝이므로 한쪽만 바꾸면 그 띠가 다시 생긴다. */
+  const gw = Math.max((maxX - minX) / 2 + 40, 74);
+  /* 땅은 맨 앞 발치부터 맨 뒤 발치까지 덮는다. 늘 같은 자리에 같은 크기로
+     깔면 뒤쪽 탑 아래가 비어서 탑이 떠 보인다 — 실제로 그렇게 보였다. */
+  const backY = groundY - HORIZON * SHRINK * (rows > 1 ? 0.86 : 0);
+  const gcy = (groundY + backY) / 2 - 4;
+  const gry = Math.max((groundY - backY) / 2 + 30, 34);
+  const ground =
+    `<ellipse cx="${gx.toFixed(1)}" cy="${gcy.toFixed(1)}" ` +
+    `rx="${gw.toFixed(1)}" ry="${gry.toFixed(1)}" fill="url(#gardenGround-${uid})"/>`;
+
+  return `<svg viewBox="${vx.toFixed(1)} ${vy.toFixed(1)} ${vw.toFixed(1)} ${vh.toFixed(1)}"
+    xmlns="http://www.w3.org/2000/svg">
     <defs>
       ${stoneDefs(uid)}
-      <radialGradient id="gardenGround-${uid}" cx="50%" cy="46%" r="60%">
-        <stop offset="0%" stop-color="var(--garden-ground)" stop-opacity="0.5"/>
-        <stop offset="55%" stop-color="var(--garden-ground)" stop-opacity="0.26"/>
+      <!-- 땅은 '있다'는 것만 알면 되는 것이라 아주 옅게, 그리고 끝까지
+           천천히 사라지게 둔다. 예전에는 60%에서 투명해졌는데, 그 지점이
+           호(弧)로 보여서 어두운 화면에서 정원 뒤를 가로지르는 띠가 됐다. -->
+      <radialGradient id="gardenGround-${uid}" cx="50%" cy="48%" r="62%">
+        <stop offset="0%" stop-color="var(--garden-ground)" stop-opacity="0.42"/>
+        <stop offset="38%" stop-color="var(--garden-ground)" stop-opacity="0.3"/>
+        <stop offset="68%" stop-color="var(--garden-ground)" stop-opacity="0.12"/>
         <stop offset="100%" stop-color="var(--garden-ground)" stop-opacity="0"/>
       </radialGradient>
     </defs>
@@ -616,16 +739,13 @@ function renderStats() {
    * 순서가 좋아서다. 탭을 갈아타지 않고 눈으로 훑어 내려가면 된다.
    * 자세히 보고 싶으면 그림을 누른다. */
   $("hero-garden").innerHTML = gardenSVG(goals);
-  // 탑 하나를 콕 집어 누르면 그 작심의 기록으로, 그 밖을 누르면 정원으로
-  $("hero-garden").querySelectorAll(".tower").forEach((el) => {
-    el.style.cursor = "pointer";
-    el.addEventListener("click", (ev) => {
-      const goal = state.goals.find((g) => g.id === el.dataset.goalId);
-      if (!goal) return;
-      ev.stopPropagation();
-      openDetail(goal);
-    });
-  });
+  /* 홈의 정원은 통째로 한 덩어리다 — 어디를 눌러도 정원 탭으로 간다.
+   *
+   * 한때는 탑 하나를 콕 집으면 그 작심의 기록이 열리게도 해 봤다. 그런데
+   * 이만한 그림 안에서는 탑들이 화면 대부분을 덮고 있어서, '그림을 눌러
+   * 정원 보기'가 사실상 눌리지 않는 길이 됐다. 좁은 자리에 목적지가 둘이면
+   * 둘 다 안 눌린다. 작심 하나하나로 가는 길은 이미 두 군데 있다 —
+   * 아래 카드의 윗부분, 그리고 정원 탭의 목록. */
 
   const emptyCairn = document.querySelector(".empty-cairn");
   if (emptyCairn && !hasGoals) emptyCairn.innerHTML = cairnSVG(0, true, 2);
