@@ -167,14 +167,15 @@ function dstr(offset) {
   assert((await page.locator("#stat-restarts").textContent()) === "1", "restart counter incremented");
   assert((await page.locator("#stat-total-days").textContent()) === "4", "total days keeps growing after restart");
 
-  // 8. 삭제
+  // 8. 삭제 — 상세 시트에 이름을 달고 서 있는 자리에서만
+  // 길게 눌러 삭제는 없앴다. 아무도 못 찾는데 어쩌다 한 번 100일치를
+  // 지우는, 발견 가능성 0 / 사고 가능성 0 아님의 최악 조합이었다.
   page.on("dialog", (d) => d.accept());
-  await page.evaluate(() => {
-    const c = document.querySelector(".goal-card");
-    c.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-  });
-  await page.waitForTimeout(800);
-  assert((await page.locator(".goal-card").count()) === 0, "goal deleted");
+  await page.click(".goal-card .goal-top");
+  await page.waitForTimeout(300);
+  await page.click("#detail-delete");
+  await page.waitForTimeout(500);
+  assert((await page.locator(".goal-card").count()) === 0, "goal deleted from its own sheet");
   assert(await page.locator("#empty").isVisible(), "empty state returns after delete");
 
   // 9. 완주 축하 화면 — 실제로 3일째를 눌러서
@@ -238,12 +239,13 @@ function dstr(offset) {
   await page.waitForTimeout(200);
   assert(await page.locator("#detail").isHidden(), "record sheet closes");
 
-  // 11. 버튼을 길게 눌러도 삭제되지 않는다
-  await page.locator(".goal-card .btn").hover();
+  // 11. 카드를 길게 눌러도 아무 일이 없다 — 삭제는 상세 시트에서만
+  await page.locator(".goal-card").hover();
   await page.mouse.down();
   await page.waitForTimeout(1000);
   await page.mouse.up();
-  assert((await page.locator(".goal-card").count()) === 1, "long-press on a button never deletes the goal");
+  await page.waitForTimeout(300);
+  assert((await page.locator(".goal-card").count()) === 1, "a long press never deletes anything");
 
   // 12. 완주 후 방치 — 앱이 멈춰 있지 않고 상태가 흘러간다
   const seedDone = async (lastOffset) => {
@@ -1101,6 +1103,81 @@ function dstr(offset) {
     "with one line per goal underneath"
   );
   await page.click('.tab[data-view="home"]');
+  await page.waitForTimeout(200);
+
+  // 33. 만든 뒤에도 고칠 수 있어야 한다
+  // 고치는 길이 없으면 오타 하나에 지우고 다시 만들어야 하고, 그러면
+  // 쌓은 돌이 전부 사라진다. 100일 쌓은 사람에게는 그것이 앱을 지울 이유다.
+  await page.evaluate((d) => {
+    state.goals = [{ id: "ed", title: "아침에 물 한잔", icon: "water", createdAt: "",
+      checks: [d], history: [d], lastCheckDate: d,
+      totalDays: 30, completedCycles: 10, restarts: 2 }];
+    save();
+    render();
+  }, dstr(0));
+  await page.waitForTimeout(300);
+
+  await page.click(".goal-card .goal-top");
+  await page.waitForTimeout(300);
+  await page.click("#detail-edit");
+  await page.waitForTimeout(400);
+  assert(
+    (await page.locator("#modal-title").textContent()).includes("고치기"),
+    "the sheet opens in edit mode"
+  );
+  assert(
+    (await page.locator("#input-title").inputValue()) === "아침에 물 한잔",
+    "prefilled with what is there now"
+  );
+  await page.fill("#input-title", "아침에 물 한 잔");
+  await page.click('.icon-option[data-icon="sun"]');
+  await page.click("#btn-submit-goal");
+  await page.waitForTimeout(400);
+
+  const edited = await page.evaluate(() => ({
+    title: state.goals[0].title,
+    icon: state.goals[0].icon,
+    stones: stoneCount(state.goals[0]),
+    days: state.goals[0].totalDays,
+    restarts: state.goals[0].restarts,
+  }));
+  assert(edited.title === "아침에 물 한 잔", "the title is fixed");
+  assert(edited.icon === "sun", "and the icon with it");
+  // 여기가 핵심이다 — 고쳤다고 쌓은 것이 사라지면 고칠 이유가 없다
+  assert(
+    edited.stones === 10 && edited.days === 30 && edited.restarts === 2,
+    `nothing that was built is lost (${edited.stones}돌 ${edited.days}일 ${edited.restarts}회)`
+  );
+
+  // 34. 잘못 누른 오늘은 지울 수 있다
+  await page.evaluate(() => {
+    state.goals[0].checks = [];
+    state.goals[0].history = [];
+    state.goals[0].totalDays = 30;
+    save();
+    render();
+  });
+  await page.waitForTimeout(200);
+  await page.click(".goal-card .btn-primary");
+  await page.waitForTimeout(500);
+  assert((await page.locator(".goal-card .dot.done").count()) === 1, "a mis-tap fills a square");
+
+  await page.click(".goal-card .goal-top");
+  await page.waitForTimeout(300);
+  assert(await page.locator("#detail-undo").isVisible(), "and the way back is right there");
+  await page.click("#detail-undo");
+  await page.waitForTimeout(400);
+  assert((await page.locator(".goal-card .dot.done").count()) === 0, "the square empties again");
+  assert(
+    (await page.evaluate(() => state.goals[0].totalDays)) === 30,
+    "and the day count goes back with it"
+  );
+
+  // 오늘 표시가 없으면 지울 것도 없다
+  await page.click(".goal-card .goal-top");
+  await page.waitForTimeout(300);
+  assert(await page.locator("#detail-undo").isHidden(), "nothing to undo when nothing was marked");
+  await page.click("#detail-close");
   await page.waitForTimeout(200);
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));

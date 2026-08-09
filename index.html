@@ -248,7 +248,11 @@
         <div class="detail-head">
           <span class="detail-ico" id="detail-ico"></span>
           <h2 id="detail-title"></h2>
+          <button type="button" class="sheet-close" id="detail-close" aria-label="닫기">✕</button>
         </div>
+
+        <!-- 오늘 잘못 눌렀을 때 되돌아갈 자리. 오늘 표시가 있을 때만 보인다 -->
+        <button type="button" class="detail-undo" id="detail-undo" hidden>오늘 표시 지우기</button>
 
         <div class="detail-stats" id="detail-stats"></div>
 
@@ -264,8 +268,8 @@
         <p class="detail-word" id="detail-word"></p>
 
         <div class="modal-actions">
-          <button type="button" class="btn btn-ghost btn-danger" id="detail-delete">지우기</button>
-          <button type="button" class="btn btn-primary" id="detail-close">닫기</button>
+          <button type="button" class="btn btn-ghost btn-danger" id="detail-delete">작심 지우기</button>
+          <button type="button" class="btn btn-primary" id="detail-edit">고치기</button>
         </div>
       </div>
     </div>
@@ -306,7 +310,7 @@
           <div class="sheet-scroll" id="sheet-scroll">
             <p class="modal-sub" id="modal-sub">거창할 필요 없어요. 딱 3일만 해볼 것 하나.</p>
 
-            <p class="field-label">골라 볼까요</p>
+            <p class="field-label" id="suggest-label">골라 볼까요</p>
             <div class="suggest-row" id="suggest-row"></div>
 
             <p class="field-label">

@@ -158,6 +158,27 @@ function addGoal(title, icon) {
  * 그건 무너진 것이고, 무너져도 괜찮다는 게 이 앱의 전부다.
  */
 
+/* 오늘 표시를 지운다 — 잘못 눌렀을 때 돌아갈 길.
+ *
+ * 없어도 되는 기능처럼 보이지만 아니다. 손가락이 미끄러져 남의 작심을
+ * 눌렀는데 되돌릴 방법이 없으면, 기록이 '내가 한 것'이 아니라 '앱이
+ * 주장하는 것'이 된다. 한 번 그렇게 느끼면 나머지 숫자도 못 믿는다.
+ *
+ * 세 번째 칸을 지우면 돌도 함께 사라진다 — stoneCount는 checks에서
+ * 나오는 값이라 따로 되돌릴 것이 없다. */
+function undoToday(goal) {
+  const t = todayStr();
+  if (!goal.checks.includes(t)) return false;
+  goal.checks = goal.checks.filter((d) => d !== t);
+  goal.history = (goal.history || []).filter((d) => d !== t);
+  goal.totalDays = Math.max(0, goal.totalDays - 1);
+  goal.lastCheckDate = goal.checks[goal.checks.length - 1] || goal.history[goal.history.length - 1] || "";
+  save();
+  render();
+  haptic(6);
+  return true;
+}
+
 function checkToday(goal, opts = {}) {
   if (checkedToday(goal) || goal.checks.length >= 3) return;
   goal.checks.push(todayStr());
@@ -789,45 +810,11 @@ function statusLine(goal, status) {
   return `오늘이 첫날`;
 }
 
-/* 카드를 길게 누르면 삭제 — 상시 노출되는 ✕ 없이 화면을 비워둔다 */
-function attachLongPressDelete(card, goal) {
-  let timer = null;
-  let fired = false;
-
-  const start = (ev) => {
-    // 오늘 해냈어요 같은 버튼을 꾹 눌렀다가 삭제되는 일은 없어야 한다
-    if (ev.target.closest("button")) return;
-    clearTimeout(timer);
-    fired = false;
-    timer = setTimeout(() => {
-      fired = true;
-      card.classList.remove("pressing");
-      removeGoal(goal);
-    }, 650);
-    card.classList.add("pressing");
-  };
-  const cancel = () => {
-    clearTimeout(timer);
-    card.classList.remove("pressing");
-  };
-
-  card.addEventListener("pointerdown", start);
-  ["pointerup", "pointerleave", "pointercancel"].forEach((ev) =>
-    card.addEventListener(ev, cancel)
-  );
-  card.addEventListener("contextmenu", (ev) => ev.preventDefault());
-  // 길게 눌러 삭제한 뒤에 따라오는 클릭이 기록 화면을 열지 않도록
-  card.addEventListener(
-    "click",
-    (ev) => {
-      if (fired) {
-        ev.stopPropagation();
-        fired = false;
-      }
-    },
-    true
-  );
-}
+/* 길게 눌러 삭제는 없앴다.
+ *
+ * 발견 가능성이 0인데 사고 가능성은 0이 아닌, 최악의 조합이었다. 아무도
+ * 찾지 못하는 기능이 어쩌다 한 번 100일치 기록을 지운다. 지우기는 상세
+ * 시트에 이름을 달고 서 있으면 충분하다. */
 
 function renderGoalCard(goal) {
   const status = goalStatus(goal);
@@ -890,7 +877,6 @@ function renderGoalCard(goal) {
   });
 
   card.appendChild(top);
-  attachLongPressDelete(card, goal);
 
   const btn = document.createElement("button");
   btn.className = "btn";
@@ -1224,6 +1210,7 @@ function openDetail(goal) {
     (built.done ? `<div><b>${built.done}</b><span>완성한 탑</span></div>` : "") +
     // 다시 쌓은 횟수는 다른 종류의 성취라 색을 따로 준다
     `<div class="again"><b>${goal.restarts}</b><span>다시 쌓음</span></div>`;
+  $("detail-undo").hidden = !checkedToday(goal);
   paintDetailCal();
   $("detail").hidden = false;
 }
@@ -1750,7 +1737,19 @@ function setupModal() {
     ev.preventDefault();
     const title = $("input-title").value.trim();
     if (!title) return;
-    addGoal(title, selectedIcon);
+    if (editingGoalId) {
+      const goal = state.goals.find((g) => g.id === editingGoalId);
+      if (goal) {
+        goal.title = title;
+        goal.icon = selectedIcon;
+        save();
+        render();
+        haptic(8);
+        toast(selectedIcon, "고쳤어요");
+      }
+    } else {
+      addGoal(title, selectedIcon);
+    }
     $("input-title").value = "";
     syncTitleState();
     closeModal();
@@ -1782,6 +1781,21 @@ function setupModal() {
     const goal = state.goals.find((g) => g.id === detailGoalId);
     closeDetail();
     if (goal) removeGoal(goal);
+  });
+
+  $("detail-edit").addEventListener("click", () => {
+    const goal = state.goals.find((g) => g.id === detailGoalId);
+    if (!goal) return;
+    closeDetail();
+    openModal({ edit: goal });
+  });
+
+  // 잘못 누른 오늘을 지운다. 되돌릴 곳이 늘 같은 자리에 있어야 믿을 수 있다
+  $("detail-undo").addEventListener("click", () => {
+    const goal = state.goals.find((g) => g.id === detailGoalId);
+    if (!goal || !undoToday(goal)) return;
+    closeDetail();
+    toast("sleep", "오늘 표시를 지웠어요");
   });
 
   $("cheer-share").addEventListener("click", async (ev) => {
@@ -2295,15 +2309,34 @@ function closeTopLayer() {
  *
  * (한동안은 화면을 통째로 쓰기도 했는데, 그러면 아이콘 줄 아래가 텅 비어
  * 보였다. 지금은 내용만큼만 높이를 갖는다.) */
+/* editingGoalId가 있으면 이 시트는 '만들기'가 아니라 '고치기'다.
+ *
+ * 고치는 길이 없던 동안에는 제목에 오타 하나만 나도 지우고 다시 만들어야
+ * 했고, 그러면 쌓은 돌이 전부 사라졌다. 100일을 쌓은 사람이 그걸 만나면
+ * 그날로 앱을 지운다. 만드는 화면과 고치는 화면이 같은 이유는, 같은 것을
+ * 정하는 자리이므로 두 벌을 두면 반드시 한쪽만 고쳐지기 때문이다. */
+let editingGoalId = null;
+
 function openModal(opts = {}) {
-  selectIcon(ICON_KEYS[0]);
-  $("input-title").value = "";
+  const edit = opts.edit || null;
+  editingGoalId = edit ? edit.id : null;
+  selectIcon(edit ? goalIcon(edit) : ICON_KEYS[0]);
+  $("input-title").value = edit ? edit.title : "";
   syncTitleState();
   // 처음 여는 사람에게는 '새 작심'이 아니라 질문으로 말을 건다
-  $("modal-title").textContent = opts.first ? "무엇을 3일 해볼까요?" : "새 작심";
-  $("modal-sub").textContent = opts.first
-    ? "딱 3일만 해볼 것 하나면 충분해요."
-    : "거창할 필요 없어요. 딱 3일만 해볼 것 하나.";
+  $("modal-title").textContent = edit
+    ? "작심 고치기"
+    : opts.first
+      ? "무엇을 3일 해볼까요?"
+      : "새 작심";
+  $("modal-sub").textContent = edit
+    ? "이름과 아이콘만 바뀌어요. 쌓은 돌은 그대로입니다."
+    : opts.first
+      ? "딱 3일만 해볼 것 하나면 충분해요."
+      : "거창할 필요 없어요. 딱 3일만 해볼 것 하나.";
+  $("btn-submit-goal").textContent = edit ? "고치기" : "3일 약속하기";
+  $("suggest-label").hidden = !!edit;
+  $("suggest-row").hidden = !!edit;
   $("btn-cancel").hidden = !!opts.first;
   $("modal").hidden = false;
   document.body.classList.add("sheet-open");
@@ -2320,6 +2353,7 @@ function openModal(opts = {}) {
 function closeModal() {
   $("input-title").blur();
   $("modal").hidden = true;
+  editingGoalId = null;
   document.body.classList.remove("sheet-open");
 }
 
