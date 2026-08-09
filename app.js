@@ -348,7 +348,7 @@ function stonePiece(cx, cy, rx, ry, tilt, uid, seed = 1) {
  */
 
 /* 바닥 중심을 원점으로 위로 쌓는 돌 무더기 */
-function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0, ch = STONE_CHARACTERS[0], seed = 1) {
+function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0, ch = STONE_CHARACTERS[0], seed = 1, shapes = null) {
   const shown = Math.min(stones, max);
   let y = -4;
   let rx = 40;
@@ -371,13 +371,16 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0, ch =
    * 실제 돌탑은 넓은 돌 위에 좁은 돌이 오기도, 그 반대이기도 하다.
    * 가로는 ±11%, 세로는 ±9% 안에서만 흔들어 균형은 잃지 않게 한다. */
   for (let i = 0; i < shown; i++) {
-    const wr = rx * (1 + wobble(seed + 1.7, i) * 0.22);
-    const wy = ry * (1 + wobble(seed + 4.1, i) * 0.18);
+    // 사용자가 고른 모양이 있으면 그 돌은 그 모양으로 — 없으면 기본 흔들림만
+    const sh = shapes && shapes[i];
+    const sSeed = seed + (sh ? sh.seed : 0);
+    const wr = rx * (sh ? sh.wide : 1) * (1 + wobble(sSeed + 1.7, i) * 0.22);
+    const wy = ry * (sh ? sh.flat : 1) * (1 + wobble(sSeed + 4.1, i) * 0.18);
     y -= wy * 1.5;
     // 층마다 좌우로 조금씩 어긋나게 — 실제로 손으로 쌓은 탑은 축이 곧지 않다
     const tilt = (i % 2 === 0 ? -1 : 1.05) * ch.tilt + wobble(seed + 3, i) * 3.2;
     const cx = (i % 2 === 0 ? -1.5 : 1.5) + wobble(seed, i) * rx * 0.09;
-    parts.push(stonePiece(cx, y, wr, wy, tilt, uid, seed * 31 + i));
+    parts.push(stonePiece(cx, y, wr, wy, tilt, uid, sSeed * 31 + i));
     lastW = wr;
     lastH = wy;
     foot = Math.max(foot, wr + Math.abs(cx));
@@ -503,6 +506,38 @@ const STONE_CHARACTERS = [
   { flat: 0.9, taper: 0.88, tilt: 2.9 },   // 무채색 자갈
 ];
 
+/* 돌 하나하나의 생김새.
+ *
+ * 3일을 채운 순간, 어떤 돌을 얹을지 사용자가 고른다. 지금까지는 돌이
+ * 저절로 날아가 얹혔는데 — 그러면 사용자의 역할이 '버튼을 누르는 것'에서
+ * 끝난다. 이 앱의 약속은 "내가 쌓았다"인데 정작 쌓는 일은 앱이 했다.
+ *
+ * 고르는 것은 색이 아니라 모양이다. 색을 고르게 하면 정원이 사탕 더미가
+ * 되고, 그건 이미 하지 않기로 한 결정이다. 납작하고 넓은 돌, 도톰하고
+ * 둥근 돌, 길쭉한 돌 — 실루엣이 달라지는 것만으로 탑은 충분히 내 것이 된다.
+ *
+ * 매일이 아니라 3일에 한 번만 묻는다. 매일 하는 동작에 고르는 일을 얹으면
+ * 첫 주에는 재미고 둘째 달에는 마찰이다. */
+const STONE_SHAPES = [
+  { label: "납작한 돌", flat: 0.74, wide: 1.1, seed: 11 },
+  { label: "둥근 돌", flat: 1.22, wide: 0.94, seed: 29 },
+  { label: "도톰한 돌", flat: 1.6, wide: 0.74, seed: 47 },
+];
+
+/* 예전 기록에는 고른 모양이 없다. 그때 쌓은 돌도 제 모양이 있어야 하므로
+   자리 번호로 하나를 정해 준다 — 늘 같은 값이라 다시 그려도 안 바뀐다. */
+function shapeAt(goal, i) {
+  const picked = goal.stoneShapes && goal.stoneShapes[i];
+  const n = Number.isInteger(picked) ? picked : (i * 7 + 2) % STONE_SHAPES.length;
+  return STONE_SHAPES[n % STONE_SHAPES.length];
+}
+
+function shapesFor(goal, base, count) {
+  const out = [];
+  for (let i = 0; i < count; i++) out.push(shapeAt(goal, base + i));
+  return out;
+}
+
 function characterOf(index) {
   const i = index % STONE_CHARACTERS.length;
   return { ...STONE_CHARACTERS[i], toneClass: `stone-tone-${i}` };
@@ -601,10 +636,15 @@ function gardenSVG(goals, opts = {}) {
       const y = groundY - HORIZON * (1 - shrink);
       // 멀어질수록 공기에 잠긴다 — 옅어지고 대비도 함께 낮아진다
       const opacity = (1 - 0.34 * depth).toFixed(2);
+      /* 이 탑에 들어간 돌들의 자리 번호. t=0이 지금 쌓는 탑이고,
+         t가 커질수록 예전에 완성한 탑이다 — 완성한 탑 k번째는
+         (done − t)번째 묶음을 담고 있다. */
+      const base = (done - t) * STONES_PER_TOWER;
       drawList.push({
         goal, ch,
         current: t === 0,
         stones: t === 0 ? current : STONES_PER_TOWER,
+        shapes: shapesFor(goal, base, STONES_PER_TOWER),
         building: t === 0 ? building : null,
         // 완성한 탑도 채마다 조금씩 다르게 생겨야 한다. 같은 작심의 탑이
         // 여러 채 서 있는데 전부 같은 실루엣이면 울타리처럼 보인다.
@@ -622,7 +662,7 @@ function gardenSVG(goals, opts = {}) {
   let minY = Infinity;
   const groups = drawList.map((t) => {
     const { markup, top, foot } = stoneStack(
-      t.stones, t.building, STONES_PER_TOWER, 0, uid, t.ch, t.seed
+      t.stones, t.building, STONES_PER_TOWER, 0, uid, t.ch, t.seed, t.shapes
     );
     minX = Math.min(minX, t.x - foot * t.scale);
     maxX = Math.max(maxX, t.x + foot * t.scale);
@@ -705,10 +745,10 @@ function stoneCount(goal) {
  * 딱 맞추면 돌 한 개짜리 장과 다섯 개짜리 장의 확대율이 달라져서,
  * 같은 돌인데도 장마다 크기가 널뛰고 돌 하나짜리 장은 바닥 그림자만
  * 커다랗게 보인다. */
-function cairnSVG(stones, building, ghost = 0, max = MAX_STONES, frameTop = 0, ch = STONE_CHARACTERS[0]) {
+function cairnSVG(stones, building, ghost = 0, max = MAX_STONES, frameTop = 0, ch = STONE_CHARACTERS[0], shapes = null) {
   // 정원의 탑과 같은 돌을 쓴다 — 축하 화면과 홈이 같은 재질로 보이도록
   const uid = ++stoneDefsSeq;
-  const { markup, top } = stoneStack(stones, building, max, ghost, uid, ch);
+  const { markup, top } = stoneStack(stones, building, max, ghost, uid, ch, 1, shapes);
   const pad = 12;
   const y = Math.min(top, frameTop) - pad;
   const height = pad - y;
@@ -979,10 +1019,8 @@ function runPendingAnim() {
   if (job.completed) {
     haptic([12, 60, 24]);
     const goal = state.goals.find((g) => g.id === job.goalId);
-    flyStoneToTower(dot, job.goalId, () => {
-      // 돌이 얹힌 뒤에 축하 화면 — 탑이 자라는 걸 먼저 보게 한다
-      if (goal) setTimeout(() => showCheer(goal), 420);
-    });
+    // 3일을 채운 순간 — 어떤 돌을 얹을지 먼저 고른다
+    if (goal) setTimeout(() => openStonePick(goal), 260);
   } else {
     haptic(12);
     if (!job.silent) {
@@ -1398,7 +1436,13 @@ function showCheer(goal) {
   // 어디에 얹혔는지도 안 보인다.
   const { done: towersDone, current: inTower } = towersOf(goal);
   const ch = goalCharacter(goal);
-  $("cheer-cairn").innerHTML = cairnSVG(inTower || STONES_PER_TOWER, false, 0, STONES_PER_TOWER, 0, ch);
+  // 방금 고른 돌이 꼭대기에 얹힌 그 탑을 그대로 보여 준다
+  const shownStones = inTower || STONES_PER_TOWER;
+  const cheerBase = (inTower === 0 ? towersDone - 1 : towersDone) * STONES_PER_TOWER;
+  $("cheer-cairn").innerHTML = cairnSVG(
+    shownStones, false, 0, STONES_PER_TOWER, 0, ch,
+    shapesFor(goal, cheerBase, STONES_PER_TOWER)
+  );
   $("cheer-cairn").className = "cheer-cairn " + ch.toneClass;
   /* 탑 하나를 다 채운 날은 그냥 넘어가서는 안 되는 날이다.
    * 돌 일곱 개 = 21일 — 이 앱에서 가장 큰 매듭이라 축하도 달라야 한다. */
@@ -1444,6 +1488,106 @@ function closeCheer() {
   setTimeout(() => (el.hidden = true), 220);
   $("backup-note").hidden = true;
   cheerGoalId = null;
+}
+
+/* ── 돌 고르기 ────────────────────────
+ *
+ * 3일을 채우면 여기가 먼저 열린다. 돌 셋 중 하나를 고르면 그 돌이 위에서
+ * 떨어져 탑에 얹히고, 그다음에 축하가 온다.
+ *
+ * 고르는 일을 여기 둔 이유는 박자 때문이다. 돌은 3일에 하나인데 '오늘
+ * 해냈어요'는 매일이다. 매일 여는 화면에 고르는 일을 얹으면 첫 주에는
+ * 재미고 둘째 달에는 마찰이고, 무엇보다 하루에 돌 하나라는 오해를 다시
+ * 부른다. 3일에 한 번, 진짜로 돌이 생기는 그 순간에만 묻는다.
+ *
+ * 떨어뜨리기를 실패할 수 없게 만든 것도 일부러다. 잘못 놓아 무너질 수
+ * 있다면, 이 앱이 유일하게 "여기서는 실패해도 안전하다"고 약속한 자리에
+ * 실패를 들여놓는 셈이 된다. */
+let pickGoalId = null;
+
+function openStonePick(goal) {
+  pickGoalId = goal.id;
+  // 고르는 동안 탑은 새 돌 없이 기다린다 — 그래야 얹히는 게 보인다
+  heldGoalId = goal.id;
+  render();
+
+  const ch = goalCharacter(goal);
+  const { done, current } = towersOf(goal, true);
+  const base = done * STONES_PER_TOWER;
+  const stage = $("pick-cairn");
+  stage.className = "pick-cairn " + ch.toneClass;
+  stage.innerHTML = cairnSVG(
+    current, { done: 3, waiting: false }, 0, STONES_PER_TOWER, 0, ch,
+    shapesFor(goal, base, STONES_PER_TOWER)
+  );
+
+  const row = $("pick-row");
+  row.innerHTML = "";
+  STONE_SHAPES.forEach((shape, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "pick-opt " + ch.toneClass;
+    b.setAttribute("aria-label", shape.label);
+    // 고를 돌은 실제로 얹힐 그 돌이어야 한다 — 미리보기가 아니라 그 자체
+    b.innerHTML = cairnSVG(1, null, 0, 1, 0, ch, [shape]);
+    b.addEventListener("click", () => choosePickedStone(goal, i));
+    row.appendChild(b);
+  });
+
+  $("pick-falling").innerHTML = "";
+  $("pick-stone").hidden = false;
+  requestAnimationFrame(() => $("pick-stone").classList.add("show"));
+}
+
+function choosePickedStone(goal, shapeIndex) {
+  if (pickGoalId !== goal.id) return;
+  pickGoalId = null;
+  const ch = goalCharacter(goal);
+  const index = Math.max(0, stoneCount(goal) - 1);
+  if (!Array.isArray(goal.stoneShapes)) goal.stoneShapes = [];
+  goal.stoneShapes[index] = shapeIndex;
+  save();
+
+  $("pick-row").classList.add("chosen");
+  haptic(8);
+
+  // 고른 돌이 위에서 내려와 탑에 얹힌다
+  const fall = $("pick-falling");
+  fall.className = "pick-falling " + ch.toneClass;
+  fall.innerHTML = cairnSVG(1, null, 0, 1, 0, ch, [STONE_SHAPES[shapeIndex]]);
+  const land = () => {
+    fall.innerHTML = "";
+    heldGoalId = null;
+    render();
+    landStone();
+    setTimeout(() => {
+      closeStonePick();
+      showCheer(goal);
+    }, 360);
+  };
+
+  if (reduceMotion) {
+    land();
+    return;
+  }
+  fall.animate(
+    [
+      { transform: "translate(-50%, -190px) scale(1.04)", opacity: 0 },
+      { transform: "translate(-50%, -170px) scale(1.04)", opacity: 1, offset: 0.12 },
+      { transform: "translate(-50%, 0) scale(1)", opacity: 1, offset: 0.72 },
+      { transform: "translate(-50%, -9px) scale(1.02)", opacity: 1, offset: 0.85 },
+      { transform: "translate(-50%, 0) scale(1)", opacity: 1 },
+    ],
+    { duration: 720, easing: "cubic-bezier(.42,0,.4,1)", fill: "forwards" }
+  ).onfinish = land;
+}
+
+function closeStonePick() {
+  const el = $("pick-stone");
+  el.classList.remove("show");
+  $("pick-row").classList.remove("chosen");
+  setTimeout(() => (el.hidden = true), 220);
+  pickGoalId = null;
 }
 
 /* 완주한 돌이 카드에서 그 작심의 탑으로 날아가 얹힌다 */

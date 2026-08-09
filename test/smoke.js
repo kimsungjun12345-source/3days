@@ -101,6 +101,22 @@ function dstr(offset) {
     );
   };
 
+  /* 3일째를 누르면 '어떤 돌을 얹을까요?'가 먼저 뜬다.
+   * 검사도 사용자와 같은 순서를 밟는다 — 누르고, 돌을 고르고, 얹힐 때까지
+   * 기다린다. 1·2일째에는 고르기가 뜨지 않으므로 그대로 지나간다. */
+  const pickIfAsked = async (opt = 0) => {
+    await page.waitForTimeout(420);
+    if (await page.locator("#pick-stone").isVisible()) {
+      await page.locator(".pick-opt").nth(opt).click();
+      await page.waitForTimeout(1300);
+    }
+  };
+
+  const tapToday = async (opt = 0) => {
+    await page.click(".goal-card .btn-primary");
+    await pickIfAsked(opt);
+  };
+
   const assert = (cond, name) => {
     console.log((cond ? "PASS" : "FAIL") + "  " + name);
     if (!cond) process.exitCode = 1;
@@ -124,7 +140,7 @@ function dstr(offset) {
   assert(!freshCta.includes("돌"), "the daily CTA never promises a stone, got: " + freshCta);
 
   // 3. 오늘 체크
-  await page.click(".goal-card .btn-primary");
+  await tapToday();
   assert((await page.locator(".goal-card .dot.done").count()) === 1, "one dot marked done after check");
   assert(await page.locator(".goal-card .btn-done").isDisabled(), "button disabled after today's check");
   assert((await page.locator("#stat-total-days").textContent()) === "1", "total days = 1");
@@ -185,7 +201,7 @@ function dstr(offset) {
         checks: [d2, d1], lastCheckDate: d1, totalDays: 8, completedCycles: 2, restarts: 1 }]}));
   }, [dstr(-2), dstr(-1)]);
   await reload();
-  await page.click(".goal-card .btn-primary");
+  await tapToday();
   await page.waitForTimeout(1600);
   assert(await page.locator("#cheer").isVisible(), "celebration appears after completing 3 days");
   const cheerTitle = await page.locator("#cheer-title").textContent();
@@ -307,7 +323,8 @@ function dstr(offset) {
 
   const bookCard = page.locator(".goal-card").filter({ hasText: "책 10쪽" });
   await bookCard.locator(".btn-primary").click();
-  await page.waitForTimeout(1500);
+  await pickIfAsked();
+  await page.waitForTimeout(600);
   assert((await stonesIn("B")) === 2, "finishing three days grows that goal's tower");
   assert((await stonesIn("A")) === 3, "the other towers in the garden are left untouched");
   assert((await page.locator("#cheer-title").textContent()).includes("두 번째"), "celebration counts stones per goal");
@@ -390,7 +407,7 @@ function dstr(offset) {
         totalDays: 5, completedCycles: 1, restarts: 3 }]}));
   }, [dstr(-2), dstr(-1)]);
   await reload();
-  await page.click(".goal-card .btn-primary");
+  await tapToday();
   await page.waitForTimeout(1800);
   assert(await page.locator("#cheer-share").isHidden(), "an ordinary stone is not asked to be shared");
   await page.click("#cheer-close");
@@ -404,7 +421,7 @@ function dstr(offset) {
         totalDays: 17, completedCycles: per - 1, restarts: 3 }]}));
   }, [dstr(-2), dstr(-1), await page.evaluate(() => STONES_PER_TOWER)]);
   await reload();
-  await page.click(".goal-card .btn-primary");
+  await tapToday();
   await page.waitForTimeout(1800);
   assert(await page.locator("#cheer-share").isVisible(), "finishing a tower is worth sharing");
   assert(
@@ -450,7 +467,7 @@ function dstr(offset) {
   await page.waitForTimeout(200);
   assert(await page.locator("#detail").isHidden(), "escape closes the record sheet");
 
-  await page.click(".goal-card .btn-primary");
+  await tapToday();
   await page.waitForTimeout(1800);
   assert(await page.locator("#cheer").isVisible(), "celebration is open");
   assert(await page.evaluate(() => closeTopLayer()), "back button reports it handled the celebration");
@@ -708,7 +725,7 @@ function dstr(offset) {
   // 예전에는 '오늘 할 일이 남았을 때'만 쌓는 중인 자리를 그렸다. 그래서
   // 돌이 아직 없는 작심에서 오늘 체크를 누르는 순간 그릴 것이 바닥
   // 그림자밖에 남지 않았고, 정원이 얼룩 하나로 보였다.
-  await page.click(".goal-card .btn-primary");
+  await tapToday();
   await page.waitForTimeout(500);
 
   const towerParts = async () =>
@@ -746,7 +763,7 @@ function dstr(offset) {
     save();
     render();
   }, dstr(-1));
-  await page.click(".goal-card .btn-primary");
+  await tapToday();
   await page.waitForTimeout(400);
   assert((await towerParts()).days === 2, "two days in, two thirds are filled");
   assert((await towerParts()).stones === 0, "still no stone on day two");
@@ -760,7 +777,7 @@ function dstr(offset) {
     save();
     render();
   }, [dstr(-2), dstr(-1)]);
-  await page.click(".goal-card .btn-primary");
+  await tapToday();
   await page.waitForTimeout(1600);
   assert((await towerParts()).stones === 1, "the third day is what turns the outline into a stone");
   await page.click("#cheer-close");
@@ -846,6 +863,9 @@ function dstr(offset) {
   await page.click('.tab[data-view="settings"]');
   await page.waitForTimeout(150);
   await page.click("#dev-run-cycle");
+  // 3일째가 되면 돌 고르기가 먼저 뜬다 — 개발자 도구로 돌려도 순서는 같다
+  await page.waitForFunction(() => !document.getElementById("pick-stone").hidden, null, { timeout: 8000 });
+  await page.locator(".pick-opt").first().click();
   await page.waitForFunction(() => !document.getElementById("cheer").hidden, null, { timeout: 8000 });
   assert(
     (await page.locator("#cheer-title").textContent()).includes("네 번째"),
@@ -1151,14 +1171,17 @@ function dstr(offset) {
 
   // 34. 잘못 누른 오늘은 지울 수 있다
   await page.evaluate(() => {
+    // 오늘 아무것도 안 한 상태로 되돌린다. lastCheckDate까지 비워야 하는데,
+    // 이걸 남겨 두면 checkedToday가 참이 되어 실제로는 생길 수 없는 상태가 된다
     state.goals[0].checks = [];
     state.goals[0].history = [];
+    state.goals[0].lastCheckDate = "";
     state.goals[0].totalDays = 30;
     save();
     render();
   });
   await page.waitForTimeout(200);
-  await page.click(".goal-card .btn-primary");
+  await tapToday();
   await page.waitForTimeout(500);
   assert((await page.locator(".goal-card .dot.done").count()) === 1, "a mis-tap fills a square");
 

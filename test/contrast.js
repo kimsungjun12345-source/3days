@@ -171,8 +171,10 @@ const AUDIT = (dimmed) => {
         await page.evaluate(() => { for (let i = 0; i < 4; i++) document.getElementById("ob-next").click(); });
       },
       "기록 상세": async () => { await page.evaluate(() => { closeOnboard(); openDetail(state.goals[0]); }); },
+      // 3일을 채운 순간 먼저 뜨는 화면
+      "돌 고르기": async () => { await page.evaluate(() => { closeDetail(); openStonePick(state.goals[0]); }); },
       // 눌러 볼 것은 하나뿐이고, 안 하겠다는 뜻은 모서리의 ✕로 말한다
-      "축하": async () => { await page.evaluate(() => { closeDetail(); showCheer(state.goals[0]); }); },
+      "축하": async () => { await page.evaluate(() => { closeStonePick(); heldGoalId = null; render(); showCheer(state.goals[0]); }); },
       // 탑을 세운 날에만 뜨는 백업 권유
       "축하+백업": async () => { await page.evaluate(() => { document.getElementById("backup-note").hidden = false; }); },
       // 첫 돌을 얹은 직후의 알림 권유
