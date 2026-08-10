@@ -11,7 +11,7 @@
  *   node test/contrast.js
  */
 
-const { chromium } = require("playwright-core");
+const { launchBrowser } = require("./browser");
 const path = require("path");
 
 const APP = "file://" + path.resolve(__dirname, "..", "index.html");
@@ -97,9 +97,7 @@ const AUDIT = (dimmed) => {
 };
 
 (async () => {
-  const browser = await chromium.launch({
-    executablePath: "/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell",
-  });
+  const browser = await launchBrowser();
 
   let failures = 0;
   const assert = (cond, name) => {

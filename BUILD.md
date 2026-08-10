@@ -18,7 +18,8 @@ android/, ios/                     ← 네이티브 프로젝트
 
 ## 준비물
 
-- Node.js 18 이상
+- Node.js 22 이상 (Capacitor 8 CLI가 요구하는 버전 — `package.json`의
+  `engines`와 CI가 모두 22를 쓴다)
 - **iOS**: macOS + Xcode 15 이상, CocoaPods (`sudo gem install cocoapods`)
 - **안드로이드**: Android Studio (JDK 17 포함)
 

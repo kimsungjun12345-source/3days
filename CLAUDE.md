@@ -42,9 +42,14 @@ node test/smoke.js  # 앱 흐름 하나만 빠르게
 npm run build       # www/ 만들기 (네이티브 동기화 전 단계)
 ```
 
-테스트는 실제 Chromium을 띄운다. 경로가 각 파일 상단에 박혀 있다:
-`/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell`.
-환경이 바뀌면 세 파일 모두 고쳐야 한다.
+테스트는 실제 Chromium을 띄운다. 실행 파일을 찾는 순서는 `test/browser.js`
+한 곳에 있다 — `CHROMIUM_PATH` → 브라우저 보관함 → playwright 기본값.
+없는 환경에서는 `npx playwright-core install chromium` 한 번이면 된다.
+**경로를 검사 파일에 다시 박지 말 것.** 세 곳에 흩어져 있던 탓에 한 곳만
+고쳐지고 나머지가 조용히 죽은 적이 있다.
+
+CI(`.github/workflows/android.yml`)는 `npm test`가 통과해야 APK를 만든다.
+검사를 빌드 뒤에 두면 깨진 빌드가 먼저 릴리스에 올라간다.
 
 ## 데이터
 
@@ -60,6 +65,15 @@ goal = {
   stoneShapes: [],     // 사이클마다 고른 돌 모양
 }
 ```
+
+`restarts`는 **다시 쌓기를 시작한 횟수**다. 끊긴 뒤(broken)와 3일을 채우고
+오래 쉰 뒤(lapsed) 둘 다 센다. 완주 다음 날 바로 이어 가는 것(resting)은
+멈춘 적이 없으므로 세지 않는다. 이 수는 공유 카드로 남의 담벼락까지
+나가므로, 표시 문구도 '무너졌다'가 아니라 '멈췄다가'로 맞춰 두었다.
+
+작심은 **`GARDEN_MAX`(6)개까지** 만들 수 있다. 정원에 놓인 줄이 여섯이라
+그 이상은 그림에 설 자리가 없다. 새로 만드는 것만 막고, 예전에 만들었거나
+가져온 여섯 초과 기록은 지우지도 숨기지도 않는다.
 
 **필드를 더할 때는 `load()`에 예전 데이터를 이어받는 줄을 함께 넣는다.**
 이미 쓰고 있는 사람의 기록이 깨지면 그걸로 끝이다.

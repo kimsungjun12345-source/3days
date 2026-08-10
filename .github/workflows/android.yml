@@ -49,6 +49,15 @@ jobs:
       - name: 의존성 설치
         run: npm ci
 
+      # 검사를 빌드 앞에 세운다. 뒤에 두면 이미 만들어진 APK가 릴리스에
+      # 올라간 뒤에야 빨간 불이 들어오고, 그러면 폰에 까는 사람은 깨진
+      # 빌드를 먼저 만난다. 여기서 막으면 애초에 올라가지 않는다.
+      - name: 검사용 크로미움
+        run: npx playwright-core install --with-deps chromium
+
+      - name: 검사 (스모크 · PWA · 명암비)
+        run: npm test
+
       - name: 웹 자산 빌드 후 네이티브에 동기화
         # 디버그 APK는 테스트용이므로 개발자 도구를 대놓고 보여 준다.
         # 스토어용 빌드는 아래에서 BUILD_CHANNEL=release 로 다시 만든다.

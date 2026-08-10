@@ -1,4 +1,4 @@
-const { chromium } = require("playwright-core");
+const { launchBrowser } = require("./browser");
 const http = require("http");
 const path = require("path");
 const fs = require("fs");
@@ -49,9 +49,7 @@ function dstr(offset) {
 
 (async () => {
   const server = await serve();
-  const browser = await chromium.launch({
-    executablePath: "/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell",
-  });
+  const browser = await launchBrowser();
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, acceptDownloads: true });
   const errors = [];
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
@@ -1202,6 +1200,133 @@ function dstr(offset) {
   assert(await page.locator("#detail-undo").isHidden(), "nothing to undo when nothing was marked");
   await page.click("#detail-close");
   await page.waitForTimeout(200);
+
+  /* 35. 작심은 정원 자리 수(6)까지만 만들 수 있다.
+   *
+   * 정원에 자리가 여섯인데 만들기를 막지 않아서, 일곱 번째 작심은 목록에는
+   * 뜨지만 그림에는 서지 않았다. 이 앱이 주는 유일한 보상이 돌탑이라
+   * 그게 조용히 빠지면 안 된다. */
+  const seedMany = async (n) => {
+    await page.evaluate((count) => {
+      const goals = [];
+      for (let i = 0; i < count; i += 1) {
+        goals.push({
+          id: "cap" + i, title: "작심 " + (i + 1), icon: "water", createdAt: "",
+          checks: [], history: [], lastCheckDate: null,
+          totalDays: 0, completedCycles: 0, restarts: 0,
+        });
+      }
+      localStorage.setItem("jaksim3.v1", JSON.stringify({ goals }));
+    }, n);
+    await reload();
+  };
+
+  await seedMany(6);
+  assert((await page.locator(".goal-card").count()) === 6, "six goals all show up");
+  assert(
+    (await page.locator("#btn-add b").textContent()).includes("다 찼어요"),
+    "the add card says the garden is full"
+  );
+  await page.click("#btn-add");
+  await page.waitForTimeout(300);
+  assert(await page.locator("#modal").isHidden(), "and tapping it does not open the sheet");
+  assert(
+    (await page.evaluate(() => state.goals.length)) === 6,
+    "so a seventh goal cannot be created"
+  );
+
+  // 하나를 지우면 자리가 다시 열린다 — 막힌 채로 굳으면 그건 버그다
+  await page.evaluate(() => {
+    state.goals.pop();
+    save();
+    render();
+  });
+  await page.waitForTimeout(250);
+  assert(
+    (await page.locator("#btn-add b").textContent()).includes("새 작심"),
+    "deleting one opens the slot again"
+  );
+
+  /* 36. 이미 여섯을 넘겨 둔 기록은 건드리지 않는다.
+   *
+   * 상한은 '새로 만드는 일'에만 건다. 예전 빌드에서 만들었거나 파일로
+   * 가져온 기록을 지우거나 숨기면, 지키려던 것(쌓은 기록은 사라지지
+   * 않는다)을 정작 앱이 어기게 된다. */
+  await seedMany(8);
+  assert((await page.locator(".goal-card").count()) === 8, "goals beyond six are kept, not dropped");
+  await page.evaluate(() => switchView("garden"));
+  await page.waitForTimeout(300);
+  assert(
+    (await page.locator("#garden-legend .record-row").count()) === 8,
+    "and every one of them is listed in the garden"
+  );
+  // 그림에는 여섯까지만 서므로, 문구가 '전부'라고 말하면 거짓이 된다
+  assert(
+    !(await page.locator("#garden-word").textContent()).includes("전부"),
+    "the garden never claims to show them all when it cannot"
+  );
+  await page.evaluate(() => switchView("home"));
+  await page.waitForTimeout(200);
+
+  /* 37. '다시 쌓음'은 다시 시작한 횟수다 — 끊긴 뒤든, 오래 쉰 뒤든.
+   *
+   * 예전에는 1~2칸 하다 끊긴 경우만 셌다. 3일을 다 채우고 2주 쉬었다
+   * 돌아온 사람은 세지 않았는데, 그쪽이 오히려 이 앱이 자랑하려는 복귀다.
+   * 공유 카드에 나가는 숫자라 정의가 흔들리면 카드가 거짓말을 한다. */
+  const seedOne = async (checks, last, restarts) => {
+    await page.evaluate((d) => {
+      localStorage.setItem("jaksim3.v1", JSON.stringify({ goals: [
+        { id: "again", title: "10분 걷기", icon: "run", createdAt: "",
+          checks: d.checks, history: d.checks, lastCheckDate: d.last,
+          totalDays: d.checks.length, completedCycles: 1, restarts: d.restarts }]}));
+    }, { checks, last, restarts });
+    await reload();
+  };
+
+  // 완주하고 한참 쉬었다 돌아온 사람 (lapsed)
+  await seedOne([dstr(-9), dstr(-8), dstr(-7)], dstr(-7), 0);
+  assert(
+    (await page.evaluate(() => goalStatus(state.goals[0]))) === "lapsed",
+    "a goal left alone after a full cycle is lapsed"
+  );
+  await page.click(".goal-card .btn-rest");
+  await page.waitForTimeout(600);
+  assert(
+    (await page.evaluate(() => state.goals[0].restarts)) === 1,
+    "coming back after a long rest counts as starting again"
+  );
+
+  // 완주 다음 날 바로 이어 가는 사람 (resting) — 멈춘 적이 없으니 세지 않는다
+  await seedOne([dstr(-3), dstr(-2), dstr(-1)], dstr(-1), 0);
+  assert(
+    (await page.evaluate(() => goalStatus(state.goals[0]))) === "resting",
+    "picking up the day after finishing is resting"
+  );
+  await page.click(".goal-card .btn-primary");
+  await page.waitForTimeout(600);
+  assert(
+    (await page.evaluate(() => state.goals[0].restarts)) === 0,
+    "and carrying straight on is not starting again"
+  );
+
+  // 끊긴 뒤 다시 쌓기 (broken) — 예전부터 세던 길, 그대로 센다
+  await seedOne([dstr(-6), dstr(-5)], dstr(-5), 0);
+  assert(
+    (await page.evaluate(() => goalStatus(state.goals[0]))) === "broken",
+    "a cycle cut short is broken"
+  );
+  await page.click(".goal-card .btn-rest");
+  await page.waitForTimeout(600);
+  assert(
+    (await page.evaluate(() => state.goals[0].restarts)) === 1,
+    "and rebuilding after a break still counts"
+  );
+
+  // 카드에 나가는 문구도 숫자의 뜻과 맞아야 한다
+  assert(
+    !(await page.evaluate(() => historyWord(state.goals[0]))).includes("무너지고"),
+    "the record line no longer says they collapsed"
+  );
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 
