@@ -190,10 +190,14 @@ function renderShareCard(info) {
   /* 마지막 한마디.
    *
    * 다시 쌓은 적이 있으면 그 이야기를 앞세운다. 자랑하는 숫자는 부러움을
-   * 사지만, 무너졌다 돌아온 숫자는 공감을 산다 — 그리고 공감이 훨씬 멀리 간다.
-   * 이 앱이 남과 다른 지점도 정확히 거기다. */
+   * 사지만, 멈췄다 돌아온 숫자는 공감을 산다 — 그리고 공감이 훨씬 멀리 간다.
+   * 이 앱이 남과 다른 지점도 정확히 거기다.
+   *
+   * '무너지고'가 아니라 '멈췄다가'인 이유: restarts는 끊긴 뒤 다시 시작한
+   * 것과 완주 후 오래 쉬다 돌아온 것을 함께 센다. 뒤엣것은 무너진 적이
+   * 없으므로, 카드에 '무너졌다'고 쓰면 남의 담벼락에서 거짓말이 된다. */
   const line = info.restarts > 0
-    ? `${info.restarts}번 무너지고 ${info.restarts}번 다시 왔어요`
+    ? `${info.restarts}번 멈췄다가 다시 왔어요`
     : info.word;
   fitText(line, cardY + 948, info.restarts > 0 ? 36 : 32, info.restarts > 0 ? 700 : 500,
     info.restarts > 0 ? C.sage : C.grayStrong, innerW);

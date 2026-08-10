@@ -119,7 +119,25 @@ function checkedToday(goal) {
 
 /* ── 액션 ─────────────────────────── */
 
+/* 작심은 정원의 자리 수(GARDEN_MAX)만큼만 만들 수 있다.
+ *
+ * 정원에는 자리가 여섯뿐인데 만들기는 막지 않아서, 일곱 번째 작심은
+ * 목록에는 뜨지만 그림에는 서지 않았다. 이 앱이 주는 유일한 보상이
+ * 돌탑인데 그게 조용히 빠지는 셈이라, 자리 수를 만들기 쪽에도 그대로
+ * 적용한다. 숫자를 새로 만들지 않고 GARDEN_MAX 하나만 본다 — 둘로
+ * 나뉘면 언젠가 한쪽만 바뀐다.
+ *
+ * 예전에 여섯을 넘겨 만든 기록이나 가져온 기록은 지우지 않는다. 여기서
+ * 막는 것은 '새로 만드는 일'뿐이다. */
+function goalsAtCap() {
+  return state.goals.length >= GARDEN_MAX;
+}
+
 function addGoal(title, icon) {
+  if (goalsAtCap()) {
+    toast("stone", `작심은 한 번에 ${GARDEN_MAX}개까지예요`);
+    return;
+  }
   const goal = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     title,
@@ -130,6 +148,8 @@ function addGoal(title, icon) {
     lastCheckDate: null, // 같은 날 중복 카운트 방지
     totalDays: 0,
     completedCycles: 0,
+    // 다시 쌓기를 시작한 횟수 — 끊긴 뒤(broken)와 오래 쉰 뒤(lapsed) 둘 다.
+    // 완주 다음 날 바로 이어 가는 것은 멈춘 적이 없으므로 세지 않는다.
     restarts: 0,
   };
   state.goals.push(goal);
@@ -204,6 +224,14 @@ function checkToday(goal, opts = {}) {
 function nextCycle(goal, from) {
   goal.completedCycles += 1;
   goal.checks = [];
+  /* 완주하고 한참 쉬다가 돌아온 것도 '다시 쌓기 시작'이다.
+   *
+   * 예전에는 이 길로 들어온 사람의 restarts가 늘지 않았다. 1~2칸 하다
+   * 끊긴 사람만 세고, 3일을 다 채운 뒤 2주 쉬었다 돌아온 사람은 안 셌다.
+   * 그런데 이 앱이 자랑하려는 숫자는 '무너진 횟수'가 아니라 '돌아온
+   * 횟수'다 — 오래 쉬었다 돌아온 쪽이 오히려 더 큰 복귀다.
+   * 완주 다음 날 바로 이어 가는 것(resting)은 멈춘 적이 없으니 세지 않는다. */
+  if (from === "lapsed") goal.restarts += 1;
   haptic(10);
   // 완성한 날 바로 누르면 오늘은 이미 카운트됐으므로 내일부터 첫째 날
   if (!checkedToday(goal)) {
@@ -459,7 +487,7 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0, ch =
 }
 
 /* ── 탑이 여러 개가 될 때 ──────────────
- * 탑 하나는 무한정 자라지 않는다. 돌 일곱 개(= 21일)를 채우면 그 탑은
+ * 탑 하나는 무한정 자라지 않는다. 돌 다섯 개(= 15일)를 채우면 그 탑은
  * 완성되고, 그다음 돌부터는 그 옆에 새 탑이 선다.
  *
  * 예전에는 한 작심의 탑이 돌 네 개에서 조용히 멈췄다. 열이틀만 지나면
@@ -571,8 +599,13 @@ function towersDrawn(goalCount) {
 function gardenSVG(goals, opts = {}) {
   /* full 모드 — 정원 탭에서 쓴다. 홈의 정원은 화면 한 귀퉁이라 탑을 몇 채만
      추려 그리는데, 오래 다닌 사람은 그걸 "예전 탑이 사라졌다"로 읽는다.
-     맞는 읽기다. 그래서 전부 보여 주는 자리를 따로 만들고, 여기서는 한 채도
-     빼지 않는다. */
+     맞는 읽기다. 그래서 전부 보여 주는 자리를 따로 만들고, 여기서는 한
+     작심이 세운 탑을 한 채도 빼지 않는다.
+
+     다만 '작심의 수'는 full에서도 GARDEN_MAX까지다 — 땅에 깔아 둔 줄이
+     그만큼뿐이라 그 이상은 놓을 자리가 없다. 그래서 만들기도 같은 수로
+     막아 두었다(goalsAtCap). 여섯을 넘는 경우는 예전에 만들었거나 가져온
+     기록뿐이고, 그때는 정원 문구가 그림에 다 담기지 않았다고 말한다. */
   const full = !!opts.full;
   const uid = ++stoneDefsSeq;
   const lanesAll = goals.slice(0, GARDEN_MAX);
@@ -788,6 +821,20 @@ function renderStats() {
   $("empty").hidden = hasGoals;
   // 아직 아무것도 없을 땐 추가 버튼이 유일한 할 일이므로 눈에 띄게 둔다
   $("btn-add").classList.toggle("first-cta", !hasGoals);
+
+  /* 자리가 다 찼으면 버튼이 미리 말한다.
+   *
+   * disabled로 두지 않는 이유가 있다. <button>을 비활성으로 만들면 색이
+   * 브라우저 기본값으로 넘어가는데, 이 앱은 예전에 바로 그 UA 기본색
+   * 때문에 흰 카드 위에 흰 글자가 난 적이 있다. 눌리긴 하되 누르면
+   * 왜 안 되는지 말해 주는 편이 안전하고 친절하다. */
+  const atCap = goals.length >= GARDEN_MAX;
+  $("btn-add").querySelector("b").textContent = atCap
+    ? "작심 자리가 다 찼어요"
+    : "새 작심 만들기";
+  $("btn-add").querySelector(".add-sub").textContent = atCap
+    ? ` — 하나를 지우면 자리가 나요`
+    : " — 딱 3일만 약속해요";
 
   /* 홈의 정원은 그림 하나뿐이다.
    *
@@ -1210,8 +1257,10 @@ function paintMonthCal(prefix, offset, doneSet, marks) {
 function historyWord(goal) {
   const h = [...(goal.history || [])].sort();
   if (h.length === 0) return "아직 첫 돌 전이에요.";
+  /* '무너지고'라고 쓰지 않는다 — restarts에는 3일을 채우고 한참 쉬었다
+     돌아온 경우도 들어 있고, 그건 무너진 것이 아니라 멈췄던 것이다. */
   if (goal.restarts > 0) {
-    return `${goal.restarts}번 무너지고 ${goal.restarts}번 다시 왔어요. 그게 이 탑의 진짜 기록이에요.`;
+    return `${goal.restarts}번 멈췄다가 다시 왔어요. 그게 이 탑의 진짜 기록이에요.`;
   }
   const built = towersOf(goal);
   if (built.done > 0) {
@@ -1244,7 +1293,7 @@ function openDetail(goal) {
   $("detail-stats").innerHTML =
     `<div><b>${goal.totalDays}</b><span>해낸 날</span></div>` +
     `<div><b>${stoneCount(goal)}</b><span>쌓은 돌</span></div>` +
-    // 완성한 탑은 돌 일곱 개(21일)마다 하나 — 돌보다 큰 단위의 성취다
+    // 완성한 탑은 돌 다섯 개(15일)마다 하나 — 돌보다 큰 단위의 성취다
     (built.done ? `<div><b>${built.done}</b><span>완성한 탑</span></div>` : "") +
     // 다시 쌓은 횟수는 다른 종류의 성취라 색을 따로 준다
     `<div class="again"><b>${goal.restarts}</b><span>다시 쌓음</span></div>`;
@@ -1326,11 +1375,17 @@ function renderGarden() {
 
   const stones = totalStones();
   const towers = goals.reduce((s, g) => s + towersOf(g).done, 0);
+  /* 그림에 담기는 작심은 GARDEN_MAX까지다. 그걸 넘는 기록(예전에 만들었거나
+     가져온 것)을 두고 "전부 서 있어요"라고 하면 눈앞에서 거짓말이 된다 —
+     아래 목록에는 일곱 번째가 버젓이 있는데 그림에는 없기 때문이다. */
+  const allDrawn = goals.length <= GARDEN_MAX;
   $("garden-word").textContent =
     goals.length === 0
       ? "작심을 하나 만들면 여기에 첫 탑이 섭니다."
       : towers > 0
-        ? `탑 ${towers}채 · 돌 ${stones}개 — 전부 여기 그대로 서 있어요.`
+        ? allDrawn
+          ? `탑 ${towers}채 · 돌 ${stones}개 — 전부 여기 그대로 서 있어요.`
+          : `탑 ${towers}채 · 돌 ${stones}개 — 그림에는 앞의 작심 ${GARDEN_MAX}개가 서 있어요.`
         : `돌 ${stones}개를 쌓았어요. ${STONES_PER_TOWER}개가 모이면 탑 한 채가 됩니다.`;
 
   const list = $("garden-legend");
@@ -1420,7 +1475,7 @@ function cheerWord(stones, restarts, isFirst) {
   // '하나만 더'는 지금 이 순간에만 쓸모 있는 말이라 다른 것보다 앞세운다
   const left = STONES_PER_TOWER - (stones % STONES_PER_TOWER);
   if (left === 1) return "돌 하나만 더 얹으면 이 탑이 완성돼요.";
-  if (restarts > 0) return "무너졌다 다시 쌓은 탑이라, 더 단단해요.";
+  if (restarts > 0) return "멈췄다가 다시 쌓은 탑이라, 더 단단해요.";
   if (stones % 10 === 0) return `돌 ${stones}개. 이만큼 쌓은 사람은 흔치 않아요.`;
   return `작심삼일 ${stones}번 = ${stones * 3}일. 이렇게 평생 가는 거예요.`;
 }
@@ -1445,7 +1500,7 @@ function showCheer(goal) {
   );
   $("cheer-cairn").className = "cheer-cairn " + ch.toneClass;
   /* 탑 하나를 다 채운 날은 그냥 넘어가서는 안 되는 날이다.
-   * 돌 일곱 개 = 21일 — 이 앱에서 가장 큰 매듭이라 축하도 달라야 한다. */
+   * 돌 다섯 개 = 15일 — 이 앱에서 가장 큰 매듭이라 축하도 달라야 한다. */
   const towerDone = inTower === 0 && stones > 0;
   $("cheer-kicker").textContent = towerDone
     ? `돌탑 ${towersDone}채 완성 · ${STONES_PER_TOWER * 3}일`
@@ -1467,9 +1522,12 @@ function showCheer(goal) {
    *
    * Wordle이 마케팅비 0원으로 퍼진 이유는 공유물 자체가 유입 경로였기
    * 때문이다. 매번 권하면 소음이 되고 아무도 누르지 않는다. 탑 한 채를
-   * 세운 날 — 15일 — 이 이 앱에서 자랑이 성립하는 유일한 순간이다. */
+   * 세운 날 — 15일 — 이 이 앱에서 자랑이 성립하는 유일한 순간이다.
+   *
+   * 예전에는 여기서 버튼 문구를 두 갈래로 나눴는데, 한쪽은 버튼이 숨겨진
+   * 상태에서만 쓰이는 문구라 화면에 나온 적이 없었다. 갈래를 지운다. */
   $("cheer-share").hidden = !towerDone;
-  $("cheer-share").textContent = towerDone ? "이 탑 자랑하기" : "이 순간 저장하기";
+  $("cheer-share").textContent = "이 탑 자랑하기";
 
   cheerGoalId = goal.id;
   const el = $("cheer");
@@ -1752,7 +1810,8 @@ const ONBOARD = [
   {
     art: () => `<div class="ob-art">${cairnSVG(5, true, 0, 9, OB_FRAME_TOP)}</div>`,
     title: "끝나면 또 3일",
-    body: "완주하면 바로 다음 3일이 열려요.\n이렇게 <b>120번이면 1년</b>이 됩니다.",
+    // 120 × 3 = 360일이다. '1년'이라고 쓰면 반올림이 아니라 그냥 틀린 말이다
+    body: "완주하면 바로 다음 3일이 열려요.\n이렇게 <b>120번이면 360일</b>이 됩니다.",
   },
   {
     art: () => `<div class="ob-art">${cairnSVG(5, false, 0, 9, OB_FRAME_TOP)}</div>`,
@@ -2463,6 +2522,13 @@ let editingGoalId = null;
 
 function openModal(opts = {}) {
   const edit = opts.edit || null;
+  /* 자리가 없는데 시트부터 열면, 제목을 다 적고 아이콘까지 고른 뒤에야
+     안 된다는 말을 듣는다. 열기 전에 말한다. 고치기는 자리와 무관하므로
+     막지 않는다. */
+  if (!edit && goalsAtCap()) {
+    toast("stone", `작심은 한 번에 ${GARDEN_MAX}개까지예요. 하나를 지우면 자리가 나요`);
+    return;
+  }
   editingGoalId = edit ? edit.id : null;
   selectIcon(edit ? goalIcon(edit) : ICON_KEYS[0]);
   $("input-title").value = edit ? edit.title : "";
