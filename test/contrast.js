@@ -12,6 +12,7 @@
  */
 
 const { chromium } = require("playwright-core");
+const { chromePath } = require("../scripts/chrome");
 const path = require("path");
 
 const APP = "file://" + path.resolve(__dirname, "..", "index.html");
@@ -98,7 +99,7 @@ const AUDIT = (dimmed) => {
 
 (async () => {
   const browser = await chromium.launch({
-    executablePath: "/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell",
+    executablePath: chromePath(),
   });
 
   let failures = 0;

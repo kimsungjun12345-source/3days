@@ -42,9 +42,10 @@ node test/smoke.js  # 앱 흐름 하나만 빠르게
 npm run build       # www/ 만들기 (네이티브 동기화 전 단계)
 ```
 
-테스트는 실제 Chromium을 띄운다. 경로가 각 파일 상단에 박혀 있다:
-`/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell`.
-환경이 바뀌면 세 파일 모두 고쳐야 한다.
+테스트는 실제 Chromium을 띄운다. 어디 있는 것을 쓸지는 `scripts/chrome.js`
+한 곳이 정한다 — 검사 세 개와 그림 만드는 스크립트 두 개가 같이 쓰므로,
+환경이 바뀌어도 고칠 곳은 여기뿐이다. 다른 것을 쓰게 하려면
+`CHROMIUM_PATH`로 지정한다.
 
 ## 데이터
 

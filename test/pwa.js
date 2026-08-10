@@ -5,6 +5,7 @@
  */
 
 const { chromium } = require("playwright-core");
+const { chromePath } = require("../scripts/chrome");
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
@@ -42,7 +43,7 @@ function serve() {
 (async () => {
   const server = await serve();
   const browser = await chromium.launch({
-    executablePath: "/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell",
+    executablePath: chromePath(),
   });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await ctx.newPage();

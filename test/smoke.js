@@ -1,4 +1,5 @@
 const { chromium } = require("playwright-core");
+const { chromePath } = require("../scripts/chrome");
 const http = require("http");
 const path = require("path");
 const fs = require("fs");
@@ -50,7 +51,7 @@ function dstr(offset) {
 (async () => {
   const server = await serve();
   const browser = await chromium.launch({
-    executablePath: "/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell",
+    executablePath: chromePath(),
   });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, acceptDownloads: true });
   const errors = [];

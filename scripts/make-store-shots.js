@@ -10,13 +10,11 @@ const { chromium } = require("playwright-core");
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const { chromePath } = require("./chrome");
 
 const ROOT = path.resolve(__dirname, "..");
 const OUT = path.join(ROOT, "store", "screenshots");
 const PORT = 8944;
-const CHROME =
-  process.env.CHROMIUM_PATH ||
-  "/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell";
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -201,7 +199,7 @@ function frameHTML({ shot, headline, sub, w, h }) {
 
 (async () => {
   const server = await serve();
-  const browser = await chromium.launch({ executablePath: CHROME });
+  const browser = await chromium.launch({ executablePath: chromePath() });
   fs.mkdirSync(OUT, { recursive: true });
 
   const base = `http://localhost:${PORT}/index.html`;
