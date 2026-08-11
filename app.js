@@ -2598,7 +2598,6 @@ function syncTitleState() {
 
 /* ── 시작 ─────────────────────────── */
 
-trackFirstOpen();
 setupModal();
 setupTabs();
 setupOnboard();

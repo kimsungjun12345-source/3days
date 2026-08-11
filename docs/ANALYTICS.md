@@ -3,12 +3,13 @@
 ## 지금 어디까지 되어 있나
 
 **1단계 — 계측 계층 (완료).** `analytics.js`가 이벤트 허용목록과 파라미터
-타입 제한을 들고 있고, `app.js`·`native.js`의 아홉 지점에서 부르고 있다.
-아직 아무 데도 보내지 않는다. Firebase 플러그인이 없으면 조용히 버린다.
+타입 제한을 들고 있고, `app.js`·`native.js`에서 부르고 있다. Firebase
+플러그인이 없으면 조용히 버린다.
 
-**2단계 — 실제 전송 (대기).** Firebase 프로젝트와 설정 파일이 필요하다.
-아래 '붙이는 절차'를 따르면 켜진다. 그때 개인정보 처리방침도 같은 커밋에서
-함께 바꾼다 — 하나만 먼저 가면 문서와 구현이 어긋난다.
+**2단계 — 실제 전송 (완료, Android).** `@capacitor-firebase/analytics`를
+붙였고 `android/app/google-services.json`이 들어와 있다. 개인정보 처리방침도
+같은 커밋에서 함께 바꿨다. iOS는 `GoogleService-Info.plist`가 준비되면
+같은 방식으로 켜진다(아래 참고).
 
 ## 무엇을 알고 싶은가
 
@@ -30,7 +31,7 @@ first_open → goal_created → day_checked(1) → day_checked(2)
 
 | 이름 | 언제 | 파라미터 | 부르는 곳 |
 |---|---|---|---|
-| `first_open` | 처음 연 날 한 번 | — | `app.js` 시작 |
+| `first_open` | 처음 연 날 한 번 | — | **Firebase 자동** (아래 참고) |
 | `goal_created` | 작심을 만들었을 때 | — | `addGoal()` |
 | `day_checked` | 칸 하나를 채웠을 때 | `day_number` (1·2·3) | `checkToday()` |
 | `cycle_completed` | 세 칸을 다 채웠을 때 | — | `checkToday()` |
@@ -39,6 +40,12 @@ first_open → goal_created → day_checked(1) → day_checked(2)
 | `comeback_started` | 끊긴 뒤 / 오래 쉰 뒤 다시 시작 | — | `restart()`, `nextCycle("lapsed")` |
 | `notification_opt_in` | 알림을 켰을 때 | — | `native.js` |
 | `share_tapped` | 공유를 눌렀을 때 | — | `app.js` |
+
+**`first_open`은 우리가 보내지 않는다.** Firebase가 첫 실행을 자동으로
+세고, `first_open`은 예약어라 손으로 `logEvent`를 부르면 SDK가 거부한다.
+두 번 세지 않으려고 자동 수집에 맡긴다 — 콘솔의 퍼널 첫 칸은 그대로
+채워진다. 같은 이유로 `session_start`, `user_engagement`도 Firebase가
+알아서 붙인다.
 
 **이어 간 것과 돌아온 것을 파라미터가 아니라 이름으로 갈랐다.** 이 둘이
 이 앱에서 가장 자주 들여다볼 수라, 볼 때마다 조건을 붙이는 것보다 처음부터
@@ -72,50 +79,34 @@ first_open → goal_created → day_checked(1) → day_checked(2)
 
 ## 붙이는 절차
 
-### 당신이 할 일
+### Android — 끝났다
 
-1. [Firebase 콘솔](https://console.firebase.google.com)에서 프로젝트를 만든다
-   (Google Analytics **켬** — 이게 꺼져 있으면 이벤트가 어디에도 안 쌓인다)
-2. **Android 앱 추가** → 패키지 이름에 `com.trevicode.setdolhana`
-   → `google-services.json` 내려받기 → `android/app/google-services.json`에 놓기
-3. iOS는 나중에 — TestFlight 준비가 될 때 `GoogleService-Info.plist`를
-   같은 방식으로 받아 `ios/App/App/`에 놓는다
+- `@capacitor-firebase/analytics`와 `firebase`를 설치했다
+- `android/app/google-services.json`이 들어와 있다 (패키지 `com.trevicode.setdolhana`)
+- `npx cap sync android`로 플러그인을 배선했다
+- `store/privacy.html`을 같은 흐름에서 함께 고쳤다 (분석 도구 문단·리드·수집 항목)
 
 `google-services.json`은 비밀 키가 아니라 앱에 박혀 배포되는 설정이므로
-저장소에 커밋해도 된다. 다만 **키스토어와 헷갈리지 말 것** — 그쪽은 절대
+저장소에 커밋한다. 다만 **키스토어와 헷갈리지 말 것** — 그쪽은 절대
 커밋하면 안 된다.
 
-### 그다음 코드에서 할 일
-
-```bash
-npm i @capacitor-firebase/analytics firebase
-npx cap sync android
-```
-
 `android/app/build.gradle`에는 `google-services.json`이 있을 때만 플러그인을
-켜는 블록이 이미 들어 있다(Capacitor가 만들어 둔 것). 파일을 놓으면 켜지고,
-없으면 지금처럼 조용히 넘어간다. **그래서 순서를 지키면 빌드가 깨지지 않는다.**
+켜는 블록이 들어 있다(Capacitor가 만들어 둔 것). 파일이 있으니 켜졌다.
 
 `analytics.js`는 `window.Capacitor.Plugins.FirebaseAnalytics`가 보이면
-그쪽으로 넘기게 되어 있다. 호출 지점을 새로 심을 일은 없다.
+그쪽으로 넘긴다. 웹(브라우저)에서는 이 플러그인이 없으므로 그대로 no-op다 —
+검사가 브라우저에서 도는데도 깨지지 않는 이유다.
 
-### 같은 커밋에서 반드시 함께
+### iOS — 나중에
 
-`store/privacy.html`의 아래 문단을 바꾼다. 지금은 "분석 도구를 쓰지
-않는다"고 적혀 있고, SDK가 붙는 순간 그 문장은 거짓이 된다.
+TestFlight 준비가 될 때:
 
-> **현재 (54~56행 부근)**
-> `제3자 제공 및 분석 도구` — "제3자에게 제공하는 정보가 없습니다. 광고
-> SDK, 분석 도구, 추적 기술을 …"
-
-> **바꿀 내용**
-> 광고 SDK와 추적 기술은 그대로 쓰지 않는다고 두되, 분석 도구만 떼어 낸다.
-> "앱이 어떻게 쓰이는지 알기 위해 Google Firebase Analytics를 사용합니다.
-> 작심 제목을 비롯해 사용자가 직접 입력한 내용은 보내지 않으며, 화면 흐름
-> (작심을 만들었는지, 며칠째를 체크했는지, 다시 시작했는지)만 익명으로
-> 집계됩니다. 광고 SDK와 광고 식별자는 사용하지 않습니다."
->
-> 최종 수정일도 함께 올린다 — 바로 아래 '방침의 변경'이 그렇게 약속하고 있다.
+1. Firebase 콘솔에서 **iOS 앱 추가** → 번들 ID `com.trevicode.setdolhana`
+   → `GoogleService-Info.plist` 내려받기 → `ios/App/App/`에 놓기
+2. `npx cap sync ios`
+3. iOS는 SPM을 쓰므로, 플러그인이 Firebase iOS SDK를 함께 끌어온다.
+   `AppDelegate`에서 `FirebaseApp.configure()`가 필요한지 그때 확인한다
+   (플러그인이 자동 초기화하면 생략)
 
 ## 스토어 신고
 

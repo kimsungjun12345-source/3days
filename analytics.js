@@ -30,9 +30,13 @@
  */
 
 /* 이벤트와, 그 이벤트에만 허용되는 파라미터 키.
- * 빈 배열은 '파라미터 없음'이라는 뜻이다. */
+ * 빈 배열은 '파라미터 없음'이라는 뜻이다.
+ *
+ * first_open은 여기 없다 — 일부러다. Firebase가 첫 실행을 자동으로 세고,
+ * first_open은 예약어라 손으로 logEvent를 부르면 SDK가 거부한다. 두 번
+ * 세지 않으려고 자동 수집에 맡긴다. 콘솔의 퍼널 첫 칸(first_open)은
+ * 그대로 채워진다 — 우리가 보내지 않을 뿐이다. */
 const ANALYTICS_EVENTS = {
-  first_open: [],
   goal_created: [],
   day_checked: ["day_number"], // 1 · 2 · 3
   cycle_completed: [],
@@ -43,7 +47,6 @@ const ANALYTICS_EVENTS = {
   share_tapped: [],
 };
 
-const ANALYTICS_FIRST_OPEN_KEY = "jaksim3.firstOpen";
 /* 끊긴 것을 한 번만 세기 위한 표시. 작심 객체에 넣지 않는 이유는, 저장되는
  * 데이터에 필드를 더하면 예전 기록을 이어받는 일까지 딸려 오기 때문이다.
  * 측정 사정 때문에 사용자 기록의 모양을 바꿀 이유는 없다. */
@@ -88,16 +91,6 @@ function track(name, params) {
     /* 측정이 앱을 멈추게 두지 않는다. 이 앱은 네트워크가 없어도 완전히
        동작하는 것이 약속이고, 분석이 실패하는 것은 그보다 훨씬 가벼운 일이다. */
   }
-}
-
-/* 처음 연 사람은 한 번만 센다. 앱을 지웠다 다시 깔면 다시 세는데,
- * 그건 기기 안에 남는 표시가 함께 지워지기 때문이고 그대로 둔다 —
- * 지우고 다시 깐 사람을 알아보려면 기기를 식별해야 하고, 그건 이 앱이
- * 하지 않기로 한 일이다. */
-function trackFirstOpen() {
-  if (localStorage.getItem(ANALYTICS_FIRST_OPEN_KEY)) return;
-  localStorage.setItem(ANALYTICS_FIRST_OPEN_KEY, "1");
-  track("first_open");
 }
 
 /* 끊긴 사이클은 그 사이클당 한 번만. 홈을 열 때마다 세면 '무너진 횟수'가

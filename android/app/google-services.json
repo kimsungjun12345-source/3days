@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "546561177019",
+    "project_id": "setdolhana",
+    "storage_bucket": "setdolhana.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:546561177019:android:d6179865ea664c1dae809e",
+        "android_client_info": {
+          "package_name": "com.trevicode.setdolhana"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAXdALfTWZaiekmjOK45qAasMI7WjuIhQ8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
