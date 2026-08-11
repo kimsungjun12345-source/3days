@@ -76,7 +76,7 @@ first_open → goal_created → day_checked(1) → day_checked(2)
 
 1. [Firebase 콘솔](https://console.firebase.google.com)에서 프로젝트를 만든다
    (Google Analytics **켬** — 이게 꺼져 있으면 이벤트가 어디에도 안 쌓인다)
-2. **Android 앱 추가** → 패키지 이름에 `com.jaksimsamil.app`
+2. **Android 앱 추가** → 패키지 이름에 `com.trevicode.setdolhana`
    → `google-services.json` 내려받기 → `android/app/google-services.json`에 놓기
 3. iOS는 나중에 — TestFlight 준비가 될 때 `GoogleService-Info.plist`를
    같은 방식으로 받아 `ios/App/App/`에 놓는다

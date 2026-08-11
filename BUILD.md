@@ -106,8 +106,11 @@ Chromium 경로가 다르면 `CHROMIUM_PATH` 환경변수로 알려 주세요.
 
 ### 공통
 
-- `capacitor.config.json`의 `appId`를 본인 도메인 기준으로 바꾸세요
-  (지금은 `com.jaksimsamil.app`). 한번 정하면 바꾸기 어렵습니다.
+- 앱 식별자는 `com.trevicode.setdolhana`이다. 이 값은 `capacitor.config.json`,
+  안드로이드 `namespace`·`applicationId`, iOS `PRODUCT_BUNDLE_IDENTIFIER`,
+  그리고 안드로이드 Java 패키지 경로까지 한 벌로 맞춰져 있다. 바꾸려면
+  네 곳을 함께 고쳐야 하고, Java 파일은 디렉터리째 옮겨야 한다. 스토어에
+  한 번 올린 뒤에는 바꿀 수 없다.
 - 버전은 `package.json`이 아니라 각 네이티브 프로젝트에서 관리합니다.
 
 ### iOS
