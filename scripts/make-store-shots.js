@@ -6,7 +6,7 @@
  *   node scripts/make-store-shots.js
  */
 
-const { chromium } = require("playwright-core");
+const { launchBrowser } = require("../test/browser");
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
@@ -14,9 +14,6 @@ const path = require("path");
 const ROOT = path.resolve(__dirname, "..");
 const OUT = path.join(ROOT, "store", "screenshots");
 const PORT = 8944;
-const CHROME =
-  process.env.CHROMIUM_PATH ||
-  "/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell";
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -102,7 +99,14 @@ const SCENES = [
       await page.reload({ waitUntil: "load" });
       await page.waitForTimeout(400);
       await page.click(".goal-card .btn-primary");
-      await page.waitForTimeout(2000);
+      /* 3일째를 채우면 축하가 바로 오지 않는다 — 어떤 돌을 얹을지 먼저
+         고르게 되어 있다. 여기서 고르지 않으면 사진에 담기는 것은 완성된
+         탑이 아니라 고르는 화면이다. */
+      await page.waitForSelector("#pick-stone", { state: "visible" });
+      await page.waitForTimeout(400);
+      await page.locator(".pick-opt").nth(1).click();
+      await page.waitForSelector("#cheer", { state: "visible" });
+      await page.waitForTimeout(1200);
     },
     skipReload: true,
   },
@@ -134,7 +138,8 @@ const SCENES = [
   },
   {
     file: "05-garden",
-    headline: "작심삼일 × 120 = 1년",
+    // 120 × 3 = 360일. 앱 안에서 '1년'을 지운 문구를 스토어에만 남길 수 없다
+    headline: "작심삼일 × 120 = 360일",
     sub: "그렇게 평생이 됩니다.",
     setup: (page) => page.evaluate((g) => {
       localStorage.setItem("jaksim3.v1", JSON.stringify({ goals: g }));
@@ -201,7 +206,7 @@ function frameHTML({ shot, headline, sub, w, h }) {
 
 (async () => {
   const server = await serve();
-  const browser = await chromium.launch({ executablePath: CHROME });
+  const browser = await launchBrowser();
   fs.mkdirSync(OUT, { recursive: true });
 
   const base = `http://localhost:${PORT}/index.html`;
@@ -214,6 +219,20 @@ function frameHTML({ shot, headline, sub, w, h }) {
       deviceScaleFactor: 3,
     });
     const page = await ctx.newPage();
+    /* 인트로와 첫 사용 안내를 꺼 둔다.
+     *
+     * 스토어 사진은 '앱을 얼마간 써 온 사람의 화면'이어야 하는데, 그냥 열면
+     * 인트로가 덮고 그 위에 안내 다섯 장이 올라온다. 예전에는 첫 실행이
+     * 조용해서 이 스크립트가 그냥 눌러 들어갔지만, 첫 화면을 '읽기'에서
+     * '하기'로 바꾼 뒤로는 클릭이 전부 덮개에 막힌다. */
+    await page.addInitScript(() => {
+      localStorage.setItem("jaksim3.onboarded", "1");
+      const style = document.createElement("style");
+      style.textContent = ".intro{display:none !important}";
+      const put = () => document.head && document.head.appendChild(style);
+      if (document.head) put();
+      else document.addEventListener("DOMContentLoaded", put);
+    });
     await page.goto(base, { waitUntil: "load" });
     await scene.setup(page);
     if (!scene.skipReload) await page.reload({ waitUntil: "load" });

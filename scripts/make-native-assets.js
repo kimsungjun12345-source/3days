@@ -6,14 +6,11 @@
  *   node scripts/make-native-assets.js
  */
 
-const { chromium } = require("playwright-core");
+const { launchBrowser } = require("../test/browser");
 const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
-const CHROME =
-  process.env.CHROMIUM_PATH ||
-  "/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell";
 
 const BG = "#26241f"; // 아이콘 배경 (짙은 잉크)
 const SPLASH_BG = "#f7f6f3"; // 실행 화면 배경 (앱 배경과 같게)
@@ -107,7 +104,7 @@ const ANDROID_SPLASH = [
 ];
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: CHROME });
+  const browser = await launchBrowser();
 
   const shoot = async (svg, w, h, outPath, transparent) => {
     const page = await browser.newPage({ viewport: { width: w, height: h } });
