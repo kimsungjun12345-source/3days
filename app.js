@@ -1,4 +1,4 @@
-/* 작심삼일 — 3일마다 돌 하나, 무너지면 다시 쌓는 습관 앱 */
+/* 셋돌하나 — 3일마다 돌 하나, 무너지면 다시 쌓는 습관 앱 */
 
 const STORAGE_KEY = "jaksim3.v1";
 
@@ -1189,7 +1189,7 @@ function importData(file) {
         .filter((g) => g && typeof g.title === "string" && g.title.trim())
         .map(normalizeGoal);
     } catch (e) {
-      alert("이 파일은 작심삼일 기록이 아닌 것 같아요.");
+      alert("이 파일은 셋돌하나 기록이 아닌 것 같아요.");
       return;
     }
     if (!goals.length) {
@@ -1520,7 +1520,7 @@ function showCheer(goal) {
   const towerDone = inTower === 0 && stones > 0;
   $("cheer-kicker").textContent = towerDone
     ? `돌탑 ${towersDone}채 완성 · ${STONES_PER_TOWER * 3}일`
-    : "작심삼일 완주";
+    : "3일 완주";
   $("cheer-kicker").classList.toggle("big", towerDone);
   $("cheer-title").textContent = towerDone
     ? `탑 하나를 다 쌓았어요`
@@ -2029,7 +2029,7 @@ function setupModal() {
       const res = await shareCard({
         kicker: built.current === 0 && stoneCount(goal) > 0
           ? `돌 탑   ${built.done} 채   완 성`
-          : "작 심 삼 일   완 주",
+          : "3 일   완 주",
         inTower: built.current || STONES_PER_TOWER,
         title: built.current === 0 && stoneCount(goal) > 0
           ? `${STONES_PER_TOWER * 3}일을 쌓았어요`

@@ -157,7 +157,7 @@ function renderShareCard(info) {
 
   ctx.fillStyle = C.accent;
   ctx.font = font(30, 700);
-  ctx.fillText(info.kicker || "작 심 삼 일   완 주", SHARE_W / 2, cardY + 562);
+  ctx.fillText(info.kicker || "3 일   완 주", SHARE_W / 2, cardY + 562);
 
   fitText(info.title, cardY + 640, 62, 800, C.ink, innerW);
   fitText(info.goalTitle, cardY + 698, 34, 500, C.grayStrong, innerW);
@@ -205,7 +205,7 @@ function renderShareCard(info) {
   // 워터마크 — 카드 안 아래쪽에
   ctx.fillStyle = C.gray;
   ctx.font = font(30, 700);
-  ctx.fillText("작심삼일", SHARE_W / 2, cardY + cardH - 92);
+  ctx.fillText("셋돌하나", SHARE_W / 2, cardY + cardH - 92);
   ctx.fillStyle = "#c6bfb4";
   ctx.font = font(26, 500);
   ctx.fillText("작심삼일도 여러 번 하면, 평생이 된다", SHARE_W / 2, cardY + cardH - 46);
@@ -228,13 +228,13 @@ async function shareCard(info) {
 
   // 앱으로 감쌌으면 네이티브 공유 시트를 먼저 시도한다
   if (typeof nativeShareImage === "function") {
-    const shared = await nativeShareImage(blob, name, `${info.title} — 작심삼일`);
+    const shared = await nativeShareImage(blob, name, `${info.title} — 셋돌하나`);
     if (shared) return { ok: true, how: "share" };
   }
 
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], text: `${info.title} — 작심삼일` });
+      await navigator.share({ files: [file], text: `${info.title} — 셋돌하나` });
       return { ok: true, how: "share" };
     } catch (e) {
       if (e && e.name === "AbortError") return { ok: true, how: "cancelled" };

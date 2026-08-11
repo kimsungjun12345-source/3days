@@ -73,7 +73,7 @@ function serve() {
     const res = await fetch(link.href);
     return res.json();
   });
-  assert(mf.name === "작심삼일", "manifest names the app");
+  assert(mf.name === "셋돌하나", "manifest names the app");
   assert(mf.display === "standalone", "manifest opens without browser chrome");
   assert(mf.icons.some((i) => i.sizes === "512x512" && i.purpose === "any"), "manifest has a 512 icon");
   assert(mf.icons.some((i) => i.purpose === "maskable"), "manifest has a maskable icon for android");
@@ -105,7 +105,7 @@ function serve() {
   // 오프라인에서 앱이 열리고, 실제로 쓸 수 있어야 한다
   await ctx.setOffline(true);
   await page.reload({ waitUntil: "load" });
-  assert((await page.title()) === "작심삼일", "app still opens with no network");
+  assert((await page.title()) === "셋돌하나", "app still opens with no network");
   assert(
     (await page.evaluate(() => getComputedStyle(document.body).backgroundColor)) === "rgb(247, 246, 243)",
     "styles survive offline (css came from cache)"
