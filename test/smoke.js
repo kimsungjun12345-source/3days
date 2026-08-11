@@ -1328,6 +1328,81 @@ function dstr(offset) {
     "the record line no longer says they collapsed"
   );
 
+  /* 38. 측정이 사용자가 쓴 글을 실어 나르지 않는다.
+   *
+   * 이건 '조심해서 쓰자'로 지킬 수 있는 종류가 아니다. 급할 때 파라미터
+   * 하나 얹는 것은 너무 쉬운 일이라, 반년 뒤에 반드시 깨진다. 그래서
+   * 허용목록과 타입 제한을 검사로 못 박는다. 여기서 막히면 작심 제목이
+   * 스토어 밖으로 나가는 길 자체가 없다. */
+  await page.evaluate(() => {
+    // 실제로 보내지는 값만 남기는 함수를 그대로 부른다
+    window.__sent = [];
+    window.__probe = (name, params) => analyticsParams(name, params);
+  });
+
+  const leak = await page.evaluate(() => {
+    const title = "아침에 물 한 잔";
+    return {
+      // 제목을 허용된 키에 실어도 문자열이라 걸린다
+      asAllowedKey: JSON.stringify(window.__probe("day_checked", { day_number: title })),
+      // 없는 키는 이름에서 걸린다
+      asNewKey: JSON.stringify(window.__probe("goal_created", { title })),
+      // 숫자는 통과한다 (측정이 아예 죽으면 그것대로 곤란하다)
+      asNumber: JSON.stringify(window.__probe("day_checked", { day_number: 2 })),
+    };
+  });
+  assert(leak.asAllowedKey === "{}", "a goal title cannot ride along even on an allowed key");
+  assert(leak.asNewKey === "{}", "and an unlisted parameter never leaves");
+  assert(leak.asNumber === '{"day_number":2}', "while the day number still goes through");
+
+  const unknown = await page.evaluate(() => {
+    const before = console.warn;
+    let warned = false;
+    console.warn = () => { warned = true; };
+    track("goal_deleted"); // 설계 문서에만 있고 아직 쓰지 않는 이름
+    console.warn = before;
+    return warned;
+  });
+  assert(unknown, "an event that is not on the list is refused");
+
+  /* 39. 이벤트가 실제로 그 순간에 불린다.
+   * Firebase가 아직 붙지 않았으므로, 부르는 곳까지가 지금 확인할 수 있는
+   * 전부다. 붙이는 날 호출 지점을 새로 찾아 심는 일이 없어야 한다. */
+  await page.evaluate(() => {
+    window.__events = [];
+    window.__origTrack = track;
+    // eslint-disable-next-line no-global-assign
+    track = (name, params) => { window.__events.push([name, params]); };
+  });
+  await seedOne([dstr(-4), dstr(-3)], dstr(-3), 0); // broken 상태
+  const brokenSeen = await page.evaluate(() => {
+    // reload로 track이 원래대로 돌아왔으므로 다시 감싼다
+    window.__events = [];
+    window.__origTrack = track;
+    track = (name, params) => { window.__events.push([name, params]); };
+    localStorage.removeItem("jaksim3.brokenSeen");
+    render();
+    render(); // 두 번 그려도 한 번만 세야 한다
+    return window.__events.filter((e) => e[0] === "cycle_broken").length;
+  });
+  assert(brokenSeen === 1, "a broken cycle is counted once, not once per render");
+
+  const flow = await page.evaluate(() => {
+    window.__events = [];
+    state.goals[0].checks = [];
+    state.goals[0].lastCheckDate = "";
+    save();
+    checkToday(state.goals[0]);
+    checkToday(state.goals[0]); // 같은 날 두 번은 무시된다
+    return window.__events.map((e) => e[0] + (e[1] ? ":" + JSON.stringify(e[1]) : ""));
+  });
+  assert(
+    flow.length === 1 && flow[0] === 'day_checked:{"day_number":1}',
+    "checking a day reports which square it was — and only once " + JSON.stringify(flow)
+  );
+
+  await page.evaluate(() => { track = window.__origTrack; });
+
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 
   await page.screenshot({ path: __dirname + "/screenshot.png", fullPage: true });

@@ -154,6 +154,7 @@ function addGoal(title, icon) {
   };
   state.goals.push(goal);
   newGoalId = goal.id;
+  track("goal_created");
   save();
   render();
   haptic(10);
@@ -208,6 +209,11 @@ function checkToday(goal, opts = {}) {
 
   // 방금 채워진 칸과 완주 여부를 렌더 후 애니메이션에 넘긴다
   const completed = goal.checks.length === 3;
+
+  /* 며칠째에서 사람들이 빠지는지가 이 앱의 첫 번째 질문이다.
+     칸 번호(1·2·3)만 보낸다 — 무엇을 하기로 했는지는 보내지 않는다. */
+  track("day_checked", { day_number: goal.checks.length });
+  if (completed) track("cycle_completed");
   pendingAnim = {
     goalId: goal.id,
     dotIndex: goal.checks.length - 1,
@@ -232,6 +238,10 @@ function nextCycle(goal, from) {
    * 횟수'다 — 오래 쉬었다 돌아온 쪽이 오히려 더 큰 복귀다.
    * 완주 다음 날 바로 이어 가는 것(resting)은 멈춘 적이 없으니 세지 않는다. */
   if (from === "lapsed") goal.restarts += 1;
+  /* 이어 간 것과 돌아온 것을 이름으로 갈라 둔다. 파라미터로 구분하면
+     질의할 때마다 조건을 붙여야 하는데, 이 둘은 이 앱에서 가장 자주
+     들여다볼 수 두 개라 처음부터 따로 서는 편이 낫다. */
+  track(from === "lapsed" ? "comeback_started" : "next_cycle_started");
   haptic(10);
   // 완성한 날 바로 누르면 오늘은 이미 카운트됐으므로 내일부터 첫째 날
   if (!checkedToday(goal)) {
@@ -249,6 +259,8 @@ function nextCycle(goal, from) {
 function restart(goal) {
   goal.restarts += 1;
   goal.checks = [];
+  // 끊긴 뒤 다시 온 것 — 완주 후 오래 쉬었다 온 것과 같은 이름으로 센다
+  track("comeback_started");
   haptic(10);
   if (!checkedToday(goal)) {
     checkToday(goal, { silent: true });
@@ -905,6 +917,10 @@ function statusLine(goal, status) {
 
 function renderGoalCard(goal) {
   const status = goalStatus(goal);
+  /* 끊긴 것은 누르는 순간이 없다 — 아무것도 안 한 결과라서, 셀 수 있는
+     자리가 '그 상태를 화면에 그리는 때'뿐이다. 홈을 열 때마다 세면
+     '무너진 횟수'가 아니라 '앱을 연 횟수'가 되므로 사이클당 한 번만 센다. */
+  if (status === "broken") trackBrokenOnce(goal);
   const card = document.createElement("article");
   card.className = `goal-card state-${status}`;
   card.dataset.goalId = goal.id;
@@ -2004,6 +2020,8 @@ function setupModal() {
   $("cheer-share").addEventListener("click", async (ev) => {
     const goal = state.goals.find((g) => g.id === cheerGoalId);
     if (!goal) return;
+    // 누른 것까지만 센다. 실제로 어디에 올렸는지는 OS가 알려 주지도 않는다
+    track("share_tapped");
     const btn = ev.currentTarget;
     btn.disabled = true;
     try {
@@ -2580,6 +2598,7 @@ function syncTitleState() {
 
 /* ── 시작 ─────────────────────────── */
 
+trackFirstOpen();
 setupModal();
 setupTabs();
 setupOnboard();

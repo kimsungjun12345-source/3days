@@ -14,6 +14,7 @@ const OUT = path.join(ROOT, "www");
 const FILES = [
   "index.html",
   "build-info.js",
+  "analytics.js",
   "style.css",
   "app.js",
   "icons.js",

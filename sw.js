@@ -5,7 +5,7 @@
  * 기록은 localStorage에 있으므로 오프라인에서도 그대로 동작한다.
  */
 
-const VERSION = "v4";
+const VERSION = "v5";
 const APP_CACHE = `jaksim3-app-${VERSION}`;
 const FONT_CACHE = `jaksim3-font-${VERSION}`;
 
@@ -15,6 +15,7 @@ const APP_SHELL = [
   "./build-info.js",
   "./style.css",
   "./fonts/gowun-batang/gowun-batang.css",
+  "./analytics.js",
   "./app.js",
   "./icons.js",
   "./share.js",

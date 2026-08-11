@@ -171,6 +171,8 @@ async function setNotifyEnabled(on) {
   if (on) {
     const ok = await requestNotifyPermission();
     if (!ok) return false;
+    // 켠 사람만 센다 — 거절은 OS 권한 화면의 일이라 이 앱이 볼 수 있는 것도 아니다
+    track("notification_opt_in");
     localStorage.setItem(NOTIFY_PREF_KEY, "1");
     await registerNotifyActions();
     await rescheduleNotifications();
