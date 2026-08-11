@@ -26,6 +26,15 @@ const FILES = [
 
 const DIRS = ["icons", "fonts"];
 
+/* 스토어가 요구하는 것은 파일이 아니라 '열리는 주소'다.
+ *
+ * 개인정보 처리방침은 store/ 안에 있어서 웹으로 올라가는 www/ 에는 담기지
+ * 않았다. 그대로 두면 Pages를 켜도 그 주소가 404가 되고, 두 스토어 모두
+ * 등록 양식에 방침 URL을 요구한다 — 애플은 링크가 깨진 것을 거절 사유로
+ * 따로 적어 두고 있다. 심사 전날 발견하면 늦는 종류의 일이라 빌드가 늘
+ * 함께 옮기게 한다. */
+const PAGES = [["store/privacy.html", "privacy.html"]];
+
 function copyDir(from, to) {
   fs.mkdirSync(to, { recursive: true });
   for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
@@ -83,6 +92,16 @@ for (const file of FILES) {
 for (const dir of DIRS) {
   const src = path.join(ROOT, dir);
   if (fs.existsSync(src)) copyDir(src, path.join(OUT, dir));
+}
+
+for (const [from, to] of PAGES) {
+  const src = path.join(ROOT, from);
+  if (!fs.existsSync(src)) {
+    console.warn(`  건너뜀 (없음): ${from}`);
+    continue;
+  }
+  fs.copyFileSync(src, path.join(OUT, to));
+  copied += 1;
 }
 
 console.log(`www/ 준비 완료 — 파일 ${copied}개 + ${DIRS.join(", ")} · ${info.channel} ${info.commit}`);

@@ -238,9 +238,25 @@ ASO는 결과가 2~4주 뒤부터 나옵니다. 그동안 손 놓고 기다리�
 누르면 핵심 기능을 바로 확인하실 수 있습니다.
 ```
 
-## 개인정보 처리방침 URL
+## 등록에 필요한 주소들
 
-`store/privacy.html`을 정적 호스팅에 올리고 그 주소를 등록하세요.
-GitHub Pages를 쓴다면 예: `https://<계정>.github.io/3days/store/privacy.html`
+수집하는 정보가 없어도 두 스토어 모두 방침 **URL**을 요구합니다. 파일을
+올리는 것이 아니라 열리는 주소여야 하고, 애플은 링크가 깨진 것을 거절
+사유로 따로 적어 두고 있습니다.
 
-수집하는 정보가 없어도 스토어는 방침 URL을 요구합니다.
+`scripts/build.js`가 `store/privacy.html`을 `www/privacy.html`로 함께
+옮기므로, 웹 배포(`.github/workflows/pages.yml`)를 한 번 돌리면 아래
+주소가 그대로 열립니다.
+
+| 항목 | 주소 | 어디에 |
+|---|---|---|
+| 개인정보 처리방침 | `https://<계정>.github.io/3days/privacy.html` | Play·App Store 둘 다 (필수) |
+| 지원(Support) URL | `https://<계정>.github.io/3days/` | App Store (필수) |
+| 문의 이메일 | `trevicode@gmail.com` | Play 개발자 연락처 · 방침 본문 |
+
+**등록 전에 두 주소를 실제로 열어 보세요.** 스토어 양식에 적어 넣기
+전에 브라우저에서 확인하는 데 10초면 되고, 심사에서 되돌아오면 며칠입니다.
+
+웹 배포는 손으로 돌립니다 — Actions 탭 → '웹 배포' → Run workflow.
+저장소 Settings → Pages → Source 를 `GitHub Actions`로 먼저 바꿔 두어야
+하고, 비공개 저장소라면 GitHub Pro가 필요합니다(또는 저장소를 공개로).
