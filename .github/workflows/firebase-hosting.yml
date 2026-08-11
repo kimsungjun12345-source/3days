@@ -1,0 +1,90 @@
+name: 웹·개인정보 배포 (Firebase)
+
+# 개인정보 처리방침을 열리는 주소에 올린다.
+#
+# 두 스토어 모두 등록 양식에 '방침 URL'을 요구하고, 파일이 아니라 실제로
+# 열리는 주소여야 한다. scripts/build.js가 store/privacy.html을
+# www/privacy.html로 함께 옮기므로, 여기서 www/를 통째로 Firebase Hosting에
+# 올리면 아래 주소가 열린다.
+#
+#   https://setdolhana.web.app/privacy.html   ← 개인정보 처리방침
+#   https://setdolhana.web.app/               ← 앱의 웹 버전 (지원/소개용)
+#
+# 덤으로 앱의 웹 버전도 같은 자리에 선다. 서버가 없는 앱이라 그대로 PWA로
+# 동작한다.
+#
+# ── 쓰기 전에 한 번 해 둘 일 ──────────────────────
+# 배포 권한을 CI에 주는 토큰이 필요하다. 본인 PC에서 한 번만:
+#   firebase login:ci
+# 이 명령이 뱉는 토큰을 저장소 Secret FIREBASE_TOKEN 에 넣는다.
+# (토큰은 비밀이다 — 저장소에 커밋하지 말 것.)
+
+on:
+  workflow_dispatch:
+  # 방침이나 화면이 바뀌면 자동으로 다시 올린다
+  push:
+    branches: ["claude/jaksim-samil-app-salp5o", "main"]
+    paths:
+      - "store/privacy.html"
+      - "index.html"
+      - "*.css"
+      - "*.js"
+      - "manifest.webmanifest"
+      - "icons/**"
+      - "fonts/**"
+      - "scripts/build.js"
+      - "firebase.json"
+
+# 배포는 한 번에 하나만
+concurrency:
+  group: firebase-hosting
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # job 레벨에 두면 아래 '토큰 확인' 단계의 if에서도 볼 수 있고,
+    # firebase-tools가 이 이름의 환경변수를 자동으로 집어 쓴다.
+    env:
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # scripts/build.js는 Node 내장 모듈만 쓰므로 npm ci가 필요 없다 —
+      # www/ 를 만드는 데 의존성 설치를 기다릴 이유가 없다.
+      - name: 웹 자산 모으기 (privacy.html 포함)
+        run: node scripts/build.js
+
+      - name: 토큰이 없으면 먼저 알려 주기
+        if: ${{ env.FIREBASE_TOKEN == '' }}
+        run: |
+          echo "::error::FIREBASE_TOKEN 시크릿이 없습니다."
+          {
+            echo "### Firebase 배포 토큰이 필요합니다"
+            echo ""
+            echo "본인 PC에서 한 번만:"
+            echo ""
+            echo '```'
+            echo "firebase login:ci"
+            echo '```'
+            echo ""
+            echo "나온 토큰을 저장소 **Settings → Secrets and variables → Actions**"
+            echo "에 \`FIREBASE_TOKEN\` 으로 넣어 주세요."
+          } >> $GITHUB_STEP_SUMMARY
+          exit 1
+
+      - name: Firebase Hosting에 배포
+        run: npx firebase-tools@latest deploy --only hosting --project setdolhana --non-interactive
+
+      - name: 주소 알려주기
+        run: |
+          {
+            echo "### 올라갔습니다"
+            echo ""
+            echo "- 개인정보 처리방침: https://setdolhana.web.app/privacy.html"
+            echo "- 앱 웹 버전 / 지원: https://setdolhana.web.app/"
+          } >> $GITHUB_STEP_SUMMARY
