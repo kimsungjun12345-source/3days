@@ -324,19 +324,20 @@ Play App Signing을 쓰면 **업로드 키**와 **앱 서명 키**가 나뉜다.
 올리는 것이 아니라 열리는 주소여야 하고, 애플은 링크가 깨진 것을 거절
 사유로 따로 적어 두고 있습니다.
 
+Firebase Hosting에 올린다(`.github/workflows/firebase-hosting.yml`).
 `scripts/build.js`가 `store/privacy.html`을 `www/privacy.html`로 함께
-옮기므로, 웹 배포(`.github/workflows/pages.yml`)를 한 번 돌리면 아래
-주소가 그대로 열립니다.
+옮기므로, 아래 주소가 그대로 열린다.
 
 | 항목 | 주소 | 어디에 |
 |---|---|---|
-| 개인정보 처리방침 | `https://<계정>.github.io/3days/privacy.html` | Play·App Store 둘 다 (필수) |
-| 지원(Support) URL | `https://<계정>.github.io/3days/` | App Store (필수) |
+| 개인정보 처리방침 | `https://setdolhana.web.app/privacy.html` | Play·App Store 둘 다 (필수) |
+| 지원(Support) URL | `https://setdolhana.web.app/` | App Store (필수) |
 | 문의 이메일 | `trevicode@gmail.com` | Play 개발자 연락처 · 방침 본문 |
 
 **등록 전에 두 주소를 실제로 열어 보세요.** 스토어 양식에 적어 넣기
 전에 브라우저에서 확인하는 데 10초면 되고, 심사에서 되돌아오면 며칠입니다.
 
-웹 배포는 손으로 돌립니다 — Actions 탭 → '웹 배포' → Run workflow.
-저장소 Settings → Pages → Source 를 `GitHub Actions`로 먼저 바꿔 두어야
-하고, 비공개 저장소라면 GitHub Pro가 필요합니다(또는 저장소를 공개로).
+방침이나 화면을 고치면 배포는 자동으로 다시 돈다(위 워크플로가 해당
+파일 변경을 감지한다). 손으로 돌리려면 Actions 탭 → '웹·개인정보 배포
+(Firebase)' → Run workflow. 배포 토큰은 저장소 Secret `FIREBASE_TOKEN`에
+들어 있다(`firebase login:ci`로 발급).
