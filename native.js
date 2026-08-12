@@ -138,7 +138,7 @@ async function nativeSaveText(text, filename, mime) {
     });
     await NP.Share.share({
       title: filename,
-      text: "작심삼일 기록 백업",
+      text: "셋돌하나 기록 백업",
       files: [written.uri],
     });
     return true;
@@ -268,7 +268,7 @@ async function sendTestNotification(afterSeconds = 5) {
       notifications: [
         {
           id: 9999,
-          title: "작심삼일",
+          title: "셋돌하나",
           body: "알림이 잘 오고 있어요.",
           schedule: { at: new Date(Date.now() + afterSeconds * 1000) },
         },
@@ -335,7 +335,7 @@ async function rescheduleNotifications() {
     const only = near || (todo.length === 1 ? todo[0] : null);
     items.push({
       id: id++,
-      title: "작심삼일",
+      title: "셋돌하나",
       body: near
         ? `오늘만 넘기면 '${near.title}' 돌 하나가 완성돼요`
         : todo.length === 1
@@ -350,7 +350,7 @@ async function rescheduleNotifications() {
   for (let d = 1; d <= 3; d++) {
     items.push({
       id: id++,
-      title: "작심삼일",
+      title: "셋돌하나",
       // 돌은 사흘에 하나다. 매일 오는 알림이 '오늘의 돌'이라고 하면
       // 돌 하나가 하루라는 뜻이 되어 앱 전체의 규칙과 어긋난다.
       body: "오늘 한 칸, 채워 볼까요?",
@@ -375,7 +375,7 @@ async function rescheduleNotifications() {
     for (const c of comeback) {
       items.push({
         id: id++,
-        title: "작심삼일",
+        title: "셋돌하나",
         body: c.body,
         schedule: { at: atHour(c.after, hour, minute) },
       });
