@@ -99,12 +99,7 @@ const SCENES = [
       await page.reload({ waitUntil: "load" });
       await page.waitForTimeout(400);
       await page.click(".goal-card .btn-primary");
-      /* 3일째를 채우면 축하가 바로 오지 않는다 — 어떤 돌을 얹을지 먼저
-         고르게 되어 있다. 여기서 고르지 않으면 사진에 담기는 것은 완성된
-         탑이 아니라 고르는 화면이다. */
-      await page.waitForSelector("#pick-stone", { state: "visible" });
-      await page.waitForTimeout(400);
-      await page.locator(".pick-opt").nth(1).click();
+      // 3일째를 채우면 돌이 탑으로 날아가고 곧바로 축하가 뜬다
       await page.waitForSelector("#cheer", { state: "visible" });
       await page.waitForTimeout(1200);
     },
