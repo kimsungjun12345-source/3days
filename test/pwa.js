@@ -116,13 +116,7 @@ function serve() {
   await page.fill("#input-title", "오프라인에서 쌓기");
   await page.click("#form-add button[type=submit]");
   await page.click(".goal-card .btn-primary");
-  await page.waitForTimeout(400);
-  // 3일째였다면 돌 고르기가 먼저 뜬다 — 오프라인에서도 고르고 얹을 수 있어야 한다
-  if (await page.locator("#pick-stone").isVisible()) {
-    await page.locator(".pick-opt").first().click();
-    await page.waitForTimeout(1300);
-  }
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(500);
   assert((await page.locator(".goal-card .dot.done").count()) === 1, "a stone can be placed while offline");
 
   await page.reload({ waitUntil: "load" });

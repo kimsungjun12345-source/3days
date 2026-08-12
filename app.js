@@ -1082,8 +1082,10 @@ function runPendingAnim() {
   if (job.completed) {
     haptic([12, 60, 24]);
     const goal = state.goals.find((g) => g.id === job.goalId);
-    // 3일을 채운 순간 — 어떤 돌을 얹을지 먼저 고른다
-    if (goal) setTimeout(() => openStonePick(goal), 260);
+    flyStoneToTower(dot, job.goalId, () => {
+      // 돌이 얹힌 뒤에 축하 화면 — 탑이 자라는 걸 먼저 보게 한다
+      if (goal) setTimeout(() => showCheer(goal), 420);
+    });
   } else {
     haptic(12);
     if (!job.silent) {
@@ -1562,106 +1564,6 @@ function closeCheer() {
   setTimeout(() => (el.hidden = true), 220);
   $("backup-note").hidden = true;
   cheerGoalId = null;
-}
-
-/* ── 돌 고르기 ────────────────────────
- *
- * 3일을 채우면 여기가 먼저 열린다. 돌 셋 중 하나를 고르면 그 돌이 위에서
- * 떨어져 탑에 얹히고, 그다음에 축하가 온다.
- *
- * 고르는 일을 여기 둔 이유는 박자 때문이다. 돌은 3일에 하나인데 '오늘
- * 해냈어요'는 매일이다. 매일 여는 화면에 고르는 일을 얹으면 첫 주에는
- * 재미고 둘째 달에는 마찰이고, 무엇보다 하루에 돌 하나라는 오해를 다시
- * 부른다. 3일에 한 번, 진짜로 돌이 생기는 그 순간에만 묻는다.
- *
- * 떨어뜨리기를 실패할 수 없게 만든 것도 일부러다. 잘못 놓아 무너질 수
- * 있다면, 이 앱이 유일하게 "여기서는 실패해도 안전하다"고 약속한 자리에
- * 실패를 들여놓는 셈이 된다. */
-let pickGoalId = null;
-
-function openStonePick(goal) {
-  pickGoalId = goal.id;
-  // 고르는 동안 탑은 새 돌 없이 기다린다 — 그래야 얹히는 게 보인다
-  heldGoalId = goal.id;
-  render();
-
-  const ch = goalCharacter(goal);
-  const { done, current } = towersOf(goal, true);
-  const base = done * STONES_PER_TOWER;
-  const stage = $("pick-cairn");
-  stage.className = "pick-cairn " + ch.toneClass;
-  stage.innerHTML = cairnSVG(
-    current, { done: 3, waiting: false }, 0, STONES_PER_TOWER, 0, ch,
-    shapesFor(goal, base, STONES_PER_TOWER)
-  );
-
-  const row = $("pick-row");
-  row.innerHTML = "";
-  STONE_SHAPES.forEach((shape, i) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "pick-opt " + ch.toneClass;
-    b.setAttribute("aria-label", shape.label);
-    // 고를 돌은 실제로 얹힐 그 돌이어야 한다 — 미리보기가 아니라 그 자체
-    b.innerHTML = cairnSVG(1, null, 0, 1, 0, ch, [shape]);
-    b.addEventListener("click", () => choosePickedStone(goal, i));
-    row.appendChild(b);
-  });
-
-  $("pick-falling").innerHTML = "";
-  $("pick-stone").hidden = false;
-  requestAnimationFrame(() => $("pick-stone").classList.add("show"));
-}
-
-function choosePickedStone(goal, shapeIndex) {
-  if (pickGoalId !== goal.id) return;
-  pickGoalId = null;
-  const ch = goalCharacter(goal);
-  const index = Math.max(0, stoneCount(goal) - 1);
-  if (!Array.isArray(goal.stoneShapes)) goal.stoneShapes = [];
-  goal.stoneShapes[index] = shapeIndex;
-  save();
-
-  $("pick-row").classList.add("chosen");
-  haptic(8);
-
-  // 고른 돌이 위에서 내려와 탑에 얹힌다
-  const fall = $("pick-falling");
-  fall.className = "pick-falling " + ch.toneClass;
-  fall.innerHTML = cairnSVG(1, null, 0, 1, 0, ch, [STONE_SHAPES[shapeIndex]]);
-  const land = () => {
-    fall.innerHTML = "";
-    heldGoalId = null;
-    render();
-    landStone();
-    setTimeout(() => {
-      closeStonePick();
-      showCheer(goal);
-    }, 360);
-  };
-
-  if (reduceMotion) {
-    land();
-    return;
-  }
-  fall.animate(
-    [
-      { transform: "translate(-50%, -190px) scale(1.04)", opacity: 0 },
-      { transform: "translate(-50%, -170px) scale(1.04)", opacity: 1, offset: 0.12 },
-      { transform: "translate(-50%, 0) scale(1)", opacity: 1, offset: 0.72 },
-      { transform: "translate(-50%, -9px) scale(1.02)", opacity: 1, offset: 0.85 },
-      { transform: "translate(-50%, 0) scale(1)", opacity: 1 },
-    ],
-    { duration: 720, easing: "cubic-bezier(.42,0,.4,1)", fill: "forwards" }
-  ).onfinish = land;
-}
-
-function closeStonePick() {
-  const el = $("pick-stone");
-  el.classList.remove("show");
-  $("pick-row").classList.remove("chosen");
-  setTimeout(() => (el.hidden = true), 220);
-  pickGoalId = null;
 }
 
 /* 완주한 돌이 카드에서 그 작심의 탑으로 날아가 얹힌다 */

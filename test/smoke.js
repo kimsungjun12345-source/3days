@@ -99,20 +99,11 @@ function dstr(offset) {
     );
   };
 
-  /* 3일째를 누르면 '어떤 돌을 얹을까요?'가 먼저 뜬다.
-   * 검사도 사용자와 같은 순서를 밟는다 — 누르고, 돌을 고르고, 얹힐 때까지
-   * 기다린다. 1·2일째에는 고르기가 뜨지 않으므로 그대로 지나간다. */
-  const pickIfAsked = async (opt = 0) => {
-    await page.waitForTimeout(420);
-    if (await page.locator("#pick-stone").isVisible()) {
-      await page.locator(".pick-opt").nth(opt).click();
-      await page.waitForTimeout(1300);
-    }
-  };
-
-  const tapToday = async (opt = 0) => {
+  /* 3일째를 채우면 돌이 탑으로 날아가고 바로 축하가 뜬다. 애니메이션이
+   * 끝날 시간만 준다. */
+  const tapToday = async () => {
     await page.click(".goal-card .btn-primary");
-    await pickIfAsked(opt);
+    await page.waitForTimeout(1200);
   };
 
   const assert = (cond, name) => {
@@ -321,8 +312,7 @@ function dstr(offset) {
 
   const bookCard = page.locator(".goal-card").filter({ hasText: "책 10쪽" });
   await bookCard.locator(".btn-primary").click();
-  await pickIfAsked();
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(1200);
   assert((await stonesIn("B")) === 2, "finishing three days grows that goal's tower");
   assert((await stonesIn("A")) === 3, "the other towers in the garden are left untouched");
   assert((await page.locator("#cheer-title").textContent()).includes("두 번째"), "celebration counts stones per goal");
@@ -861,9 +851,7 @@ function dstr(offset) {
   await page.click('.tab[data-view="settings"]');
   await page.waitForTimeout(150);
   await page.click("#dev-run-cycle");
-  // 3일째가 되면 돌 고르기가 먼저 뜬다 — 개발자 도구로 돌려도 순서는 같다
-  await page.waitForFunction(() => !document.getElementById("pick-stone").hidden, null, { timeout: 8000 });
-  await page.locator(".pick-opt").first().click();
+  // 3일을 채우면 돌이 날아가고 바로 축하가 뜬다
   await page.waitForFunction(() => !document.getElementById("cheer").hidden, null, { timeout: 8000 });
   assert(
     (await page.locator("#cheer-title").textContent()).includes("네 번째"),
