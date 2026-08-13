@@ -336,59 +336,32 @@ function stoneDefs(uid) {
   </filter>`;
 }
 
-/* 돌 하나의 윤곽.
- *
- * 오랫동안 순수한 타원이었다. 멀리서는 괜찮은데 가까이 보면 전부 같은
- * 공장 부품처럼 보인다 — 실제 조약돌은 어느 한 군데가 눌리거나 부풀어
- * 있고, 돌탑이 정겨운 이유의 절반은 그 불규칙함이다.
- *
- * 그래서 타원 위의 점 열 개를 씨앗값에 따라 아주 조금씩 밀고 당겨
- * 부드럽게 이어 붙인다. 밀어내는 폭은 반지름의 7% 안쪽이라 '찌그러진
- * 돌'이 아니라 '손으로 주운 돌'로 읽힌다. 씨앗이 같으면 모양도 같으므로,
- * 다시 그려도 그 돌은 늘 그 돌이다. */
+/* 씨앗값으로 -0.5~0.5을 만드는 난수. 정원의 자리 흔들림이 쓴다 —
+   같은 씨앗이면 늘 같은 값이라 다시 그려도 정원이 들썩이지 않는다. */
 function wobble(seed, k) {
   const x = Math.sin(seed * 12.9898 + k * 78.233) * 43758.5453;
   return x - Math.floor(x) - 0.5; // -0.5 ~ 0.5
 }
 
-const PEBBLE_POINTS = 10;
-
-function pebblePath(cx, cy, rx, ry, seed) {
-  const pts = [];
-  for (let k = 0; k < PEBBLE_POINTS; k++) {
-    const a = (Math.PI * 2 * k) / PEBBLE_POINTS;
-    // 가로세로를 따로 흔들어야 한쪽으로만 눌린 돌이 나온다
-    const wx = 1 + wobble(seed, k) * 0.13;
-    const wy = 1 + wobble(seed + 7.3, k) * 0.11;
-    pts.push([cx + rx * wx * Math.cos(a), cy + ry * wy * Math.sin(a)]);
-  }
-  // 점을 그대로 잇지 않고 변의 중점을 지나는 2차 곡선으로 이으면
-  // 꼭짓점이 남지 않고 닫힌 곡선이 매끈하게 떨어진다
-  const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-  const f = (n) => n.toFixed(1);
-  let d = "";
-  const start = mid(pts[PEBBLE_POINTS - 1], pts[0]);
-  d += `M${f(start[0])} ${f(start[1])}`;
-  for (let k = 0; k < PEBBLE_POINTS; k++) {
-    const cur = pts[k];
-    const m = mid(cur, pts[(k + 1) % PEBBLE_POINTS]);
-    d += `Q${f(cur[0])} ${f(cur[1])} ${f(m[0])} ${f(m[1])}`;
-  }
-  return d + "Z";
-}
-
 /* 돌 하나 — 납작한 조약돌을 위에서 비스듬히 본 모습.
- * 같은 윤곽을 두께(t)만큼 아래에 한 번 더 깔아 측면이 초승달처럼 드러나게 하고,
- * 그 위에 밝은 윗면을 얹는다. 이 두께가 있어야 쌓인 것으로 보인다. */
-function stonePiece(cx, cy, rx, ry, tilt, uid, seed = 1) {
+ * 같은 타원을 두께(t)만큼 아래에 한 번 더 깔아 측면이 초승달처럼 드러나게 하고,
+ * 그 위에 밝은 윗면을 얹는다. 이 두께가 있어야 쌓인 것으로 보인다.
+ *
+ * 한동안 이 타원을 조약돌 윤곽(점 열 개를 씨앗값으로 밀고 당긴 닫힌 곡선)으로
+ * 바꿔 두었다. 가까이 보면 손으로 주운 돌 같았지만, 여러 채가 서면 울퉁불퉁한
+ * 덩어리로 뭉쳐 보였다 — 특히 정원 탭이 탑을 크게 그리게 된 뒤로. 돌탑이
+ * 단정해 보이는 쪽이 이 앱에 맞아서 처음의 타원으로 되돌렸다. */
+function stonePiece(cx, cy, rx, ry, tilt, uid) {
   const t = ry * 0.66;
   const rot = `rotate(${tilt} ${cx} ${cy})`;
   return `<g transform="${rot}">
     <ellipse cx="${(cx + rx * 0.09).toFixed(1)}" cy="${(cy + t + ry * 0.42).toFixed(1)}"
       rx="${(rx * 0.95).toFixed(1)}" ry="${(ry * 0.52).toFixed(1)}"
       fill="var(--stone-shadow)" filter="url(#softShadow-${uid})"/>
-    <path d="${pebblePath(cx, cy + t, rx, ry, seed)}" fill="url(#stoneSide-${uid})"/>
-    <path class="stone-top" d="${pebblePath(cx, cy, rx, ry, seed)}" fill="url(#stoneTop-${uid})"/>
+    <ellipse cx="${cx.toFixed(1)}" cy="${(cy + t).toFixed(1)}"
+      rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="url(#stoneSide-${uid})"/>
+    <ellipse class="stone-top" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}"
+      rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="url(#stoneTop-${uid})"/>
     <ellipse cx="${(cx - rx * 0.26).toFixed(1)}" cy="${(cy - ry * 0.32).toFixed(1)}"
       rx="${(rx * 0.28).toFixed(1)}" ry="${(ry * 0.24).toFixed(1)}"
       fill="var(--stone-shine)"/>
@@ -402,7 +375,7 @@ function stonePiece(cx, cy, rx, ry, tilt, uid, seed = 1) {
  */
 
 /* 바닥 중심을 원점으로 위로 쌓는 돌 무더기 */
-function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0, ch = STONE_CHARACTERS[0], seed = 1, shapes = null) {
+function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0, ch = STONE_CHARACTERS[0]) {
   const shown = Math.min(stones, max);
   let y = -4;
   let rx = 40;
@@ -418,28 +391,22 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0, ch =
   let lastW = rx;
   let lastH = ry;
 
-  /* 층마다 크기를 조금씩 흔든다.
+  /* 층마다 일정한 비율로 좁아진다.
    *
-   * 위로 갈수록 일정한 비율로 좁아지기만 하면 탑이 아니라 원뿔이 된다 —
-   * 여섯 채가 서 있으면 여섯 개의 똑같은 원뿔이라 울타리처럼 보였다.
-   * 실제 돌탑은 넓은 돌 위에 좁은 돌이 오기도, 그 반대이기도 하다.
-   * 가로는 ±11%, 세로는 ±9% 안에서만 흔들어 균형은 잃지 않게 한다. */
+   * 한동안 여기에도 흔들림을 얹어, 넓은 돌 위에 좁은 돌이 오기도 하고 그
+   * 반대이기도 하게 두었다. 손으로 쌓은 탑에 가깝기는 했지만 탑의 윤곽이
+   * 들쭉날쭉해져서, 여러 채가 서면 정돈된 정원으로 읽히지 않았다.
+   * 탑의 결은 작심마다 다른 돌의 성격(ch)이 이미 맡고 있다. */
   for (let i = 0; i < shown; i++) {
-    // 사용자가 고른 모양이 있으면 그 돌은 그 모양으로 — 없으면 기본 흔들림만
-    const sh = shapes && shapes[i];
-    const sSeed = seed + (sh ? sh.seed : 0);
-    const wr = rx * (sh ? sh.wide : 1) * (1 + wobble(sSeed + 1.7, i) * 0.22);
-    const wy = ry * (sh ? sh.flat : 1) * (1 + wobble(sSeed + 4.1, i) * 0.18);
-    y -= wy * 1.5;
-    // 층마다 좌우로 조금씩 어긋나게 — 실제로 손으로 쌓은 탑은 축이 곧지 않다
-    const tilt = (i % 2 === 0 ? -1 : 1.05) * ch.tilt + wobble(seed + 3, i) * 3.2;
-    const cx = (i % 2 === 0 ? -1.5 : 1.5) + wobble(seed, i) * rx * 0.09;
-    parts.push(stonePiece(cx, y, wr, wy, tilt, uid, sSeed * 31 + i));
-    lastW = wr;
-    lastH = wy;
-    foot = Math.max(foot, wr + Math.abs(cx));
-    top = Math.min(top, y - wy);
-    y -= wy * 0.4;
+    y -= ry * 1.5;
+    const tilt = (i % 2 === 0 ? -1 : 1.05) * ch.tilt;
+    const cx = i % 2 === 0 ? -1.5 : 1.5;
+    parts.push(stonePiece(cx, y, rx, ry, tilt, uid));
+    lastW = rx;
+    lastH = ry;
+    foot = Math.max(foot, rx + Math.abs(cx));
+    top = Math.min(top, y - ry);
+    y -= ry * 0.4;
     rx *= ch.taper;
     ry *= 0.93;
   }
@@ -560,37 +527,17 @@ const STONE_CHARACTERS = [
   { flat: 0.9, taper: 0.88, tilt: 2.9 },   // 무채색 자갈
 ];
 
-/* 돌 하나하나의 생김새.
+/* 돌 하나하나의 생김새는 이제 없다.
  *
- * 3일을 채운 순간, 어떤 돌을 얹을지 사용자가 고른다. 지금까지는 돌이
- * 저절로 날아가 얹혔는데 — 그러면 사용자의 역할이 '버튼을 누르는 것'에서
- * 끝난다. 이 앱의 약속은 "내가 쌓았다"인데 정작 쌓는 일은 앱이 했다.
+ * 3일을 채울 때마다 돌 모양을 고르게 하던 때가 있었다. 고르는 화면은
+ * 먼저 걷어냈고(3일마다 묻는 것은 첫 주에는 재미지만 둘째 달에는 마찰이다),
+ * 고른 모양을 그림에 반영하던 부분도 이번에 걷었다 — 돌마다 넓이와 두께가
+ * 달라지면 탑의 윤곽이 들쭉날쭉해져서, 탑을 크게 그리는 정원 탭에서는
+ * 정돈된 정원으로 읽히지 않았다.
  *
- * 고르는 것은 색이 아니라 모양이다. 색을 고르게 하면 정원이 사탕 더미가
- * 되고, 그건 이미 하지 않기로 한 결정이다. 납작하고 넓은 돌, 도톰하고
- * 둥근 돌, 길쭉한 돌 — 실루엣이 달라지는 것만으로 탑은 충분히 내 것이 된다.
- *
- * 매일이 아니라 3일에 한 번만 묻는다. 매일 하는 동작에 고르는 일을 얹으면
- * 첫 주에는 재미고 둘째 달에는 마찰이다. */
-const STONE_SHAPES = [
-  { label: "납작한 돌", flat: 0.74, wide: 1.1, seed: 11 },
-  { label: "둥근 돌", flat: 1.22, wide: 0.94, seed: 29 },
-  { label: "도톰한 돌", flat: 1.6, wide: 0.74, seed: 47 },
-];
-
-/* 예전 기록에는 고른 모양이 없다. 그때 쌓은 돌도 제 모양이 있어야 하므로
-   자리 번호로 하나를 정해 준다 — 늘 같은 값이라 다시 그려도 안 바뀐다. */
-function shapeAt(goal, i) {
-  const picked = goal.stoneShapes && goal.stoneShapes[i];
-  const n = Number.isInteger(picked) ? picked : (i * 7 + 2) % STONE_SHAPES.length;
-  return STONE_SHAPES[n % STONE_SHAPES.length];
-}
-
-function shapesFor(goal, base, count) {
-  const out = [];
-  for (let i = 0; i < count; i++) out.push(shapeAt(goal, base + i));
-  return out;
-}
+ * 예전 기록의 goal.stoneShapes는 지우지 않고 그대로 둔다. 쌓은 기록은
+ * 사라지지 않는다는 것이 이 앱의 약속이고, 언젠가 다시 쓸지도 모른다.
+ * 작심마다 탑이 달라 보이는 일은 돌의 성격(STONE_CHARACTERS)이 맡는다. */
 
 function characterOf(index) {
   const i = index % STONE_CHARACTERS.length;
@@ -767,19 +714,11 @@ function gardenSVG(goals, opts = {}) {
       const y = groundY - HORIZON * (1 - shrink);
       // 멀어질수록 공기에 잠긴다 — 옅어지고 대비도 함께 낮아진다
       const opacity = (1 - 0.34 * depth).toFixed(2);
-      /* 이 탑에 들어간 돌들의 자리 번호. t=0이 지금 쌓는 탑이고,
-         t가 커질수록 예전에 완성한 탑이다 — 완성한 탑 k번째는
-         (done − t)번째 묶음을 담고 있다. */
-      const base = (done - t) * STONES_PER_TOWER;
       drawList.push({
         goal, ch,
         current: t === 0,
         stones: t === 0 ? current : STONES_PER_TOWER,
-        shapes: shapesFor(goal, base, STONES_PER_TOWER),
         building: t === 0 ? building : null,
-        // 완성한 탑도 채마다 조금씩 다르게 생겨야 한다. 같은 작심의 탑이
-        // 여러 채 서 있는데 전부 같은 실루엣이면 울타리처럼 보인다.
-        seed: gi * 101 + t * 13 + 1,
         depth, x, y, scale, opacity,
       });
     }
@@ -801,7 +740,7 @@ function gardenSVG(goals, opts = {}) {
     frontY = Math.max(frontY, t.y);
     backY = Math.min(backY, t.y);
     const { markup, top, foot } = stoneStack(
-      t.stones, t.building, STONES_PER_TOWER, 0, uid, t.ch, t.seed, t.shapes
+      t.stones, t.building, STONES_PER_TOWER, 0, uid, t.ch
     );
     minX = Math.min(minX, t.x - foot * t.scale);
     maxX = Math.max(maxX, t.x + foot * t.scale);
@@ -887,10 +826,10 @@ function stoneCount(goal) {
  * 딱 맞추면 돌 한 개짜리 장과 다섯 개짜리 장의 확대율이 달라져서,
  * 같은 돌인데도 장마다 크기가 널뛰고 돌 하나짜리 장은 바닥 그림자만
  * 커다랗게 보인다. */
-function cairnSVG(stones, building, ghost = 0, max = MAX_STONES, frameTop = 0, ch = STONE_CHARACTERS[0], shapes = null) {
+function cairnSVG(stones, building, ghost = 0, max = MAX_STONES, frameTop = 0, ch = STONE_CHARACTERS[0]) {
   // 정원의 탑과 같은 돌을 쓴다 — 축하 화면과 홈이 같은 재질로 보이도록
   const uid = ++stoneDefsSeq;
-  const { markup, top } = stoneStack(stones, building, max, ghost, uid, ch, 1, shapes);
+  const { markup, top } = stoneStack(stones, building, max, ghost, uid, ch);
   const pad = 12;
   const y = Math.min(top, frameTop) - pad;
   const height = pad - y;
@@ -1642,13 +1581,9 @@ function showCheer(goal) {
   // 어디에 얹혔는지도 안 보인다.
   const { done: towersDone, current: inTower } = towersOf(goal);
   const ch = goalCharacter(goal);
-  // 방금 고른 돌이 꼭대기에 얹힌 그 탑을 그대로 보여 준다
+  // 방금 얹은 돌이 꼭대기에 있는 그 탑을 그대로 보여 준다
   const shownStones = inTower || STONES_PER_TOWER;
-  const cheerBase = (inTower === 0 ? towersDone - 1 : towersDone) * STONES_PER_TOWER;
-  $("cheer-cairn").innerHTML = cairnSVG(
-    shownStones, false, 0, STONES_PER_TOWER, 0, ch,
-    shapesFor(goal, cheerBase, STONES_PER_TOWER)
-  );
+  $("cheer-cairn").innerHTML = cairnSVG(shownStones, false, 0, STONES_PER_TOWER, 0, ch);
   $("cheer-cairn").className = "cheer-cairn " + ch.toneClass;
   /* 탑 하나를 다 채운 날은 그냥 넘어가서는 안 되는 날이다.
    * 돌 다섯 개 = 15일 — 이 앱에서 가장 큰 매듭이라 축하도 달라야 한다. */

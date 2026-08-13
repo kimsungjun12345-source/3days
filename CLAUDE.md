@@ -68,7 +68,7 @@ goal = {
   history: [],         // 지금껏 체크한 모든 날 — 기록 화면의 재료
   lastCheckDate: null, // 같은 날 두 번 세지 않으려고
   totalDays, completedCycles, restarts,
-  stoneShapes: [],     // 사이클마다 고른 돌 모양
+  stoneShapes: [],     // 예전에 고르던 돌 모양 — 지금은 그림에 쓰지 않는다
 }
 ```
 
