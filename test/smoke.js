@@ -1461,23 +1461,69 @@ function dstr(offset) {
   );
   assert(todayDots === 6, `a day with six goals shows six dots (${todayDots})`);
 
-  /* 42. 작심 여섯이 정원에서 서로 겹치지 않는다.
-   * 자리 사이가 발치보다 좁으면 탑이 서로 파고든다. */
+  /* 42. 작심 여섯이 정원에서 서로 파고들지 않는다.
+   *
+   * 예전에는 가로 간격만 봤다. 자리를 좌우로만 벌리던 때는 그걸로 충분했는데,
+   * 정원 탭이 앞뒤로 깊어진 뒤로는 틀린 잣대가 됐다 — 앞뒤로 멀리 떨어진 두
+   * 탑은 가로로 겹쳐 보여도 실제로는 하나가 다른 하나 뒤에 서 있는 것이고,
+   * 그건 원근에서 당연한 일이다. 그래서 두 축을 함께 본다. 가려지는 것은
+   * 괜찮고, 삼켜지는 것만 막는다. */
   await page.evaluate(() => switchView("garden"));
   await page.waitForTimeout(500);
   const collide = await page.evaluate(() => {
-    const boxes = [...document.querySelectorAll("#garden-page .tower-current")]
-      .map((t) => t.getBoundingClientRect())
-      .sort((a, b) => a.left - b.left);
+    const boxes = [...document.querySelectorAll("#garden-page .tower")].map((t) =>
+      t.getBoundingClientRect()
+    );
     let worst = 0;
-    for (let i = 1; i < boxes.length; i += 1) {
-      worst = Math.max(worst, boxes[i - 1].right - boxes[i].left);
+    for (let i = 0; i < boxes.length; i += 1) {
+      for (let j = i + 1; j < boxes.length; j += 1) {
+        const a = boxes[i];
+        const b = boxes[j];
+        const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        if (w <= 0 || h <= 0) continue;
+        // 작은 쪽이 얼마나 먹혔는지로 잰다 — 큰 탑 기준이면 늘 작게 나온다
+        worst = Math.max(worst, (w * h) / Math.min(a.width * a.height, b.width * b.height));
+      }
     }
-    return { towers: boxes.length, worst: Math.round(worst) };
+    return {
+      current: document.querySelectorAll("#garden-page .tower-current").length,
+      worst: Math.round(worst * 100) / 100,
+    };
   });
-  assert(collide.towers === 6, "all six goals stand in the garden");
-  // 그림자 블러가 몇 px 겹치는 것은 괜찮다 — 돌끼리 파고드는 것만 막는다
-  assert(collide.worst <= 6, `and their footings do not dig into each other (${collide.worst}px)`);
+  assert(collide.current === 6, "all six goals stand in the garden");
+  assert(collide.worst <= 0.4, `and no tower is swallowed by another (${collide.worst})`);
+
+  /* 43. 정원은 앱바 아래부터 탭바 위까지를 다 쓴다.
+   *
+   * 그림이 제 비율만큼만 자리를 차지하던 때는 화면 중간에서 내용이 끝나고
+   * 아래 절반이 비었다. 눈으로는 "좀 허전하네" 정도라 그냥 넘어가기 쉬워서,
+   * 숫자로 잡아 둔다. style.css의 --appbar-h가 실제 앱바와 어긋나도 여기서
+   * 걸린다. */
+  const fills = await page.evaluate(() => {
+    const svg = document.querySelector("#garden-page svg");
+    const vb = svg.getAttribute("viewBox").split(" ").map(Number);
+    const box = svg.getBoundingClientRect();
+    const scale = Math.min(box.width / vb[2], box.height / vb[3]);
+    const stats = document.querySelector("#view-garden .record-stats").getBoundingClientRect();
+    const tabbar = document.querySelector(".tabbar").getBoundingClientRect();
+    return {
+      drawnH: Math.round(vb[3] * scale),
+      drawnW: Math.round(vb[2] * scale),
+      boxH: Math.round(box.height),
+      gapToTabbar: Math.round(tabbar.top - stats.bottom),
+      scrolls: document.documentElement.scrollHeight > innerHeight + 1,
+    };
+  });
+  assert(!fills.scrolls, "the garden fits on one screen");
+  assert(
+    fills.gapToTabbar >= 0 && fills.gapToTabbar <= 48,
+    `the numbers sit just above the tabbar (${fills.gapToTabbar}px)`
+  );
+  assert(
+    fills.drawnH >= fills.boxH * 0.85,
+    `and the towers fill the height they were given (${fills.drawnH}/${fills.boxH})`
+  );
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 

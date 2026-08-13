@@ -8,6 +8,12 @@
      이 값을 기준으로 비켜선다 — 숫자를 여기저기 적어 두면 탭바 여백을
      고칠 때 한 곳만 바뀌고 나머지가 겹친다. */
   --tabbar-h: 65px;
+  /* 앱바(제목 줄)가 차지하는 높이. 정원 탭이 '앱바 아래부터 탭바 위까지'를
+     꽉 채우려면 자기 위에 무엇이 얼마나 있는지 알아야 하는데, CSS에는 그걸
+     묻는 방법이 없어 값으로 적어 둔다. 앱바 글자 크기나 여백을 바꾸면 여기도
+     같이 바꿀 것 — 어긋나면 정원 아래에 빈 띠가 생기거나 화면이 밀려난다.
+     test/smoke.js가 그 어긋남을 재고 있다. */
+  --appbar-h: 56px;
 
   --bg: #f7f6f3;
   --card: #ffffff;
@@ -233,6 +239,49 @@ body {
      남을 뿐이라, 그림을 크게 만드는 일은 CSS가 아니라 눈높이(HORIZON)로
      한다 — gardenSVG의 full 모드를 볼 것. */
   height: auto;
+}
+
+/* 정원 탭은 앱바 아래부터 탭바 위까지를 통째로 쓴다.
+ *
+ * 예전에는 그림이 제 비율만큼만 자리를 차지하고, 숫자 세 칸이 그 바로 밑에
+ * 붙었다. 그래서 화면 중간보다 위에서 내용이 끝나고 아래 절반이 텅 비었다 —
+ * 정원에 들어선 느낌이 아니라 그림 한 장을 붙여 둔 것처럼 보였다.
+ *
+ * 세로를 먼저 나눠 준 다음, 남는 자리를 전부 그림에게 준다. 숫자는 아래로
+ * 내려보내 탭바 바로 위에 세운다. */
+#view-garden {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(
+    100dvh - 22px - var(--appbar-h) - 96px
+    - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+  );
+}
+
+#view-garden .garden-page {
+  flex: 1;
+  /* 이게 없으면 flex 항목이 내용보다 작아지지 못해 그림이 아래를 밀어낸다 */
+  min-height: 0;
+  position: relative;
+}
+
+/* 자리를 받았으니 그 안을 꽉 채운다.
+ *
+ * height: 100%만으로는 안 됐다 — 부모의 높이가 flex로 정해지는 경우
+ * 백분율이 auto로 떨어져, 그림은 여전히 제 비율만큼만 차지했다. 자리를
+ * 확실히 물려받는 길은 절대 위치뿐이다. 비율은 그대로 지키므로(meet) 돌이
+ * 찌그러지지 않고, 남는 쪽으로 가운데 선다. */
+#view-garden .garden-page svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#view-garden .record-stats {
+  /* 남는 자리를 전부 위쪽에 몰아주어, 숫자가 탭바 바로 위에 선다 */
+  margin-top: auto;
+  margin-bottom: 0;
 }
 
 .garden-word {
@@ -1856,6 +1905,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  /* 달력 카드와 붙어 있으면 첫 줄이 카드에서 흘러나온 것처럼 보인다.
+     카드가 끝나고 다른 것이 시작한다는 것을 여백으로 말해 준다. */
+  margin-top: 18px;
 }
 
 .record-row {

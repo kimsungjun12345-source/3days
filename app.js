@@ -630,8 +630,22 @@ const GOAL_LANES = [0.428, 0.572, 0.284, 0.716, 0.14, 0.86];
  * 지금 쌓는 탑은 작심마다 하나씩이고, 전부 같은 깊이에 두면 여섯 개가
  * 자로 잰 듯 일렬로 선다 — 정원이 아니라 진열대다. 자리마다 조금씩 뒤로
  * 물러나게 해서 앞뒤가 생기게 한다. 값이 자리 순서와 같이 커지지 않게
- * 섞어 둔 이유는, 규칙이 보이면 그것대로 또 줄로 읽히기 때문이다. */
-const LANE_DEPTH = [0.05, 0.26, 0.14, 0.33, 0.2, 0.4];
+ * 섞어 둔 이유는, 규칙이 보이면 그것대로 또 줄로 읽히기 때문이다.
+ *
+ * 자리(GOAL_LANES)를 왼쪽부터 늘어놓고 그 순서로 깊이를 읽으면 오르내려야
+ * 한다. 예전 값은 왼쪽에서 오른쪽으로 갈수록 깊어져서, 왼쪽은 전부 앞줄
+ * 오른쪽은 전부 뒷줄이 됐다. 정원 탭에서 좌우를 좁히자 그게 한쪽 구석에
+ * 탑이 뭉치는 것으로 드러났다.
+ *
+ * 그렇다고 아무렇게나 섞으면 이번에는 깊이가 몰린 자리와 빈 자리가 생겨,
+ * 정원 한가운데가 텅 빈 띠로 남았다. 그래서 값 자체는 0.06부터 0.41까지
+ * 고르게 벌려 두고(0.07 간격), 그 여섯을 자리 순서에만 지그재그로 나눠
+ * 준다 — 왼쪽부터 0.41 · 0.20 · 0.06 · 0.34 · 0.13 · 0.27. 이웃한 두 자리는
+ * 늘 다른 줄에 서고, 앞에서 뒤까지는 빈 구간 없이 채워진다.
+ *
+ * 첫 작심은 앞에 둔다(0.06). 작심이 하나뿐인 사람에게는 그게 정원의 전부라
+ * 뒤로 물러나 있을 이유가 없다. */
+const LANE_DEPTH = [0.06, 0.34, 0.2, 0.13, 0.41, 0.27];
 const GARDEN_MAX = GOAL_LANES.length;
 /* 정원에 그리는 탑 수는 대체로 열 채 안쪽으로 유지한다.
  * 작심이 여섯이면 한 작심당 두 채씩만 그린다 — 그보다 많이 그리면
@@ -682,8 +696,36 @@ function gardenSVG(goals, opts = {}) {
    * 이 값이 그림의 세로 길이를 정한다. 205일 때는 폭에 맞춰 그리면 높이가
    * 160px 남짓한 납작한 띠가 되어, 홈 귀퉁이의 요약과 구분이 되지 않았다.
    * 멀리 둘수록 앞뒤 줄이 세로로 벌어져 뜰이 깊어지고, 그만큼 그림도 커진다.
-   * 높이를 CSS로 늘리면 남는 자리가 빈칸으로 남을 뿐이라 여기서 정한다. */
-  const HORIZON = full ? 330 : 150;
+   * 높이를 CSS로 늘리면 남는 자리가 빈칸으로 남을 뿐이라 여기서 정한다.
+   *
+   * 660은 눈대중이 아니라 세 가지 화면에서 재 보고 고른 값이다. 아래
+   * LANE_SPREAD로 폭을 좁혀 두면 그림의 가로세로 비가 화면의 그것에
+   * 가까워지는 지점이 생기고, 거기서 정원이 위아래로 꽉 찬다.
+   *
+   * 더 멀리 둘수록 흔한 화면(390×844)의 채움은 96%에서 98%로 조금 나아지지만,
+   * 작은 화면(360×640)에서는 세로가 먼저 닿아 좌우가 남는다 — 그 화면의 탑은
+   * 660에서 60px, 720에서 57px로 오히려 작아졌다. 2%를 얻자고 작은 기기를
+   * 깎을 이유가 없어서 660에서 멈췄다. */
+  const HORIZON = full ? 660 : 150;
+
+  /* 정원 탭에서는 좌우를 좁히고 앞뒤를 늘린다.
+   *
+   * 홈과 같은 폭으로 여섯 줄을 벌려 놓으면 그림이 가로로 길고 납작해진다.
+   * 그런 그림을 세로로 긴 화면에 넣으면 폭이 먼저 닿아, 위아래는 비는데
+   * 탑은 작아지는 최악이 된다 — 실제로 그렇게 보였다.
+   *
+   * 그래서 자리를 가운데로 모으고, 대신 앞뒤 간격을 늘려 벌어진 만큼을
+   * 깊이로 돌린다. 그림이 세로로 길어지니 화면에 맞을 때 배율이 커지고,
+   * 같은 자리에 더 큰 탑이 선다. 줄이 겹치지 않는 것은 이제 좌우 간격이
+   * 아니라 앞뒤 간격이 맡는다. */
+  const LANE_SPREAD = full ? 0.62 : 1;
+  const LANE_DEPTH_MUL = full ? 2.2 : 1;
+  /* 아무리 많이 쌓아도 여기서 멈춘다 — 그 너머는 지평선이다.
+   *
+   * 뒤쪽에서 딱 자르지 말고 간격을 좁혀 가며 붙여 볼까 했는데, 재 보니
+   * 오히려 탑이 더 겹쳤다(겹침 0.27 → 0.53). 뒤가 촘촘해지는 만큼 서로
+   * 파고들기 때문이다. 자르는 편이 낫다. */
+  const DEPTH_MAX = 0.94;
 
   /* 작심마다 정원의 자리가 정해져 있다 — 만든 순서대로.
    *
@@ -701,18 +743,19 @@ function gardenSVG(goals, opts = {}) {
     const checks = held ? goal.checks.length - 1 : goal.checks.length;
     const building = held || running ? { done: checks, waiting: running && !checkedToday(goal) } : null;
 
-    const baseX = GOAL_LANES[gi];
+    const baseX = 0.5 + (GOAL_LANES[gi] - 0.5) * LANE_SPREAD;
     const shown = Math.min(done, drawn - 1);
     for (let t = 0; t <= shown; t++) {
       /* t = 0 이 지금 쌓는 탑(맨 앞), 클수록 오래전에 완성한 탑.
          여기에 자리마다 다른 밑깊이를 더해 앞뒤를 흩는다 — 그래야 여섯이
          한 줄로 서지 않는다. 작심이 하나뿐이면 0에 가까워 그대로 앞이다. */
-      const laneDepth = LANE_DEPTH[gi % LANE_DEPTH.length] * (full ? 1.6 : 1);
-      const depth = Math.min(0.94, laneDepth + t * depthStep);
+      const laneDepth = LANE_DEPTH[gi % LANE_DEPTH.length] * LANE_DEPTH_MUL;
+      const depth = Math.min(DEPTH_MAX, laneDepth + t * depthStep);
       /* 뒤로 갈수록 좌우로도 벌어진다. 줄마다 반 칸씩 어긋나게 밀어
          앞 탑이 뒤 탑을 정면으로 가리지 않는다 — 바둑판처럼 줄을 맞추면
          정원이 아니라 진열대가 된다. */
-      const sway = (t % 2 === 0 ? -1 : 1) * (0.05 + 0.02 * Math.floor(t / 2));
+      const sway =
+        (t % 2 === 0 ? -1 : 1) * (0.05 + 0.02 * Math.floor(t / 2)) * LANE_SPREAD;
       /* 흔들림은 자연스러움을 주려는 것이지 자리를 바꾸려는 게 아니다.
          예전 폭(±0.03)은 이웃한 두 자리를 최대 0.06(20px)까지 좁혀서,
          자리를 아무리 벌려 놔도 앞줄이 붙어 버릴 수 있었다. */
@@ -748,7 +791,15 @@ function gardenSVG(goals, opts = {}) {
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
+  /* 맨 앞 탑과 맨 뒤 탑이 선 땅. 틀의 아래끝과 땅 타원이 이 둘을 따라간다.
+     예전에는 둘 다 '가상의 땅(groundY=0)'과 고정 수식으로 잡았는데, 자리마다
+     밑깊이가 다른 지금은 맨 앞 탑이 groundY보다 한참 위에 선다. 그 차이가
+     그림 아래쪽의 빈 띠로 남아 있었다. */
+  let frontY = -Infinity;
+  let backY = Infinity;
   const groups = drawList.map((t) => {
+    frontY = Math.max(frontY, t.y);
+    backY = Math.min(backY, t.y);
     const { markup, top, foot } = stoneStack(
       t.stones, t.building, STONES_PER_TOWER, 0, uid, t.ch, t.seed, t.shapes
     );
@@ -775,6 +826,8 @@ function gardenSVG(goals, opts = {}) {
     minX = W * 0.35;
     maxX = W * 0.65;
     minY = -60;
+    frontY = groundY;
+    backY = groundY;
   }
   const padX = 16;
   const padTop = 12;
@@ -787,7 +840,7 @@ function gardenSVG(goals, opts = {}) {
     vw = minW;
   }
   const vy = minY - padTop;
-  const vh = groundY + padBottom - vy;
+  const vh = frontY + padBottom - vy;
 
   /* 땅은 탑들이 실제로 선 자리를 따라 깔린다. 늘 화면 한가운데 큰 타원을
      두면 탑이 한쪽에 몰렸을 때 빈 땅만 넓게 보인다. */
@@ -797,10 +850,11 @@ function gardenSVG(goals, opts = {}) {
      아래 r="62%"와 짝이므로 한쪽만 바꾸면 그 띠가 다시 생긴다. */
   const gw = Math.max((maxX - minX) / 2 + 40, 74);
   /* 땅은 맨 앞 발치부터 맨 뒤 발치까지 덮는다. 늘 같은 자리에 같은 크기로
-     깔면 뒤쪽 탑 아래가 비어서 탑이 떠 보인다 — 실제로 그렇게 보였다. */
-  const backY = groundY - HORIZON * SHRINK * (rows > 1 ? 0.86 : 0);
-  const gcy = (groundY + backY) / 2 - 4;
-  const gry = Math.max((groundY - backY) / 2 + 30, 34);
+     깔면 뒤쪽 탑 아래가 비어서 탑이 떠 보인다 — 실제로 그렇게 보였다.
+     맨 앞·맨 뒤는 위에서 실제로 잰 값을 쓴다. 수식으로 짐작하면 자리마다
+     밑깊이가 다른 지금은 어긋나서, 땅이 탑보다 앞이나 뒤에서 끝난다. */
+  const gcy = (frontY + backY) / 2 - 4;
+  const gry = Math.max((frontY - backY) / 2 + 30, 34);
   const ground =
     `<ellipse cx="${gx.toFixed(1)}" cy="${gcy.toFixed(1)}" ` +
     `rx="${gw.toFixed(1)}" ry="${gry.toFixed(1)}" fill="url(#gardenGround-${uid})"/>`;
