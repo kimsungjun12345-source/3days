@@ -187,9 +187,23 @@ function addGoal(title, icon) {
  *
  * 세 번째 칸을 지우면 돌도 함께 사라진다 — stoneCount는 checks에서
  * 나오는 값이라 따로 되돌릴 것이 없다. */
+/* 오늘 표시를 지울 수 있는가.
+ *
+ * '오늘 체크했다'(lastCheckDate)와 '이번 사이클에 오늘이 들어 있다'(checks)는
+ * 같은 말이 아니다. 완주한 날 '또 3일 약속하기'를 누르면 checks는 비워지고
+ * lastCheckDate만 오늘로 남는다 — 오늘 것은 이미 지난 사이클에 계산돼
+ * 돌이 되었으므로 되돌릴 자리가 없다.
+ *
+ * 예전에는 버튼을 lastCheckDate로 보여 주고 지우기는 checks로 했다. 그래서
+ * 그 상태에서 버튼이 보이는데 눌러도 아무 일이 없었다. 보이면 반드시
+ * 작동해야 하므로, 두 곳이 같은 것을 묻게 한다. */
+function canUndoToday(goal) {
+  return goal.checks.includes(todayStr());
+}
+
 function undoToday(goal) {
   const t = todayStr();
-  if (!goal.checks.includes(t)) return false;
+  if (!canUndoToday(goal)) return false;
   goal.checks = goal.checks.filter((d) => d !== t);
   goal.history = (goal.history || []).filter((d) => d !== t);
   goal.totalDays = Math.max(0, goal.totalDays - 1);
@@ -597,8 +611,27 @@ function towersOf(goal, heldBack = false) {
 }
 
 /* 작심마다 정원의 한 구역(가로 위치)을 가진다. 그 구역 안에서 탑들이
- * 뒤로 물러나며 지그재그로 선다 — 새로 쌓는 탑이 늘 맨 앞이다. */
-const GOAL_LANES = [0.5, 0.2, 0.79, 0.35, 0.66, 0.11];
+ * 뒤로 물러나며 지그재그로 선다 — 새로 쌓는 탑이 늘 맨 앞이다.
+ *
+ * 자리는 균등하게 벌리고, 순서만 가운데에서 바깥으로 나간다.
+ *
+ * 예전 값(0.5, 0.2, 0.79, 0.35, 0.66, 0.11)은 여섯이 다 차면 0.11과 0.2가
+ * 붙어 탑 발치가 서로 파고들었다. 지금 쌓는 탑은 여섯 개가 모두 맨 앞줄에
+ * 서므로 — 뒤로 물러나 가려지지도 않는다 — 앞줄 간격만으로 안 겹쳐야 한다.
+ * 발치 반경이 축소율(0.62)까지 먹으면 약 28px이라 자리 사이가 56px보다
+ * 넓어야 하고, 0.176 × 340 ≈ 60px이 그 값이다.
+ *
+ * 하나뿐일 때 가운데가 아니어도 괜찮다. 그림은 그린 뒤에 내용에 맞춰
+ * 잘라 맞추므로(auto-fit), 탑 하나는 어느 자리에 있든 화면 한가운데 온다. */
+const GOAL_LANES = [0.428, 0.572, 0.284, 0.716, 0.14, 0.86];
+
+/* 작심마다 조금씩 다른 깊이에 선다.
+ *
+ * 지금 쌓는 탑은 작심마다 하나씩이고, 전부 같은 깊이에 두면 여섯 개가
+ * 자로 잰 듯 일렬로 선다 — 정원이 아니라 진열대다. 자리마다 조금씩 뒤로
+ * 물러나게 해서 앞뒤가 생기게 한다. 값이 자리 순서와 같이 커지지 않게
+ * 섞어 둔 이유는, 규칙이 보이면 그것대로 또 줄로 읽히기 때문이다. */
+const LANE_DEPTH = [0.05, 0.26, 0.14, 0.33, 0.2, 0.4];
 const GARDEN_MAX = GOAL_LANES.length;
 /* 정원에 그리는 탑 수는 대체로 열 채 안쪽으로 유지한다.
  * 작심이 여섯이면 한 작심당 두 채씩만 그린다 — 그보다 많이 그리면
@@ -644,9 +677,13 @@ function gardenSVG(goals, opts = {}) {
    *   올라간 높이 = HORIZON × (1 − 축소율)
    * HORIZON은 눈높이까지의 거리로, 이 값이 클수록 정원이 넓게 펼쳐진다. */
   const SHRINK = 0.42; // 맨 뒤 줄은 앞줄의 58% 크기
-  // 정원 탭은 화면을 통째로 쓰므로 눈높이를 더 멀리 둔다 — 줄 사이가 벌어져
-  // 앞 탑이 뒤 탑을 덜 가리고, 같은 그림이 더 넓은 뜰처럼 읽힌다
-  const HORIZON = full ? 205 : 150;
+  /* 정원 탭은 화면을 통째로 쓰므로 눈높이를 훨씬 멀리 둔다.
+   *
+   * 이 값이 그림의 세로 길이를 정한다. 205일 때는 폭에 맞춰 그리면 높이가
+   * 160px 남짓한 납작한 띠가 되어, 홈 귀퉁이의 요약과 구분이 되지 않았다.
+   * 멀리 둘수록 앞뒤 줄이 세로로 벌어져 뜰이 깊어지고, 그만큼 그림도 커진다.
+   * 높이를 CSS로 늘리면 남는 자리가 빈칸으로 남을 뿐이라 여기서 정한다. */
+  const HORIZON = full ? 330 : 150;
 
   /* 작심마다 정원의 자리가 정해져 있다 — 만든 순서대로.
    *
@@ -667,14 +704,20 @@ function gardenSVG(goals, opts = {}) {
     const baseX = GOAL_LANES[gi];
     const shown = Math.min(done, drawn - 1);
     for (let t = 0; t <= shown; t++) {
-      // t = 0 이 지금 쌓는 탑(맨 앞), 클수록 오래전에 완성한 탑
-      const depth = Math.min(0.94, t * depthStep);
+      /* t = 0 이 지금 쌓는 탑(맨 앞), 클수록 오래전에 완성한 탑.
+         여기에 자리마다 다른 밑깊이를 더해 앞뒤를 흩는다 — 그래야 여섯이
+         한 줄로 서지 않는다. 작심이 하나뿐이면 0에 가까워 그대로 앞이다. */
+      const laneDepth = LANE_DEPTH[gi % LANE_DEPTH.length] * (full ? 1.6 : 1);
+      const depth = Math.min(0.94, laneDepth + t * depthStep);
       /* 뒤로 갈수록 좌우로도 벌어진다. 줄마다 반 칸씩 어긋나게 밀어
          앞 탑이 뒤 탑을 정면으로 가리지 않는다 — 바둑판처럼 줄을 맞추면
          정원이 아니라 진열대가 된다. */
       const sway = (t % 2 === 0 ? -1 : 1) * (0.05 + 0.02 * Math.floor(t / 2));
-      const jitter = wobble(gi * 17 + t, 2) * 0.03;
-      const x = Math.min(0.93, Math.max(0.07, baseX + sway + jitter)) * W;
+      /* 흔들림은 자연스러움을 주려는 것이지 자리를 바꾸려는 게 아니다.
+         예전 폭(±0.03)은 이웃한 두 자리를 최대 0.06(20px)까지 좁혀서,
+         자리를 아무리 벌려 놔도 앞줄이 붙어 버릴 수 있었다. */
+      const jitter = wobble(gi * 17 + t, 2) * 0.008;
+      const x = Math.min(0.97, Math.max(0.03, baseX + sway + jitter)) * W;
       const shrink = 1 - SHRINK * depth;
       const scale = shrink * 0.62;
       // 작아진 만큼만 눈높이 쪽으로 올라간다 — 그래야 땅 위에 선 것으로 읽힌다
@@ -1246,10 +1289,12 @@ function monthCalHTML(doneSet, y, m, marks) {
     ]
       .filter(Boolean)
       .join(" ");
-    // 점은 네 개까지만 — 그 이상은 칸이 좁아 뭉치기만 한다
+    /* 점은 만들 수 있는 작심 수(GARDEN_MAX)만큼 다 찍는다.
+       예전에는 네 개에서 잘랐는데, 여섯을 만들 수 있게 된 뒤로는 하루에
+       여섯을 다 해도 둘이 사라져 '기록이 빠졌다'로 보였다. */
     const dots = marks
       ? (marks.get(key) || [])
-          .slice(0, 4)
+          .slice(0, GARDEN_MAX)
           .map((i) => `<b class="gdot g${i}"></b>`)
           .join("")
       : "";
@@ -1315,7 +1360,7 @@ function openDetail(goal) {
     (built.done ? `<div><b>${built.done}</b><span>완성한 탑</span></div>` : "") +
     // 다시 쌓은 횟수는 다른 종류의 성취라 색을 따로 준다
     `<div class="again"><b>${goal.restarts}</b><span>다시 쌓음</span></div>`;
-  $("detail-undo").hidden = !checkedToday(goal);
+  $("detail-undo").hidden = !canUndoToday(goal);
   paintDetailCal();
   $("detail").hidden = false;
 }
@@ -2455,7 +2500,7 @@ function openModal(opts = {}) {
   syncTitleState();
   // 처음 여는 사람에게는 '새 작심'이 아니라 질문으로 말을 건다
   $("modal-title").textContent = edit
-    ? "작심 고치기"
+    ? "작심 수정하기"
     : opts.first
       ? "무엇을 3일 해볼까요?"
       : "새 작심";
@@ -2464,7 +2509,7 @@ function openModal(opts = {}) {
     : opts.first
       ? "딱 3일만 해볼 것 하나면 충분해요."
       : "거창할 필요 없어요. 딱 3일만 해볼 것 하나.";
-  $("btn-submit-goal").textContent = edit ? "고치기" : "3일 약속하기";
+  $("btn-submit-goal").textContent = edit ? "수정하기" : "3일 약속하기";
   $("suggest-label").hidden = !!edit;
   $("suggest-row").hidden = !!edit;
   $("btn-cancel").hidden = !!opts.first;

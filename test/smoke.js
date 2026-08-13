@@ -1128,7 +1128,7 @@ function dstr(offset) {
   await page.click("#detail-edit");
   await page.waitForTimeout(400);
   assert(
-    (await page.locator("#modal-title").textContent()).includes("고치기"),
+    (await page.locator("#modal-title").textContent()).includes("수정하기"),
     "the sheet opens in edit mode"
   );
   assert(
@@ -1390,6 +1390,90 @@ function dstr(offset) {
   );
 
   await page.evaluate(() => { track = window.__origTrack; });
+
+  /* 40. 보이는 '오늘 표시 지우기'는 반드시 작동한다.
+   *
+   * 예전에는 버튼을 lastCheckDate로 보여 주고 지우기는 checks로 했다.
+   * 완주한 날 '또 3일 약속하기'를 누르면 checks만 비워지므로, 버튼이
+   * 보이는데 눌러도 아무 일이 없었다. 두 조건이 같은 것을 묻는지 본다. */
+  await page.evaluate((d) => {
+    localStorage.setItem("jaksim3.v1", JSON.stringify({ goals: [
+      { id: "u", title: "물 한 잔", icon: "water", createdAt: "",
+        checks: [d[2], d[1], d[0]], history: [d[2], d[1], d[0]], lastCheckDate: d[0],
+        totalDays: 3, completedCycles: 0, restarts: 0 }]}));
+  }, [dstr(0), dstr(-1), dstr(-2)]);
+  await reload();
+
+  // 완주한 날 다음 사이클을 시작하면 checks는 비고 lastCheckDate만 오늘로 남는다
+  await page.evaluate(() => nextCycle(state.goals[0]));
+  await page.waitForTimeout(300);
+  const afterNext = await page.evaluate(() => ({
+    checkedToday: checkedToday(state.goals[0]),
+    canUndo: canUndoToday(state.goals[0]),
+  }));
+  assert(
+    afterNext.checkedToday && !afterNext.canUndo,
+    "after starting the next cycle today's mark is no longer undoable"
+  );
+  await page.click(".goal-card .goal-top");
+  await page.waitForTimeout(300);
+  assert(
+    await page.locator("#detail-undo").isHidden(),
+    "so the button that would do nothing is not shown"
+  );
+  await page.click("#detail-close");
+  await page.waitForTimeout(200);
+
+  // 되돌릴 수 있을 때는 보이고, 누르면 실제로 지워진다
+  await seedOne([dstr(-1), dstr(0)], dstr(0), 0);
+  await page.click(".goal-card .goal-top");
+  await page.waitForTimeout(300);
+  assert(await page.locator("#detail-undo").isVisible(), "when it can be undone the button is there");
+  await page.click("#detail-undo");
+  await page.waitForTimeout(400);
+  assert(
+    (await page.evaluate(() => state.goals[0].checks.length)) === 1,
+    "and pressing it actually clears today"
+  );
+
+  /* 41. 달력의 점은 만들 수 있는 작심 수만큼 다 찍힌다.
+   * 네 개에서 자르면 여섯을 다 해낸 날의 기록이 빠져 보인다. */
+  await page.evaluate((today) => {
+    const goals = [];
+    for (let i = 0; i < 6; i += 1) {
+      goals.push({
+        id: "c" + i, title: "작심 " + (i + 1), icon: "water", createdAt: "",
+        checks: [today], history: [today], lastCheckDate: today,
+        totalDays: 1, completedCycles: 0, restarts: 0,
+      });
+    }
+    localStorage.setItem("jaksim3.v1", JSON.stringify({ goals }));
+  }, dstr(0));
+  await reload();
+  await page.evaluate(() => switchView("record"));
+  await page.waitForTimeout(400);
+  const todayDots = await page.evaluate(
+    () => document.querySelectorAll("#record-mcal .mcal-cell.today .gdot").length
+  );
+  assert(todayDots === 6, `a day with six goals shows six dots (${todayDots})`);
+
+  /* 42. 작심 여섯이 정원에서 서로 겹치지 않는다.
+   * 자리 사이가 발치보다 좁으면 탑이 서로 파고든다. */
+  await page.evaluate(() => switchView("garden"));
+  await page.waitForTimeout(500);
+  const collide = await page.evaluate(() => {
+    const boxes = [...document.querySelectorAll("#garden-page .tower-current")]
+      .map((t) => t.getBoundingClientRect())
+      .sort((a, b) => a.left - b.left);
+    let worst = 0;
+    for (let i = 1; i < boxes.length; i += 1) {
+      worst = Math.max(worst, boxes[i - 1].right - boxes[i].left);
+    }
+    return { towers: boxes.length, worst: Math.round(worst) };
+  });
+  assert(collide.towers === 6, "all six goals stand in the garden");
+  // 그림자 블러가 몇 px 겹치는 것은 괜찮다 — 돌끼리 파고드는 것만 막는다
+  assert(collide.worst <= 6, `and their footings do not dig into each other (${collide.worst}px)`);
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 
