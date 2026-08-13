@@ -99,9 +99,12 @@
 
     </main>
 
-    <!-- ── 정원 ────────────────────────── -->
+    <!-- ── 정원 ──────────────────────────
+         여기서는 돌탑이 화면을 차지한다. 작심 목록은 홈에 이미 다 있으므로
+         같은 줄을 여기 또 두지 않는다 — 그러면 두 탭이 같은 화면이 된다.
+         탑 하나하나에 대한 것은 그 탑을 눌러서 본다. -->
     <main id="view-garden" class="view" hidden>
-      <div class="garden-page" id="garden-page" aria-hidden="true"></div>
+      <div class="garden-page" id="garden-page"></div>
       <p class="garden-word" id="garden-word"></p>
 
       <!-- 앱을 통틀어 이 숫자들이 사는 곳은 여기 하나다 -->
@@ -110,9 +113,6 @@
         <div><b id="stat-cycles">0</b><span>쌓은 돌</span></div>
         <div class="again"><b id="stat-restarts">0</b><span>다시 쌓음</span></div>
       </div>
-
-      <div class="section-head"><h2>서 있는 탑</h2></div>
-      <div id="garden-legend" class="record-goals"></div>
     </main>
 
     <!-- ── 기록 ────────────────────────── -->
@@ -130,7 +130,11 @@
         <p class="mcal-note" id="record-cal-note"></p>
       </section>
 
-      <!-- 작심별 목록은 정원 탭에 있다. 같은 줄을 두 화면에 두지 않는다 -->
+      <!-- 달력의 점이 무슨 색인지 알려 주는 자리.
+           원래는 정원 탭에 있었는데, 정원이 돌탑만 세우는 화면이 되면서
+           색을 풀어 줄 곳이 여기밖에 남지 않았다 — 색칠한 점만 있고 열쇠가
+           없으면 빨강이 무엇인지 알 길이 없다. -->
+      <div id="record-goals" class="record-goals"></div>
     </main>
 
     <!-- ── 설정 ────────────────────────── -->

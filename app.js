@@ -1409,51 +1409,23 @@ function paintRecordCal() {
   }
 }
 
-/* 기록 탭은 달력 하나만 답한다 — '언제 했나'.
-   숫자는 정원, 작심별 줄도 정원. 같은 줄을 두 화면에 두지 않는다. */
+/* 기록 탭은 '언제 했나'에 답한다 — 달력, 그리고 그 달력을 읽는 열쇠.
+   숫자는 정원 탭에만 둔다. 같은 줄을 두 화면에 두지 않는다. */
 function renderRecord() {
   paintRecordCal();
+  paintGoalKey();
 }
 
-/* ── 정원 탭 ─────────────────────────
+/* 달력의 점과 작심을 잇는 줄.
  *
- * 이 앱에서 가장 중요한 그림은 돌탑이다. 그런데 그 그림이 홈 화면 위쪽
- * 152px 안에만 있었고, 자리가 좁으니 탑을 몇 채만 추려 그려야 했다.
- * 오래 다닌 사람에게는 그게 "예전에 세운 탑이 사라졌다"로 보인다 —
- * 가장 자랑스러워야 할 것이 가장 조용히 지워지고 있던 셈이다.
- *
- * 그래서 정원에 제 화면을 준다. 여기서는 한 채도 빼지 않고 전부 서 있다.
- * 홈의 정원은 그대로 두되, 이제 그건 요약이고 진짜는 여기다.
- */
-function renderGarden() {
-  const goals = state.goals;
-  $("garden-page").innerHTML = gardenSVG(goals, { full: true });
-  $("garden-page").querySelectorAll(".tower").forEach((el) => {
-    el.style.cursor = "pointer";
-    el.addEventListener("click", () => {
-      const goal = goals.find((g) => g.id === el.dataset.goalId);
-      if (goal) openDetail(goal);
-    });
-  });
-
-  const stones = totalStones();
-  const towers = goals.reduce((s, g) => s + towersOf(g).done, 0);
-  /* 그림에 담기는 작심은 GARDEN_MAX까지다. 그걸 넘는 기록(예전에 만들었거나
-     가져온 것)을 두고 "전부 서 있어요"라고 하면 눈앞에서 거짓말이 된다 —
-     아래 목록에는 일곱 번째가 버젓이 있는데 그림에는 없기 때문이다. */
-  const allDrawn = goals.length <= GARDEN_MAX;
-  $("garden-word").textContent =
-    goals.length === 0
-      ? "작심을 하나 만들면 여기에 첫 탑이 섭니다."
-      : towers > 0
-        ? allDrawn
-          ? `탑 ${towers}채 · 돌 ${stones}개 — 전부 여기 그대로 서 있어요.`
-          : `탑 ${towers}채 · 돌 ${stones}개 — 그림에는 앞의 작심 ${GARDEN_MAX}개가 서 있어요.`
-        : `돌 ${stones}개를 쌓았어요. ${STONES_PER_TOWER}개가 모이면 탑 한 채가 됩니다.`;
-
-  const list = $("garden-legend");
+ * 이 줄은 원래 정원 탭에 있었다. 정원이 돌탑만 세우는 화면이 되면서
+ * 갈 곳을 잃었는데, 지울 수는 없었다 — 달력의 점이 작심마다 다른 색인데
+ * 그 색이 무엇인지 말해 주는 곳이 앱 어디에도 없어지기 때문이다.
+ * 색을 쓰는 화면 바로 아래가 그 열쇠가 있어야 할 자리다. */
+function paintGoalKey() {
+  const list = $("record-goals");
   list.innerHTML = "";
-  for (const goal of goals) {
+  for (const goal of state.goals) {
     const t = towersOf(goal);
     const row = document.createElement("button");
     row.type = "button";
@@ -1470,6 +1442,68 @@ function renderGarden() {
     row.addEventListener("click", () => openDetail(goal));
     list.appendChild(row);
   }
+}
+
+/* ── 정원 탭 ─────────────────────────
+ *
+ * 이 앱에서 가장 중요한 그림은 돌탑이다. 그런데 그 그림이 홈 화면 위쪽
+ * 152px 안에만 있었고, 자리가 좁으니 탑을 몇 채만 추려 그려야 했다.
+ * 오래 다닌 사람에게는 그게 "예전에 세운 탑이 사라졌다"로 보인다 —
+ * 가장 자랑스러워야 할 것이 가장 조용히 지워지고 있던 셈이다.
+ *
+ * 그래서 정원에 제 화면을 준다. 여기서는 한 채도 빼지 않고 전부 서 있다.
+ * 홈의 정원은 그대로 두되, 이제 그건 요약이고 진짜는 여기다.
+ *
+ * 이 화면에는 그림 말고 아무것도 두지 않는다. 한동안 아래에 작심 목록을
+ * 한 벌 더 달아 두었는데, 그건 홈에 이미 있는 줄이라 두 탭이 사실상 같은
+ * 화면으로 보였다. 탑 하나에 대해 알고 싶으면 그 탑을 누른다.
+ */
+function renderGarden() {
+  const goals = state.goals;
+  $("garden-page").innerHTML = gardenSVG(goals, { full: true });
+  /* 탑 하나하나가 그 작심으로 들어가는 문이다.
+   *
+   * 예전에는 아래에 작심 목록을 한 벌 더 두었는데, 그건 홈에 이미 있는
+   * 줄이라 두 탭이 같은 화면처럼 보였다. 목록을 지우고 나면 탑을 누르는
+   * 것이 유일한 길이므로, 눌러도 되는 것으로 보이게 해야 한다 — 손가락
+   * 모양, 키보드로도 닿는 자리, 읽어 주는 이름까지. */
+  $("garden-page").querySelectorAll(".tower").forEach((el) => {
+    const goal = goals.find((g) => g.id === el.dataset.goalId);
+    if (!goal) return;
+    const t = towersOf(goal);
+    el.style.cursor = "pointer";
+    el.setAttribute("role", "button");
+    el.setAttribute("tabindex", "0");
+    el.setAttribute(
+      "aria-label",
+      `${goal.title} — 완성한 탑 ${t.done}채, 지금 탑 ${t.current}/${STONES_PER_TOWER}. 기록 보기`
+    );
+    const open = () => openDetail(goal);
+    el.addEventListener("click", open);
+    el.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") {
+        ev.preventDefault();
+        open();
+      }
+    });
+  });
+
+  const stones = totalStones();
+  const towers = goals.reduce((s, g) => s + towersOf(g).done, 0);
+  /* 그림에 담기는 작심은 GARDEN_MAX까지다. 그걸 넘는 기록(예전에 만들었거나
+     가져온 것)을 두고 "전부 서 있어요"라고 하면 눈앞에서 거짓말이 된다 —
+     홈에도 기록 탭에도 일곱 번째가 버젓이 있는데 그림에만 없기 때문이다. */
+  const allDrawn = goals.length <= GARDEN_MAX;
+  /* 목록을 없앴으므로, 탑을 눌러 보라는 말을 여기서 한 번 해 준다.
+     아무 안내가 없으면 그림이 그냥 그림으로만 보인다. */
+  $("garden-word").textContent =
+    goals.length === 0
+      ? "작심을 하나 만들면 여기에 첫 탑이 섭니다."
+      : towers > 0
+        ? allDrawn
+          ? `탑 ${towers}채 · 돌 ${stones}개 — 탑을 누르면 그 기록이 열려요.`
+          : `탑 ${towers}채 · 돌 ${stones}개 — 그림에는 앞의 작심 ${GARDEN_MAX}개가 서 있어요.`
+        : `돌 ${stones}개를 쌓았어요. ${STONES_PER_TOWER}개가 모이면 탑 한 채가 됩니다.`;
 }
 
 /* ── 화면 전환 ─────────────────────── */

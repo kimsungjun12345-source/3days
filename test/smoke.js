@@ -541,13 +541,18 @@ function dstr(offset) {
   assert(await page.locator("#view-home").isHidden(), "home is put away while on record");
   assert((await page.locator("#stat-cycles").textContent()) === "3", "the garden totals the stones");
   assert((await page.locator("#record-mcal .mcal-cell.done").count()) >= 1, "record calendar marks the days");
-  assert((await page.locator("#garden-legend .record-row").count()) === 1, "each goal gets a row in the garden");
+  assert((await page.locator("#record-goals .record-row").count()) === 1, "the record calendar carries a key to its colours");
 
+  // 정원에서는 탑 자체가 그 작심으로 들어가는 문이다 — 목록이 없기 때문에
   await page.evaluate(() => switchView("garden"));
   await page.waitForTimeout(200);
-  await page.click("#garden-legend .record-row");
+  assert(
+    (await page.locator("#garden-page .record-row").count()) === 0,
+    "the garden shows towers only, not the home list over again"
+  );
+  await page.click("#garden-page .tower-current");
   await page.waitForTimeout(300);
-  assert(await page.locator("#detail").isVisible(), "a record row opens that goal's sheet");
+  assert(await page.locator("#detail").isVisible(), "tapping a tower opens that goal's sheet");
   await page.click("#detail-close");
   await page.waitForTimeout(200);
 
@@ -912,12 +917,12 @@ function dstr(offset) {
     `the garden keeps gaining stones (${per}→${gOver.stones}, ${per * 4}→${gMid.stones}, 120→${gYear.stones})`
   );
 
-  // 완성한 탑 수는 정원의 목록에도 적혀 있어야 한다
+  // 완성한 탑 수는 글로도 적혀 있어야 한다 — 세어 보게 두지 않는다
   await page.click('.tab[data-view="garden"]');
   await page.waitForTimeout(250);
   assert(
-    (await page.locator("#garden-legend .record-row .record-tt span").textContent()).includes(`탑 ${Math.floor(120 / per)}채`),
-    "the garden list counts the finished towers"
+    (await page.locator("#garden-word").textContent()).includes(`탑 ${Math.floor(120 / per)}채`),
+    "the garden counts the finished towers in words"
   );
   await page.click('.tab[data-view="home"]');
   await page.waitForTimeout(200);
@@ -1054,16 +1059,13 @@ function dstr(offset) {
     (await page.locator("#record-mcal .mcal-cell.done").count()) === 2,
     "and the days without any are left plain"
   );
-  // 정원 목록의 칩 색이 달력의 점과 짝이 되어야 범례 없이 읽힌다
-  await page.click('.tab[data-view="garden"]');
-  await page.waitForTimeout(300);
+  /* 점의 색이 무엇인지 말해 주는 줄이 같은 화면에 있어야 한다.
+     열쇠가 다른 탭에 있으면, 색은 있는데 읽을 방법이 없는 셈이 된다. */
   assert(
-    (await page.locator("#garden-legend .record-row.g0").count()) === 1 &&
-      (await page.locator("#garden-legend .record-row.g1").count()) === 1,
-    "each goal keeps one colour across the calendar and the list"
+    (await page.locator("#record-goals .record-row.g0").count()) === 1 &&
+      (await page.locator("#record-goals .record-row.g1").count()) === 1,
+    "each goal keeps one colour across the calendar and its key"
   );
-  await page.click('.tab[data-view="record"]');
-  await page.waitForTimeout(250);
 
   // 지나간 칸은 눌러도 아무 일이 없다 — 되살리기는 없앴다
   assert(
@@ -1105,8 +1107,8 @@ function dstr(offset) {
     `where every tower is standing (${towersAll})`
   );
   assert(
-    (await page.locator("#garden-legend .record-row").count()) === 4,
-    "with one line per goal underneath"
+    (await page.locator("#garden-page .tower[role=button]").count()) === towersAll,
+    "and each of them can be tapped for its record"
   );
   await page.click('.tab[data-view="home"]');
   await page.waitForTimeout(200);
@@ -1242,12 +1244,14 @@ function dstr(offset) {
    * 않는다)을 정작 앱이 어기게 된다. */
   await seedMany(8);
   assert((await page.locator(".goal-card").count()) === 8, "goals beyond six are kept, not dropped");
-  await page.evaluate(() => switchView("garden"));
+  await page.evaluate(() => switchView("record"));
   await page.waitForTimeout(300);
   assert(
-    (await page.locator("#garden-legend .record-row").count()) === 8,
-    "and every one of them is listed in the garden"
+    (await page.locator("#record-goals .record-row").count()) === 8,
+    "and every one of them is listed in the record"
   );
+  await page.evaluate(() => switchView("garden"));
+  await page.waitForTimeout(300);
   // 그림에는 여섯까지만 서므로, 문구가 '전부'라고 말하면 거짓이 된다
   assert(
     !(await page.locator("#garden-word").textContent()).includes("전부"),
