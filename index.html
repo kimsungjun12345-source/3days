@@ -107,6 +107,15 @@
       <div class="garden-page" id="garden-page"></div>
       <p class="garden-word" id="garden-word"></p>
 
+      <!-- 탑이 한 화면에 다 서지 못할 때만 나온다. 옆으로 밀어도 넘어가지만,
+           미는 것은 눈에 보이지 않으므로 화살표를 함께 둔다 — 키보드와
+           읽어 주는 기기에는 이쪽이 유일한 길이기도 하다. -->
+      <div class="garden-nav" id="garden-nav" hidden>
+        <button type="button" class="cal-nav" id="garden-prev" aria-label="이전에 세운 탑">‹</button>
+        <b id="garden-page-label"></b>
+        <button type="button" class="cal-nav" id="garden-next" aria-label="최근에 세운 탑">›</button>
+      </div>
+
       <!-- 앱을 통틀어 이 숫자들이 사는 곳은 여기 하나다 -->
       <div class="record-stats">
         <div><b id="stat-total-days">0</b><span>해낸 날</span></div>

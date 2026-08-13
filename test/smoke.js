@@ -1560,8 +1560,8 @@ function dstr(offset) {
    *
    * 예전에는 정원 탭이 그 1458채를 전부 그렸다. SVG 요소가 4만 개가 되어
    * 개발용 컴퓨터에서도 여는 데 1초가 걸렸고(폰이면 몇 배다), 그러면서 보이는
-   * 것은 없었다 — 탑 하나가 1px도 안 되니 한 덩어리로 뭉친다. 지금은
-   * towersDrawnFull이 여든 채 언저리에서 끊고, 숫자와 문구가 진짜를 말한다. */
+   * 것은 없었다 — 탑 하나가 1px도 안 되니 한 덩어리로 뭉친다. 지금은 한 쪽에
+   * towersPerPage만큼만 세우고 나머지는 넘겨서 본다. */
   const decade = await page.evaluate(() => {
     const days = 3650;
     const hist = [];
@@ -1607,13 +1607,135 @@ function dstr(offset) {
     long.word.includes(`탑 ${long.realTowers}채`),
     `the count still tells the truth → ${long.word}`
   );
-  assert(
-    long.word.includes("최근"),
-    "and says out loud that only the recent ones are standing"
-  );
   assert(!long.overflowX, "a decade of towers does not spill off the screen");
 
+  /* 46. 한 쪽에 다 못 세우면 넘겨서 본다 — 빠지는 탑은 없다.
+   *
+   * 한 화면에 읽히는 만큼만 세우는 것과 옛 탑을 버리는 것은 다르다. 후자면
+   * 이 탭을 만든 이유(예전 탑이 사라진다)가 그대로 돌아온다. 그래서 넘기는
+   * 길이 실제로 동작하는지, 끝에서 멈추는지, 넘긴 뒤에도 탑이 여전히 눌리는지
+   * 까지 본다. */
+  await page.evaluate(() => switchView("garden"));
+  await page.waitForTimeout(500);
+  const nav = await page.evaluate(() => ({
+    shown: !document.getElementById("garden-nav").hidden,
+    label: document.getElementById("garden-page-label").textContent,
+    pages: gardenPageCount(state.goals),
+    // 첫 쪽에서는 더 최근이 없다
+    nextOff: document.getElementById("garden-next").disabled,
+    prevOff: document.getElementById("garden-prev").disabled,
+  }));
+  assert(nav.shown, "ten years of towers offer a way to page back");
+  assert(nav.pages > 20, `and that is a lot of pages (${nav.pages})`);
+  assert(nav.label === `1 / ${nav.pages}`, `starting at the newest (${nav.label})`);
+  assert(nav.nextOff && !nav.prevOff, "with only the way backwards open");
+
+  const firstPage = await page.evaluate(
+    () => [...document.querySelectorAll("#garden-page .tower")].map((t) => t.getAttribute("transform")).join("|")
+  );
+  await page.click("#garden-prev");
+  await page.waitForTimeout(400);
+  const turned = await page.evaluate(() => ({
+    label: document.getElementById("garden-page-label").textContent,
+    towers: document.querySelectorAll("#garden-page .tower").length,
+    // 첫 쪽에만 '쌓는 중인 탑'이 있다 — 뒤 쪽은 이미 완성된 것들이다
+    current: document.querySelectorAll("#garden-page .tower-current").length,
+    shape: [...document.querySelectorAll("#garden-page .tower")].map((t) => t.getAttribute("transform")).join("|"),
+    word: document.getElementById("garden-word").textContent,
+    nextOff: document.getElementById("garden-next").disabled,
+  }));
+  assert(turned.label === `2 / ${nav.pages}`, `paging back moves one page (${turned.label})`);
+  assert(turned.shape !== firstPage, "and puts different towers on the ground");
+  assert(turned.towers > 0, `the older page stands its own towers (${turned.towers})`);
+  assert(turned.current === 0, "none of which is still being built");
+  assert(turned.word.includes("예전에 세운"), `and the words follow → ${turned.word}`);
+  assert(!turned.nextOff, "the way back to the newest is open again");
+
+  /* 넘긴 쪽의 탑도 눌러서 그 작심으로 갈 수 있어야 한다.
+     맨 뒤부터 그리므로 마지막이 맨 앞 탑이다 — 뒤 탑은 앞 탑에 가려 있어
+     누르면 앞 탑이 잡힌다. 원근에서는 그게 맞다. */
+  await page.locator("#garden-page .tower").last().click();
+  await page.waitForTimeout(400);
+  assert(await page.locator("#detail").isVisible(), "a tower on an older page still opens its record");
+  await page.click("#detail-close");
+  await page.waitForTimeout(250);
+
+  /* 화살표는 곁들이고, 진짜 손짓은 옆으로 미는 것이다.
+   *
+   * 탑 하나하나가 눌리는 버튼이라 미는 것과 누르는 것이 섞이기 쉽다. 밀었는데
+   * 손 뗀 자리의 탑이 열리면 최악이므로, 밀고 나서 상세가 열리지 않는 것까지
+   * 함께 본다. 세로로 미는 것은 쪽과 무관해야 한다 — 그건 화면을 넘기려는
+   * 손짓이 아니다. */
+  const gbox = await page.locator("#garden-page").boundingBox();
+  const gy = gbox.y + gbox.height / 2;
+  const swipe = async (fromR, toR) => {
+    await page.mouse.move(gbox.x + gbox.width * fromR, gy);
+    await page.mouse.down();
+    await page.mouse.move(gbox.x + gbox.width * toR, gy, { steps: 12 });
+    await page.mouse.up();
+    await page.waitForTimeout(400);
+  };
+  const pageLabel = () => page.locator("#garden-page-label").textContent();
+
+  const beforeSwipe = await pageLabel();
+  await swipe(0.75, 0.25); // 왼쪽으로 — 종이를 넘기듯 예전으로
+  assert((await pageLabel()) !== beforeSwipe, `swiping left turns the page (${await pageLabel()})`);
+  assert(await page.locator("#detail").isHidden(), "and does not open the tower it let go of");
+
+  await swipe(0.25, 0.8); // 오른쪽으로 — 최근으로 되돌아온다
+  assert(
+    (await pageLabel()) === beforeSwipe,
+    `swiping back the other way returns (${await pageLabel()})`
+  );
+
+  const beforeDrag = await pageLabel();
+  await page.mouse.move(gbox.x + gbox.width / 2, gbox.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(gbox.x + gbox.width / 2 + 10, gbox.y + gbox.height - 20, { steps: 12 });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  assert((await pageLabel()) === beforeDrag, "but dragging up and down leaves the page alone");
+
+  // 맨 끝까지 간 뒤에는 더 갈 곳이 없다 — 눌러도 조용히 멈춘다
+  await page.evaluate(() => {
+    for (let i = 0; i < gardenPageCount(state.goals) + 3; i++) turnGarden(1);
+  });
+  await page.waitForTimeout(400);
+  const end = await page.evaluate(() => ({
+    label: document.getElementById("garden-page-label").textContent,
+    prevOff: document.getElementById("garden-prev").disabled,
+    towers: document.querySelectorAll("#garden-page .tower").length,
+  }));
+  assert(end.label === `${nav.pages} / ${nav.pages}`, `the last page is the last (${end.label})`);
+  assert(end.prevOff, "and going further back is closed off");
+  assert(end.towers > 0, `the oldest page is not empty (${end.towers})`);
+
+  // 탭을 나갔다 오면 가장 최근으로 돌아온다 — 예전 쪽에 남아 있으면 탑을 잃은 줄 안다
+  await page.evaluate(() => switchView("home"));
+  await page.waitForTimeout(200);
+  await page.evaluate(() => switchView("garden"));
+  await page.waitForTimeout(400);
+  assert(
+    (await page.locator("#garden-page-label").textContent()) === `1 / ${nav.pages}`,
+    "leaving and coming back lands on the newest again"
+  );
+
+  /* 넘길 것이 없는 사람에게는 넘기는 자리도 없다.
+     저장은 건드리지 않는다 — 아래에서 10년치 기록으로 되돌아와야 한다. */
+  await page.evaluate((d) => {
+    state.goals = [{ id: "few", title: "물 한 잔", icon: "water", createdAt: "",
+      checks: [d], history: [d], lastCheckDate: d,
+      totalDays: 1, completedCycles: 0, restarts: 0 }];
+    switchView("garden");
+  }, dstr(0));
+  await page.waitForTimeout(400);
+  assert(
+    await page.locator("#garden-nav").isHidden(),
+    "a garden that fits on one page shows no pager at all"
+  );
+
   // 오래 쓴 기록에서도 나머지 화면이 열려야 한다 — 여기서 터지면 되돌릴 길이 없다
+  await reload();
   await page.evaluate(() => switchView("record"));
   await page.waitForTimeout(500);
   assert(

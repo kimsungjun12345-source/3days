@@ -615,23 +615,39 @@ function towersDrawn(goalCount) {
  * 경계였다. 그보다 많아지면 앞뒤로 겹쳐 기둥처럼 이어지고, 백스무 채부터는
  * 그냥 벽이다.
  *
- * 그래서 총량을 여든 채 언저리로 두고 작심 수로 나눈다 — 홈의 정원이 쓰는
- * towersDrawn과 같은 방식이다. 작심이 하나뿐인 사람은 그 하나로 마흔 채
- * (600일)까지 보고, 여섯을 다 채운 사람은 각 열두 채(180일)를 본다. 자리를
- * 나눠 쓰는 것이니 공평하고, 무엇보다 어느 쪽이든 그림이 그림으로 남는다.
+ * 처음에는 거기서 그냥 끊으려 했다. 그러면 오래 다닌 사람의 옛 탑이 그림에서
+ * 영영 사라지는데, 그건 이 탭을 만든 이유와 정면으로 어긋난다.
  *
- * 넘어가는 경우에도 숫자는 진짜를 말하고(탑 1458채), 문구가 그림에는 최근
- * 것만 서 있다고 알려 준다. 기록이 지워지는 것이 아니라 그림이 줄어드는
- * 것뿐이라는 게 드러나야 한다. */
-function towersDrawnFull(goalCount) {
-  return Math.max(12, Math.min(40, Math.round(80 / Math.max(1, goalCount))));
+ * 그래서 끊는 대신 넘긴다. 한 쪽에는 읽히는 만큼만 세우고, 옆으로 밀면 그
+ * 이전 탑들이 나온다. 한 채도 빠지지 않으면서 한 화면은 늘 가볍다.
+ *
+ * 한 쪽의 양은 재 보고 정했다. 한계는 화면 전체가 아니라 **한 줄**에 있다.
+ * 한 작심의 탑은 같은 자리에서 뒤로 물러나며 서므로, 열 채를 넘기면 좌우로
+ * 흔들어 놓아도 두 가닥으로 땋인 밧줄처럼 보인다 — 작심이 하나뿐이어서 화면이
+ * 통째로 비어 있어도 그렇다. 그래서 한 줄에 열 채가 상한이고, 작심이 많아지면
+ * 자리를 나눠 쓰느라 그보다 줄어든다(여섯이면 각 일곱 채).
+ *
+ * 쪽수가 늘어나는 것은 값으로 치지 않았다. 사람이 들여다보는 것은 거의 늘
+ * 첫 쪽이고, 예전 쪽은 가끔 넘겨 보는 것이다. 첫 쪽이 아름다운 편이 낫다. */
+function towersPerPage(goalCount) {
+  return Math.max(6, Math.min(10, Math.round(40 / Math.max(1, goalCount))));
+}
+
+/* 정원이 몇 쪽인가. 가장 많이 쌓은 작심이 쪽수를 정한다 — 그 작심의 탑이
+   다 보이면 나머지는 이미 다 보인 뒤다. */
+function gardenPageCount(goals) {
+  const lanes = goals.slice(0, GARDEN_MAX);
+  if (!lanes.length) return 1;
+  const deepest = Math.max(...lanes.map((g) => towersOf(g).done + 1));
+  return Math.max(1, Math.ceil(deepest / towersPerPage(lanes.length)));
 }
 
 function gardenSVG(goals, opts = {}) {
   /* full 모드 — 정원 탭에서 쓴다. 홈의 정원은 화면 한 귀퉁이라 탑을 몇 채만
      추려 그리는데, 오래 다닌 사람은 그걸 "예전 탑이 사라졌다"로 읽는다.
      맞는 읽기다. 그래서 전부 보여 주는 자리를 따로 만들고, 여기서는 한
-     작심이 세운 탑을 한 채도 빼지 않는다.
+     작심이 세운 탑을 한 채도 빼지 않는다 — 한 화면에 다 세우는 대신
+     쪽을 나눠서(opts.page), 옆으로 넘기면 그 이전 탑들이 나온다.
 
      다만 '작심의 수'는 full에서도 GARDEN_MAX까지다 — 땅에 깔아 둔 줄이
      그만큼뿐이라 그 이상은 놓을 자리가 없다. 그래서 만들기도 같은 수로
@@ -649,7 +665,11 @@ function gardenSVG(goals, opts = {}) {
   /* 뒤로 물러나는 깊이. 홈이든 정원이든 같은 규칙으로 눕히되, 탑이 많으면
      간격만 촘촘해진다 — 맨 뒤 탑이 점처럼 작아지거나 화면 밖으로 나가지
      않게 깊이 범위 자체는 늘 같다. */
-  const drawn = full ? towersDrawnFull(lanesAll.length) : towersDrawn(lanesAll.length);
+  const drawn = full ? towersPerPage(lanesAll.length) : towersDrawn(lanesAll.length);
+  /* 이 쪽이 담는 구간. t=0이 지금 쌓는 탑이고 커질수록 예전 탑이므로,
+     쪽이 넘어갈수록 과거로 간다. 원근은 쪽 안에서만 세므로(아래 slot),
+     몇 쪽을 넘겨도 정원은 늘 같은 깊이로 보인다. */
+  const first = full ? Math.max(0, opts.page || 0) * drawn : 0;
   const rows = Math.min(deepest, drawn);
   const depthStep = 0.86 / Math.max(1, rows - 1);
   /* 물러남의 값 두 개는 따로 놀면 안 된다.
@@ -716,21 +736,25 @@ function gardenSVG(goals, opts = {}) {
     const building = held || running ? { done: checks, waiting: running && !checkedToday(goal) } : null;
 
     const baseX = 0.5 + (GOAL_LANES[gi] - 0.5) * LANE_SPREAD;
-    const shown = Math.min(done, drawn - 1);
-    for (let t = 0; t <= shown; t++) {
-      /* t = 0 이 지금 쌓는 탑(맨 앞), 클수록 오래전에 완성한 탑.
-         여기에 자리마다 다른 밑깊이를 더해 앞뒤를 흩는다 — 그래야 여섯이
-         한 줄로 서지 않는다. 작심이 하나뿐이면 0에 가까워 그대로 앞이다. */
+    const shown = Math.min(done, first + drawn - 1);
+    for (let t = first; t <= shown; t++) {
+      /* t는 이 작심 전체에서의 자리(0이 지금 쌓는 탑), slot은 이 쪽 안에서의
+         자리다. 원근·흔들림은 전부 slot으로 센다 — 그래야 스무 쪽을 넘겨도
+         정원이 늘 같은 깊이로 서고, 뒤쪽 쪽만 지평선에 눌리지 않는다. */
+      const slot = t - first;
+      /* 자리마다 다른 밑깊이를 더해 앞뒤를 흩는다 — 그래야 여섯이 한 줄로
+         서지 않는다. 작심이 하나뿐이면 0에 가까워 그대로 앞이다. */
       const laneDepth = LANE_DEPTH[gi % LANE_DEPTH.length] * LANE_DEPTH_MUL;
-      const depth = Math.min(DEPTH_MAX, laneDepth + t * depthStep);
+      const depth = Math.min(DEPTH_MAX, laneDepth + slot * depthStep);
       /* 뒤로 갈수록 좌우로도 벌어진다. 줄마다 반 칸씩 어긋나게 밀어
          앞 탑이 뒤 탑을 정면으로 가리지 않는다 — 바둑판처럼 줄을 맞추면
          정원이 아니라 진열대가 된다. */
       const sway =
-        (t % 2 === 0 ? -1 : 1) * (0.05 + 0.02 * Math.floor(t / 2)) * LANE_SPREAD;
+        (slot % 2 === 0 ? -1 : 1) * (0.05 + 0.02 * Math.floor(slot / 2)) * LANE_SPREAD;
       /* 흔들림은 자연스러움을 주려는 것이지 자리를 바꾸려는 게 아니다.
          예전 폭(±0.03)은 이웃한 두 자리를 최대 0.06(20px)까지 좁혀서,
-         자리를 아무리 벌려 놔도 앞줄이 붙어 버릴 수 있었다. */
+         자리를 아무리 벌려 놔도 앞줄이 붙어 버릴 수 있었다.
+         여기만 t를 쓰는 이유: 같은 탑은 몇 쪽에서 보든 같은 자리에 서야 한다. */
       const jitter = wobble(gi * 17 + t, 2) * 0.008;
       const x = Math.min(0.97, Math.max(0.03, baseX + sway + jitter)) * W;
       const shrink = 1 - SHRINK * depth;
@@ -741,6 +765,7 @@ function gardenSVG(goals, opts = {}) {
       const opacity = (1 - 0.34 * depth).toFixed(2);
       drawList.push({
         goal, ch,
+        // 쌓는 중인 탑은 첫 쪽에만 있다 — 그 뒤 쪽은 이미 완성된 것들이다
         current: t === 0,
         stones: t === 0 ? current : STONES_PER_TOWER,
         building: t === 0 ? building : null,
@@ -1468,16 +1493,22 @@ function paintGoalKey() {
  * 가장 자랑스러워야 할 것이 가장 조용히 지워지고 있던 셈이다.
  *
  * 그래서 정원에 제 화면을 준다. 홈의 정원은 그대로 두되, 이제 그건 요약이고
- * 진짜는 여기다. 다만 여기도 무한하지는 않다 — towersDrawnFull이 정한 만큼
- * 서고, 넘어가면 문구가 최근 것만 서 있다고 말해 준다.
+ * 진짜는 여기다. 한 화면에 다 세우지는 않는다 — towersPerPage가 정한 만큼만
+ * 서고, 옆으로 밀면 그 이전 탑들이 나온다. 그래서 빠지는 탑은 없다.
  *
  * 이 화면에는 그림 말고 아무것도 두지 않는다. 한동안 아래에 작심 목록을
  * 한 벌 더 달아 두었는데, 그건 홈에 이미 있는 줄이라 두 탭이 사실상 같은
  * 화면으로 보였다. 탑 하나에 대해 알고 싶으면 그 탑을 누른다.
  */
+/* 지금 보고 있는 쪽. 0이 가장 최근이고, 커질수록 예전 탑이다. */
+let gardenPage = 0;
+
 function renderGarden() {
   const goals = state.goals;
-  $("garden-page").innerHTML = gardenSVG(goals, { full: true });
+  const pages = gardenPageCount(goals);
+  // 돌을 지우거나 작심을 지우면 쪽수가 줄어든다 — 보던 쪽이 사라지면 당겨 온다
+  gardenPage = Math.min(Math.max(0, gardenPage), pages - 1);
+  $("garden-page").innerHTML = gardenSVG(goals, { full: true, page: gardenPage });
   /* 탑 하나하나가 그 작심으로 들어가는 문이다.
    *
    * 예전에는 아래에 작심 목록을 한 벌 더 두었는데, 그건 홈에 이미 있는
@@ -1505,24 +1536,30 @@ function renderGarden() {
     });
   });
 
+  /* 쪽 넘기는 자리. 한 쪽으로 끝나면 아예 두지 않는다 — 대부분의 사람에게는
+     넘길 것이 없고, 없는 길을 보여 주면 그것대로 물음이 된다. */
+  $("garden-nav").hidden = pages < 2;
+  if (pages > 1) {
+    $("garden-page-label").textContent = `${gardenPage + 1} / ${pages}`;
+    // 첫 쪽에서는 더 최근이 없고, 끝 쪽에서는 더 예전이 없다
+    $("garden-next").disabled = gardenPage === 0;
+    $("garden-prev").disabled = gardenPage >= pages - 1;
+  }
+
   const stones = totalStones();
   const towers = goals.reduce((s, g) => s + towersOf(g).done, 0);
-  /* 그림이 다 담지 못하는 경우가 둘 있다. 작심이 GARDEN_MAX를 넘는 것(예전에
-     만들었거나 가져온 기록)과, 한 작심의 탑이 TOWERS_FULL_MAX를 넘는 것이다.
-     둘 중 하나라도 걸리는데 "전부 서 있어요"라고 하면 눈앞에서 거짓말이 된다 —
-     숫자로는 1458채라고 해 놓고 그림에는 그만큼이 없기 때문이다. */
+  /* 그림이 작심을 다 담지 못하는 경우가 있다 — GARDEN_MAX를 넘는 기록(예전에
+     만들었거나 가져온 것)이다. 그때 "전부 서 있어요"라고 하면 눈앞에서
+     거짓말이 된다. 탑 쪽은 이제 넘기면 다 나오므로 빠지는 것이 없다. */
   const overGoals = goals.length > GARDEN_MAX;
-  const lanes = goals.slice(0, GARDEN_MAX);
-  const perLane = towersDrawnFull(lanes.length);
-  const overTowers = lanes.some((g) => towersOf(g).done + 1 > perLane);
   /* 목록을 없앴으므로, 탑을 눌러 보라는 말을 여기서 한 번 해 준다.
      아무 안내가 없으면 그림이 그냥 그림으로만 보인다. */
   const note = overGoals
-    ? overTowers
-      ? `그림에는 앞의 작심 ${GARDEN_MAX}개의 최근 탑이 서 있어요.`
-      : `그림에는 앞의 작심 ${GARDEN_MAX}개가 서 있어요.`
-    : overTowers
-      ? "그림에는 가장 최근에 세운 탑들이 서 있어요."
+    ? `그림에는 앞의 작심 ${GARDEN_MAX}개가 서 있어요.`
+    : pages > 1
+      ? gardenPage === 0
+        ? "옆으로 밀면 그 이전 탑이 나와요."
+        : "예전에 세운 탑들이에요."
       : "탑을 누르면 그 기록이 열려요.";
   $("garden-word").textContent =
     goals.length === 0
@@ -1530,6 +1567,70 @@ function renderGarden() {
       : towers > 0
         ? `탑 ${towers}채 · 돌 ${stones}개 — ${note}`
         : `돌 ${stones}개를 쌓았어요. ${STONES_PER_TOWER}개가 모이면 탑 한 채가 됩니다.`;
+}
+
+/* 쪽을 옮긴다. delta가 +1이면 과거로, -1이면 최근으로. */
+function turnGarden(delta) {
+  const pages = gardenPageCount(state.goals);
+  const next = Math.min(Math.max(gardenPage + delta, 0), pages - 1);
+  if (next === gardenPage) return;
+  gardenPage = next;
+  renderGarden();
+  /* 넘어간 것이 보이도록 그림이 들어오는 방향을 준다. 과거로 갈 때는 왼쪽에서,
+     최근으로 돌아올 때는 오른쪽에서 — 민 방향과 반대로 들어와야 종이 한 장이
+     넘어간 것으로 읽힌다. */
+  const page = $("garden-page");
+  page.classList.remove("slide-back", "slide-fore");
+  // 클래스를 지웠다 바로 붙이면 같은 프레임이라 애니메이션이 다시 돌지 않는다
+  void page.offsetWidth;
+  page.classList.add(delta > 0 ? "slide-back" : "slide-fore");
+  haptic(6);
+}
+
+/* 정원을 옆으로 밀어 넘기기.
+ *
+ * 탑 하나하나가 누르면 열리는 버튼이라, 미는 것과 누르는 것을 갈라야 한다.
+ * 손가락이 가로로 충분히(28px) 움직였고 그 움직임이 세로보다 뚜렷할 때만
+ * 쪽을 넘기고, 그 경우에는 뒤따라오는 click을 한 번 삼킨다 — 안 그러면
+ * 밀어 놓고 손을 뗀 자리의 탑이 함께 열린다. */
+function setupGardenSwipe() {
+  const page = $("garden-page");
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+  let swiped = false;
+
+  page.addEventListener("pointerdown", (e) => {
+    startX = e.clientX;
+    startY = e.clientY;
+    tracking = true;
+    swiped = false;
+  });
+
+  page.addEventListener("pointerup", (e) => {
+    if (!tracking) return;
+    tracking = false;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (Math.abs(dx) < 28 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+    swiped = true;
+    // 왼쪽으로 밀면 다음(예전) 쪽이 따라온다 — 종이를 왼쪽으로 넘기는 것과 같다
+    turnGarden(dx < 0 ? 1 : -1);
+  });
+
+  page.addEventListener("pointercancel", () => { tracking = false; });
+
+  // 캡처 단계에서 잡아야 탑에 붙은 click보다 먼저 온다
+  page.addEventListener(
+    "click",
+    (e) => {
+      if (!swiped) return;
+      swiped = false;
+      e.stopPropagation();
+      e.preventDefault();
+    },
+    true
+  );
 }
 
 /* ── 화면 전환 ─────────────────────── */
@@ -1546,7 +1647,12 @@ function switchView(name) {
     t.classList.toggle("on", on);
     t.setAttribute("aria-current", on ? "page" : "false");
   });
-  if (name === "garden") renderGarden();
+  // 정원은 늘 가장 최근 쪽에서 시작한다 — 예전 쪽을 보다 나갔다 돌아왔을 때
+  // 거기 그대로 있으면 "내 탑이 어디 갔지"가 된다
+  if (name === "garden") {
+    gardenPage = 0;
+    renderGarden();
+  }
   if (name === "record") renderRecord();
   window.scrollTo({ top: 0 });
   haptic(6);
@@ -1575,6 +1681,11 @@ function setupTabs() {
       haptic(6);
     });
   }
+
+  // 달력과 같은 손짓으로 — ‹는 과거로, ›는 최근으로
+  $("garden-prev").addEventListener("click", () => turnGarden(1));
+  $("garden-next").addEventListener("click", () => turnGarden(-1));
+  setupGardenSwipe();
 }
 
 /* ── 완주 축하 ─────────────────────── */
