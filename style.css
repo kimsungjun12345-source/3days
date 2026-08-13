@@ -14,6 +14,9 @@
      같이 바꿀 것 — 어긋나면 정원 아래에 빈 띠가 생기거나 화면이 밀려난다.
      test/smoke.js가 그 어긋남을 재고 있다. */
   --appbar-h: 56px;
+  /* 기록 달력의 작심별 점 지름. 점이 몇 개까지 한 줄에 서는지를 이 값이
+     정하므로, .gdots.folded의 계산과 짝이다 */
+  --gdot: 6px;
 
   --bg: #f7f6f3;
   --card: #ffffff;
@@ -1453,6 +1456,9 @@ body {
 
 .mcal-cell {
   aspect-ratio: 1;
+  /* 격자 칸은 기본으로 '내용보다 좁아질 수 없다'. 그대로 두면 점 여섯 개가
+     칸을 벌리고 달력이 카드 밖으로 나간다 — 좁아질 수 있게 열어 둔다. */
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1502,16 +1508,31 @@ body {
   font-weight: 700;
 }
 
+/* 달력 칸 아래의 작심별 점.
+ *
+ * 작심 여섯을 하루에 다 하면 점도 여섯이다. 한 줄로 세우면 6×6px에 간격
+ * 5×3px이라 51px가 필요한데, 칸은 화면 폭에 따라 37~41px밖에 안 된다.
+ * 그런데 격자 칸의 기본 최소 너비가 '내용만큼'이라, 모자라면 칸이 넓어지고
+ * 달력 전체가 카드 밖으로 밀려 나갔다 — 화면 오른쪽이 잘려 보인 이유다.
+ *
+ * 점을 지우거나 줄이는 대신 두 줄로 접는다. 넷 이상이면 세 개에서 끊어
+ * 3+3으로 서게 해 두었다 — 그냥 접으면 4+2가 되어 한쪽으로 쏠린다. */
 .gdots {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 3px;
-  height: 6px;
+  max-width: 100%;
   align-items: center;
 }
 
+.gdots.folded {
+  max-width: calc(var(--gdot) * 3 + 6px);
+}
+
 .gdot {
-  width: 6px;
-  height: 6px;
+  width: var(--gdot);
+  height: var(--gdot);
   border-radius: 50%;
   background: var(--goal-1);
 }

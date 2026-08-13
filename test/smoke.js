@@ -1525,6 +1525,107 @@ function dstr(offset) {
     `and the towers fill the height they were given (${fills.drawnH}/${fills.boxH})`
   );
 
+  /* 44. 작심 여섯의 달력이 화면 밖으로 나가지 않는다.
+   *
+   * 하루에 여섯을 다 하면 칸 아래 점도 여섯이다. 한 줄로 세우면 51px가
+   * 필요한데 칸은 37~41px뿐이고, 격자 칸은 기본적으로 '내용보다 좁아질 수
+   * 없어서' 칸이 벌어지고 달력이 카드 밖으로 밀려 나갔다. 폰에서는 오른쪽이
+   * 잘려 보였다. 좁은 기기에서 먼저 터지므로 좁은 폭으로 잰다. */
+  await page.setViewportSize({ width: 360, height: 760 });
+  await page.evaluate(() => switchView("record"));
+  await page.waitForTimeout(400);
+  const sixDots = await page.evaluate(() => {
+    const cell = document.querySelector("#record-mcal .mcal-cell.today");
+    const cb = cell.getBoundingClientRect();
+    const dots = cell.querySelector(".gdots").getBoundingClientRect();
+    return {
+      pageOverflows: document.documentElement.scrollWidth > innerWidth + 1,
+      dots: cell.querySelectorAll(".gdot").length,
+      // 접힌 점이 칸 밖으로 삐져나가면 옆 칸 위에 겹쳐 그려진다
+      inside: dots.right <= cb.right + 0.5 && dots.bottom <= cb.bottom + 0.5,
+      numberVisible: cell.querySelector("i").getBoundingClientRect().height > 6,
+    };
+  });
+  assert(!sixDots.pageOverflows, "six goals do not push the calendar off the screen");
+  assert(sixDots.dots === 6, `every one of the six still gets a dot (${sixDots.dots})`);
+  assert(sixDots.inside, "and the folded dots stay inside their day");
+  assert(sixDots.numberVisible, "with the date still readable above them");
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  /* 45. 십 년을 다녀도 앱이 무너지지 않는다.
+   *
+   * 이 앱은 오래 쓰라고 만든 것이라, 오래 쓴 사람에게서 처음 터지면 가장
+   * 나쁘다. 작심 여섯이 10년을 하루도 빠짐없이 다닌 기록을 넣어 본다 —
+   * 탑 1458채, 돌 7296개, 저장된 기록 279KB.
+   *
+   * 예전에는 정원 탭이 그 1458채를 전부 그렸다. SVG 요소가 4만 개가 되어
+   * 개발용 컴퓨터에서도 여는 데 1초가 걸렸고(폰이면 몇 배다), 그러면서 보이는
+   * 것은 없었다 — 탑 하나가 1px도 안 되니 한 덩어리로 뭉친다. 지금은
+   * towersDrawnFull이 여든 채 언저리에서 끊고, 숫자와 문구가 진짜를 말한다. */
+  const decade = await page.evaluate(() => {
+    const days = 3650;
+    const hist = [];
+    const now = new Date();
+    for (let i = days - 1; i >= 0; i--) {
+      const t = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      hist.push(
+        `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`
+      );
+    }
+    localStorage.setItem("jaksim3.v1", JSON.stringify({
+      goals: Array.from({ length: 6 }, (_, i) => ({
+        id: "decade" + i, title: "작심 " + (i + 1), icon: "water", createdAt: hist[0],
+        checks: [], history: hist.slice(), lastCheckDate: hist[hist.length - 1],
+        totalDays: days, completedCycles: Math.floor(days / 3), restarts: 4 + i,
+      })),
+    }));
+    return localStorage.getItem("jaksim3.v1").length;
+  });
+  // 5MB 한도에 견주면 한참 아래다 — 30년을 다녀도 여유가 있다는 뜻
+  assert(decade < 400 * 1024, `ten years of six goals still fits in storage (${Math.round(decade / 1024)}KB)`);
+
+  await reload();
+  await page.evaluate(() => switchView("garden"));
+  await page.waitForTimeout(600);
+  const long = await page.evaluate(() => {
+    const svg = document.querySelector("#garden-page svg");
+    return {
+      towers: document.querySelectorAll("#garden-page .tower").length,
+      nodes: svg.getElementsByTagName("*").length,
+      word: document.getElementById("garden-word").textContent,
+      realTowers: state.goals.reduce((s, g) => s + towersOf(g).done, 0),
+      overflowX: document.documentElement.scrollWidth > innerWidth + 1,
+    };
+  });
+  assert(long.realTowers > 1000, `the record itself still counts every tower (${long.realTowers})`);
+  assert(
+    long.towers > 0 && long.towers <= 90,
+    `but the garden draws a legible number of them (${long.towers})`
+  );
+  assert(long.nodes < 4000, `so the drawing stays light (${long.nodes} svg nodes)`);
+  assert(
+    long.word.includes(`탑 ${long.realTowers}채`),
+    `the count still tells the truth → ${long.word}`
+  );
+  assert(
+    long.word.includes("최근"),
+    "and says out loud that only the recent ones are standing"
+  );
+  assert(!long.overflowX, "a decade of towers does not spill off the screen");
+
+  // 오래 쓴 기록에서도 나머지 화면이 열려야 한다 — 여기서 터지면 되돌릴 길이 없다
+  await page.evaluate(() => switchView("record"));
+  await page.waitForTimeout(500);
+  assert(
+    (await page.locator("#record-goals .record-row").count()) === 6,
+    "the record still lists every goal after ten years"
+  );
+  await page.evaluate(() => openDetail(state.goals[0]));
+  await page.waitForTimeout(400);
+  assert(await page.locator("#detail").isVisible(), "and a ten-year goal's sheet still opens");
+  await page.click("#detail-close");
+  await page.waitForTimeout(200);
+
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 
   await page.screenshot({ path: __dirname + "/screenshot.png", fullPage: true });

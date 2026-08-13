@@ -602,6 +602,31 @@ function towersDrawn(goalCount) {
   return Math.max(2, Math.round(10 / Math.max(1, goalCount)));
 }
 
+/* 정원 탭에서 한 작심이 세울 수 있는 탑의 수.
+ *
+ * 여기는 오랫동안 무제한이었다. "한 채도 빼지 않는다"가 이 탭을 따로 만든
+ * 이유였으니 당연한 선택 같았는데, 10년치를 넣고 재 보니 그렇지 않았다.
+ * 작심 여섯이 10년을 다니면 탑이 1458채, SVG 요소가 4만 개가 된다. 개발용
+ * 컴퓨터에서도 정원을 여는 데 1초가 걸렸고 폰이라면 몇 배다. 그러면서도
+ * 정작 보이는 것은 없다 — 탑 하나가 1px도 되지 않아 한 덩어리로 뭉친다.
+ * 지키려던 '전부 서 있다'가 그 지점에서는 지켜지지도, 보이지도 않는 셈이다.
+ *
+ * 한 화면에 몇 채까지 '탑'으로 읽히는지 그려 보며 재 봤다. 여든 채쯤이
+ * 경계였다. 그보다 많아지면 앞뒤로 겹쳐 기둥처럼 이어지고, 백스무 채부터는
+ * 그냥 벽이다.
+ *
+ * 그래서 총량을 여든 채 언저리로 두고 작심 수로 나눈다 — 홈의 정원이 쓰는
+ * towersDrawn과 같은 방식이다. 작심이 하나뿐인 사람은 그 하나로 마흔 채
+ * (600일)까지 보고, 여섯을 다 채운 사람은 각 열두 채(180일)를 본다. 자리를
+ * 나눠 쓰는 것이니 공평하고, 무엇보다 어느 쪽이든 그림이 그림으로 남는다.
+ *
+ * 넘어가는 경우에도 숫자는 진짜를 말하고(탑 1458채), 문구가 그림에는 최근
+ * 것만 서 있다고 알려 준다. 기록이 지워지는 것이 아니라 그림이 줄어드는
+ * 것뿐이라는 게 드러나야 한다. */
+function towersDrawnFull(goalCount) {
+  return Math.max(12, Math.min(40, Math.round(80 / Math.max(1, goalCount))));
+}
+
 function gardenSVG(goals, opts = {}) {
   /* full 모드 — 정원 탭에서 쓴다. 홈의 정원은 화면 한 귀퉁이라 탑을 몇 채만
      추려 그리는데, 오래 다닌 사람은 그걸 "예전 탑이 사라졌다"로 읽는다.
@@ -624,8 +649,8 @@ function gardenSVG(goals, opts = {}) {
   /* 뒤로 물러나는 깊이. 홈이든 정원이든 같은 규칙으로 눕히되, 탑이 많으면
      간격만 촘촘해진다 — 맨 뒤 탑이 점처럼 작아지거나 화면 밖으로 나가지
      않게 깊이 범위 자체는 늘 같다. */
-  const drawn = full ? Infinity : towersDrawn(lanesAll.length);
-  const rows = Math.min(deepest, full ? deepest : drawn);
+  const drawn = full ? towersDrawnFull(lanesAll.length) : towersDrawn(lanesAll.length);
+  const rows = Math.min(deepest, drawn);
   const depthStep = 0.86 / Math.max(1, rows - 1);
   /* 물러남의 값 두 개는 따로 놀면 안 된다.
    *
@@ -1285,13 +1310,11 @@ function monthCalHTML(doneSet, y, m, marks) {
     /* 점은 만들 수 있는 작심 수(GARDEN_MAX)만큼 다 찍는다.
        예전에는 네 개에서 잘랐는데, 여섯을 만들 수 있게 된 뒤로는 하루에
        여섯을 다 해도 둘이 사라져 '기록이 빠졌다'로 보였다. */
-    const dots = marks
-      ? (marks.get(key) || [])
-          .slice(0, GARDEN_MAX)
-          .map((i) => `<b class="gdot g${i}"></b>`)
-          .join("")
-      : "";
-    parts.push(`<span class="${cls}"><i>${d}</i>${dots ? `<em class="gdots">${dots}</em>` : ""}</span>`);
+    const marked = marks ? (marks.get(key) || []).slice(0, GARDEN_MAX) : [];
+    const dots = marked.map((i) => `<b class="gdot g${i}"></b>`).join("");
+    // 넷부터는 두 줄로 접는다 — 한 줄로 세우면 칸이 벌어져 달력이 화면을 넘는다
+    const dotCls = "gdots" + (marked.length > 3 ? " folded" : "");
+    parts.push(`<span class="${cls}"><i>${d}</i>${dots ? `<em class="${dotCls}">${dots}</em>` : ""}</span>`);
   }
   return parts.join("");
 }
@@ -1444,8 +1467,9 @@ function paintGoalKey() {
  * 오래 다닌 사람에게는 그게 "예전에 세운 탑이 사라졌다"로 보인다 —
  * 가장 자랑스러워야 할 것이 가장 조용히 지워지고 있던 셈이다.
  *
- * 그래서 정원에 제 화면을 준다. 여기서는 한 채도 빼지 않고 전부 서 있다.
- * 홈의 정원은 그대로 두되, 이제 그건 요약이고 진짜는 여기다.
+ * 그래서 정원에 제 화면을 준다. 홈의 정원은 그대로 두되, 이제 그건 요약이고
+ * 진짜는 여기다. 다만 여기도 무한하지는 않다 — towersDrawnFull이 정한 만큼
+ * 서고, 넘어가면 문구가 최근 것만 서 있다고 말해 준다.
  *
  * 이 화면에는 그림 말고 아무것도 두지 않는다. 한동안 아래에 작심 목록을
  * 한 벌 더 달아 두었는데, 그건 홈에 이미 있는 줄이라 두 탭이 사실상 같은
@@ -1483,19 +1507,28 @@ function renderGarden() {
 
   const stones = totalStones();
   const towers = goals.reduce((s, g) => s + towersOf(g).done, 0);
-  /* 그림에 담기는 작심은 GARDEN_MAX까지다. 그걸 넘는 기록(예전에 만들었거나
-     가져온 것)을 두고 "전부 서 있어요"라고 하면 눈앞에서 거짓말이 된다 —
-     홈에도 기록 탭에도 일곱 번째가 버젓이 있는데 그림에만 없기 때문이다. */
-  const allDrawn = goals.length <= GARDEN_MAX;
+  /* 그림이 다 담지 못하는 경우가 둘 있다. 작심이 GARDEN_MAX를 넘는 것(예전에
+     만들었거나 가져온 기록)과, 한 작심의 탑이 TOWERS_FULL_MAX를 넘는 것이다.
+     둘 중 하나라도 걸리는데 "전부 서 있어요"라고 하면 눈앞에서 거짓말이 된다 —
+     숫자로는 1458채라고 해 놓고 그림에는 그만큼이 없기 때문이다. */
+  const overGoals = goals.length > GARDEN_MAX;
+  const lanes = goals.slice(0, GARDEN_MAX);
+  const perLane = towersDrawnFull(lanes.length);
+  const overTowers = lanes.some((g) => towersOf(g).done + 1 > perLane);
   /* 목록을 없앴으므로, 탑을 눌러 보라는 말을 여기서 한 번 해 준다.
      아무 안내가 없으면 그림이 그냥 그림으로만 보인다. */
+  const note = overGoals
+    ? overTowers
+      ? `그림에는 앞의 작심 ${GARDEN_MAX}개의 최근 탑이 서 있어요.`
+      : `그림에는 앞의 작심 ${GARDEN_MAX}개가 서 있어요.`
+    : overTowers
+      ? "그림에는 가장 최근에 세운 탑들이 서 있어요."
+      : "탑을 누르면 그 기록이 열려요.";
   $("garden-word").textContent =
     goals.length === 0
       ? "작심을 하나 만들면 여기에 첫 탑이 섭니다."
       : towers > 0
-        ? allDrawn
-          ? `탑 ${towers}채 · 돌 ${stones}개 — 탑을 누르면 그 기록이 열려요.`
-          : `탑 ${towers}채 · 돌 ${stones}개 — 그림에는 앞의 작심 ${GARDEN_MAX}개가 서 있어요.`
+        ? `탑 ${towers}채 · 돌 ${stones}개 — ${note}`
         : `돌 ${stones}개를 쌓았어요. ${STONES_PER_TOWER}개가 모이면 탑 한 채가 됩니다.`;
 }
 
