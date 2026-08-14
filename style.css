@@ -14,9 +14,12 @@
      같이 바꿀 것 — 어긋나면 정원 아래에 빈 띠가 생기거나 화면이 밀려난다.
      test/smoke.js가 그 어긋남을 재고 있다. */
   --appbar-h: 56px;
-  /* 기록 달력의 작심별 점 지름. 점이 몇 개까지 한 줄에 서는지를 이 값이
-     정하므로, .gdots.folded의 계산과 짝이다 */
-  --gdot: 6px;
+  /* 기록 달력의 작심별 점 지름과 사이 간격.
+     점이 몇 개까지 한 줄에 서는지를 이 둘이 정하므로 .gdots.folded의 계산과
+     짝이다. 여섯 개가 두 줄로 서도 칸 안에 남으려면 이만큼이 상한이다 —
+     6px일 때는 실기기에서 칸을 밀고 나왔다. */
+  --gdot: 5px;
+  --gdot-gap: 2px;
 
   --bg: #f7f6f3;
   --card: #ffffff;
@@ -1543,8 +1546,17 @@ body {
    날짜 아래에 작심별 점을 찍는다. */
 .mcal-cell.marked {
   flex-direction: column;
-  gap: 2px;
-  padding-top: 3px;
+  gap: 1px;
+  /* 위아래를 같이 띄운다. 위만 띄워 두었더니 점이 칸 아래 모서리에 딱 붙었고,
+     기기 글꼴을 키운 사람에게는 밖으로 밀려 나온 것으로 보였다. */
+  padding: 3px 2px;
+}
+
+/* 점이 함께 서는 칸에서는 날짜가 제 줄 높이를 다 쓰지 않게 한다.
+   기기 글꼴이 130%일 때 이 한 줄이 칸을 6px 키우고, 그 6px가 그대로
+   점을 밖으로 밀어냈다. */
+.mcal-cell.marked i {
+  line-height: 1.1;
 }
 
 .mcal-cell.marked.done {
@@ -1566,13 +1578,13 @@ body {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 3px;
+  gap: var(--gdot-gap);
   max-width: 100%;
   align-items: center;
 }
 
 .gdots.folded {
-  max-width: calc(var(--gdot) * 3 + 6px);
+  max-width: calc(var(--gdot) * 3 + var(--gdot-gap) * 2);
 }
 
 .gdot {

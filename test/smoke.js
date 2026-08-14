@@ -1550,9 +1550,79 @@ function dstr(offset) {
   assert(sixDots.dots === 6, `every one of the six still gets a dot (${sixDots.dots})`);
   assert(sixDots.inside, "and the folded dots stay inside their day");
   assert(sixDots.numberVisible, "with the date still readable above them");
+
+  /* 기기 글꼴을 키운 사람에게서 먼저 터진다.
+   *
+   * 점을 두 줄로 접고 나서도 실기기에서는 여전히 삐져나왔다. 원인은 날짜
+   * 글자였다 — 기기 설정으로 글꼴을 키우면 그 한 줄이 칸을 밀어 올리고,
+   * 밀린 만큼 점이 아래로 나간다. 브라우저 기본(16px)만 재면 영영 못 잡는다. */
+  for (const scale of [1.15, 1.3]) {
+    await page.evaluate((s) => { document.documentElement.style.fontSize = 16 * s + "px"; }, scale);
+    await page.waitForTimeout(250);
+    const big = await page.evaluate(() => {
+      const cell = document.querySelector("#record-mcal .mcal-cell.today");
+      const cb = cell.getBoundingClientRect();
+      const db = cell.querySelector(".gdots").getBoundingClientRect();
+      return {
+        slack: Math.round(cb.bottom - db.bottom),
+        inside: db.right <= cb.right + 0.5 && db.bottom <= cb.bottom + 0.5,
+        overflows: document.documentElement.scrollWidth > innerWidth + 1,
+      };
+    });
+    assert(big.inside && !big.overflows, `the dots hold at ${Math.round(scale * 100)}% system text`);
+    // 딱 맞는 것은 맞는 것이 아니다 — 여유가 없으면 다음 기기에서 다시 터진다
+    assert(big.slack >= 2, `with room to spare beneath them (${big.slack}px)`);
+  }
+  await page.evaluate(() => { document.documentElement.style.fontSize = ""; });
   await page.setViewportSize({ width: 390, height: 844 });
 
-  /* 45. 십 년을 다녀도 앱이 무너지지 않는다.
+  /* 45. 무언가를 바꾸면 지금 보고 있는 탭이 함께 바뀐다.
+   *
+   * 정원과 기록은 탭을 열 때 한 번 그리고 마는 구조였다. 그래서 그 탭에 머문
+   * 채로 '오늘 표시 지우기'를 하면 화면이 옛 상태로 남았다 — 정원에서는 아래
+   * 숫자만 하나 줄고 탑의 3일 테두리는 그대로, 기록에서는 달력에 오늘이 그대로
+   * 칠해진 채로. 지운 사람 눈에는 지워진 것과 안 지워진 것이 한 화면에 같이
+   * 있는 셈이라, 지워졌는지 아닌지를 알 수 없다. */
+  const seedTwoDays = () =>
+    page.evaluate((d) => {
+      state.goals = [{ id: "stay", title: "물 한 잔", icon: "water", createdAt: "",
+        checks: [d.yes, d.today], history: [d.yes, d.today], lastCheckDate: d.today,
+        totalDays: 2, completedCycles: 0, restarts: 0 }];
+      save();
+      render();
+    }, { yes: dstr(-1), today: dstr(0) });
+
+  await seedTwoDays();
+  await page.evaluate(() => switchView("garden"));
+  await page.waitForTimeout(400);
+  await page.evaluate(() => { openDetail(state.goals[0]); });
+  await page.waitForTimeout(300);
+  await page.evaluate(() => { undoToday(state.goals[0]); closeDetail(); });
+  await page.waitForTimeout(400);
+  const onGarden = await page.evaluate(() => ({
+    ring: document.querySelectorAll("#garden-page .slot-day").length,
+    checks: state.goals[0].checks.length,
+    days: document.getElementById("stat-total-days").textContent,
+  }));
+  assert(
+    onGarden.ring === onGarden.checks,
+    `undoing from the garden clears the three-day ring too (${onGarden.ring} vs ${onGarden.checks})`
+  );
+  assert(onGarden.days === "1", `and the numbers agree with it (${onGarden.days})`);
+
+  await seedTwoDays();
+  await page.evaluate(() => switchView("record"));
+  await page.waitForTimeout(400);
+  await page.evaluate(() => { openDetail(state.goals[0]); });
+  await page.waitForTimeout(300);
+  await page.evaluate(() => { undoToday(state.goals[0]); closeDetail(); });
+  await page.waitForTimeout(400);
+  assert(
+    (await page.locator("#record-mcal .mcal-cell.today.done").count()) === 0,
+    "and undoing from the record clears today off the calendar"
+  );
+
+  /* 46. 십 년을 다녀도 앱이 무너지지 않는다.
    *
    * 이 앱은 오래 쓰라고 만든 것이라, 오래 쓴 사람에게서 처음 터지면 가장
    * 나쁘다. 작심 여섯이 10년을 하루도 빠짐없이 다닌 기록을 넣어 본다 —
@@ -1609,7 +1679,7 @@ function dstr(offset) {
   );
   assert(!long.overflowX, "a decade of towers does not spill off the screen");
 
-  /* 46. 한 쪽에 다 못 세우면 넘겨서 본다 — 빠지는 탑은 없다.
+  /* 47. 한 쪽에 다 못 세우면 넘겨서 본다 — 빠지는 탑은 없다.
    *
    * 한 화면에 읽히는 만큼만 세우는 것과 옛 탑을 버리는 것은 다르다. 후자면
    * 이 탭을 만든 이유(예전 탑이 사라진다)가 그대로 돌아온다. 그래서 넘기는

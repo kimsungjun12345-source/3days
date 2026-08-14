@@ -896,6 +896,18 @@ const $ = (id) => document.getElementById(id);
 function render() {
   renderStats();
   renderGoals();
+  /* 지금 열려 있는 탭도 함께 다시 그린다.
+   *
+   * 오랫동안 여기서 홈과 숫자만 갱신했다. 정원과 기록은 탭을 열 때
+   * (switchView) 한 번 그리고 마는 구조라, 그 탭에 머문 채로 무언가를 바꾸면
+   * 화면이 옛 상태로 남았다. '오늘 표시 지우기'가 그 자리다 — 정원 탭에서
+   * 탑을 눌러 지우면 아래 숫자는 하나 줄어드는데 탑의 3일 테두리는 그대로였고,
+   * 기록 탭에서 지우면 달력에 오늘이 그대로 칠해져 있었다. 지운 사람 눈에는
+   * 지워진 것과 안 지워진 것이 한 화면에 같이 있는 셈이다.
+   *
+   * 숨어 있는 탭까지 그릴 필요는 없다 — 열 때 어차피 다시 그린다. */
+  if (currentView === "garden") renderGarden();
+  if (currentView === "record") renderRecord();
   runPendingAnim();
   // 상태가 바뀌면 앞으로 보낼 알림도 다시 짠다 (네이티브에서만 동작)
   if (typeof rescheduleNotifications === "function") rescheduleNotifications();
