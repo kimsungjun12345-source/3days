@@ -270,13 +270,16 @@ function nextCycle(goal, from) {
   // 완성한 날 바로 누르면 오늘은 이미 카운트됐으므로 내일부터 첫째 날
   if (!checkedToday(goal)) {
     checkToday(goal, { silent: true });
-    // 쉬다가 돌아온 사람에게는 다른 인사가 필요하다
-    toast("stone", from === "lapsed" ? "돌아왔네요. 그거면 충분해요" : "또 하나 쌓기 시작!");
+    if (from !== "lapsed") toast("stone", "또 하나 쌓기 시작!");
   } else {
     save();
     render();
-    toast("sleep", "내일 첫 칸부터 시작해요");
+    if (from !== "lapsed") toast("sleep", "내일 첫 칸부터 시작해요");
   }
+  /* 쉬다가 돌아온 사람은 인사가 다르다. 예전에는 여기도 토스트 한 줄이었는데,
+     이 앱이 가장 크게 대접해야 할 순간이 가장 작은 대접을 받고 있던 셈이다.
+     완주 다음 날 바로 이어 가는 것(resting)은 멈춘 적이 없으므로 열지 않는다. */
+  if (from === "lapsed") showReturn(goal);
 }
 
 /* 끊긴 뒤 다시 쌓기 — 쌓은 날은 유지, 사이클만 새로 */
@@ -292,7 +295,7 @@ function restart(goal) {
     save();
     render();
   }
-  toast("run", `다시 쌓기 ${goal.restarts}번째. 이게 진짜 실력이에요`);
+  showReturn(goal);
 }
 
 function removeGoal(goal) {
@@ -1710,6 +1713,51 @@ function setupTabs() {
   setupGardenSwipe();
 }
 
+/* ── 다시 온 순간 ───────────────────────
+ *
+ * 이 앱이 다른 습관 앱과 갈리는 지점은 '안 끊기게 하는 것'이 아니라
+ * '끊긴 뒤에 돌아오게 하는 것'이다. 그런데 오랫동안 완주는 화면을 통째로
+ * 쓰는 축하를 받고 돌아온 순간은 토스트 한 줄로 지나갔다. 제품이 말하는
+ * 것과 제품이 실제로 보상하는 행동이 어긋나 있던 셈이다.
+ *
+ * 그렇다고 완주 축하를 한 벌 더 만들지는 않는다. 두 순간의 감정이 다르다 —
+ * 완주는 '해냈다'는 성취고 이쪽은 '돌아왔다'는 안도다. 같은 크기로 터뜨리면
+ * 둘 다 뭉개지므로, 여기는 아래에서 조용히 올라오는 작은 시트다.
+ *
+ * 닫는 버튼을 자동 사라짐 대신 둔 이유: 누르는 행위 자체가 다시 하겠다는
+ * 대답이라서다. 1초 뒤에 저절로 사라지면 읽기도 전에 지나가고, 무엇보다
+ * 사용자가 아무것도 하지 않은 것이 된다. */
+function showReturn(goal) {
+  const stones = stoneCount(goal);
+  const ch = goalCharacter(goal);
+  const { current } = towersOf(goal);
+  /* 지금 쌓는 중인 탑을 그대로 보여 준다 — 이 사람이 두고 간 자리가
+     그대로 있다는 것이 이 화면이 하는 말의 전부다. 돌이 하나도 없으면
+     빈 탑이라도 세운다(막 시작해서 끊긴 사람). */
+  $("return-cairn").innerHTML = cairnSVG(current, true, 0, STONES_PER_TOWER, 0, ch);
+  $("return-cairn").className = "return-cairn " + ch.toneClass;
+
+  $("return-word").textContent = stones > 0
+    ? `멈춘 건 괜찮아요. 쌓아 둔 돌 ${stones}개는 그대로예요.\n오늘부터 다시 3일이에요.`
+    : "멈춘 건 괜찮아요.\n오늘부터 다시 3일이에요.";
+
+  /* '다시 쌓음'을 부정적인 수가 아니라 자랑으로 적는다. 처음 돌아온 사람에게
+     '1번 멈췄어요'라고 하면 그건 그냥 실패 통보라, 두 번째부터 보여 준다. */
+  const back = goal.restarts;
+  $("return-count").hidden = back < 2;
+  if (back >= 2) $("return-count").textContent = `${back}번 멈췄지만 ${back}번 돌아왔어요`;
+
+  const el = $("return");
+  el.hidden = false;
+  requestAnimationFrame(() => el.classList.add("show"));
+}
+
+function closeReturn() {
+  const el = $("return");
+  el.classList.remove("show");
+  setTimeout(() => (el.hidden = true), 220);
+}
+
 /* ── 완주 축하 ─────────────────────── */
 
 /* 돌을 얹은 날의 수 — 같은 날 여러 작심을 해도 하루로 센다 */
@@ -2201,6 +2249,12 @@ function setupModal() {
     closeCheer();
     if (goal) nextCycle(goal);
   });
+
+  $("return-ok").addEventListener("click", closeReturn);
+  // 바깥을 눌러도 닫힌다 — 붙잡아 두는 화면이 아니다
+  $("return").addEventListener("click", (ev) => {
+    if (ev.target === $("return")) closeReturn();
+  });
 }
 
 /* 알림은 앱으로 감쌌을 때만 의미가 있으므로 그때만 노출한다 */
@@ -2638,6 +2692,10 @@ function setupIntro() {
 /* 열려 있는 시트 중 가장 위의 것을 닫는다.
  * 안드로이드 뒤로가기와 ESC가 같은 규칙을 쓰도록 한곳에 모아 둔다. */
 function closeTopLayer() {
+  if (!$("return").hidden) {
+    closeReturn();
+    return true;
+  }
   if (!$("ask-notify").hidden) {
     closeAskNotify();
     return true;

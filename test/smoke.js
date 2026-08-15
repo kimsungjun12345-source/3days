@@ -106,6 +106,18 @@ function dstr(offset) {
     await page.waitForTimeout(1200);
   };
 
+  /* 끊겼다 돌아오면 '다시 왔네요' 시트가 열린다. 이 앱에서 가장 중요한
+     순간이라 일부러 저절로 사라지지 않으므로, 검사도 사람처럼 한 번 닫고
+     다음으로 간다. 안 닫으면 뒤따르는 클릭이 전부 시트에 막힌다. */
+  const comeBack = async (sel = ".goal-card .btn-rest") => {
+    await page.click(sel);
+    await page.waitForTimeout(450);
+    if (await page.locator("#return").isVisible()) {
+      await page.click("#return-ok");
+      await page.waitForTimeout(300);
+    }
+  };
+
   const assert = (cond, name) => {
     console.log((cond ? "PASS" : "FAIL") + "  " + name);
     if (!cond) process.exitCode = 1;
@@ -167,7 +179,7 @@ function dstr(offset) {
   assert((await page.locator("#stat-total-days").textContent()) === "3", "accumulated days preserved when broken");
 
   // 7. 다시 작심 → 오늘 Day 1 체크됨, 다시 일어난 횟수 +1
-  await page.click(".goal-card .btn-rest");
+  await comeBack();
   assert((await page.locator(".goal-card .dot.done").count()) === 1, "restart checks today as first day");
   assert((await page.locator("#stat-restarts").textContent()) === "1", "restart counter incremented");
   assert((await page.locator("#stat-total-days").textContent()) === "4", "total days keeps growing after restart");
@@ -274,8 +286,7 @@ function dstr(offset) {
   assert(await page.locator(".goal-card.state-lapsed").isVisible(), "a long pause after completion is recognised, not celebrated");
   assert((await page.locator(".goal-status").textContent()).includes("5일째 쉬는 중"), "lapsed card says how long the pause has been");
 
-  await page.click(".goal-card .btn-rest");
-  await page.waitForTimeout(300);
+  await comeBack();
   assert((await page.locator(".goal-card .dot.done").count()) === 1, "coming back starts today as the first day");
   assert((await page.locator("#stat-cycles").textContent()) === "1", "the stone earned before the pause is kept");
 
@@ -1301,8 +1312,7 @@ function dstr(offset) {
     (await page.evaluate(() => goalStatus(state.goals[0]))) === "lapsed",
     "a goal left alone after a full cycle is lapsed"
   );
-  await page.click(".goal-card .btn-rest");
-  await page.waitForTimeout(600);
+  await comeBack();
   assert(
     (await page.evaluate(() => state.goals[0].restarts)) === 1,
     "coming back after a long rest counts as starting again"
@@ -1327,8 +1337,7 @@ function dstr(offset) {
     (await page.evaluate(() => goalStatus(state.goals[0]))) === "broken",
     "a cycle cut short is broken"
   );
-  await page.click(".goal-card .btn-rest");
-  await page.waitForTimeout(600);
+  await comeBack();
   assert(
     (await page.evaluate(() => state.goals[0].restarts)) === 1,
     "and rebuilding after a break still counts"
@@ -1837,6 +1846,86 @@ function dstr(offset) {
   assert(await page.locator("#detail").isVisible(), "and a ten-year goal's sheet still opens");
   await page.click("#detail-close");
   await page.waitForTimeout(200);
+
+  /* 48. 돌아온 순간이 토스트 한 줄로 지나가지 않는다.
+   *
+   * 이 앱이 다른 습관 앱과 갈리는 지점은 '안 끊기게 하는 것'이 아니라
+   * '끊긴 뒤에 돌아오게 하는 것'이다. 그런데 완주는 화면을 통째로 쓰는
+   * 축하를 받고 돌아온 순간은 토스트 한 줄이었다 — 제품이 말하는 것과
+   * 제품이 실제로 보상하는 행동이 어긋나 있었다. docs/POSITIONING.md 참고. */
+  const seedGoal = (checks, last, extra) =>
+    page.evaluate((d) => {
+      localStorage.setItem("jaksim3.v1", JSON.stringify({ goals: [
+        { id: "cb", title: "운동하러 가기", icon: "run", createdAt: "",
+          checks: d.checks, history: d.checks, lastCheckDate: d.last,
+          totalDays: d.checks.length, completedCycles: d.cycles, restarts: d.restarts }]}));
+    }, { checks, last, cycles: (extra && extra.cycles) || 0, restarts: (extra && extra.restarts) || 0 });
+
+  // 끊긴 뒤(broken) 다시 쌓기
+  await seedGoal([dstr(-5), dstr(-4)], dstr(-4), { cycles: 3, restarts: 1 });
+  await reload();
+  assert(
+    (await page.locator(".goal-card .btn").textContent()).includes("다시 쌓기"),
+    "a broken goal offers the way back"
+  );
+  await page.click(".goal-card .btn");
+  await page.waitForTimeout(500);
+  const back = await page.evaluate(() => ({
+    open: !document.getElementById("return").hidden,
+    title: document.getElementById("return-title").textContent,
+    word: document.getElementById("return-word").textContent,
+    countShown: !document.getElementById("return-count").hidden,
+    count: document.getElementById("return-count").textContent,
+    stones: document.querySelectorAll("#return-cairn .stone-top").length,
+    cheerOpen: !document.getElementById("cheer").hidden,
+  }));
+  assert(back.open, "coming back opens a moment of its own, not a toast");
+  assert(back.title.includes("다시"), `which greets the return (${back.title})`);
+  assert(back.word.includes("그대로"), `and says the stones are still there → ${back.word}`);
+  // 완주 축하와 같은 화면이면 두 감정이 뭉개진다
+  assert(!back.cheerOpen, "and it is not the completion celebration wearing a hat");
+  // 두 번째 복귀부터는 '다시 쌓음'을 자랑으로 적는다
+  assert(back.countShown && back.count.includes("돌아왔어요"), `counting comebacks as a record (${back.count})`);
+
+  await page.click("#return-ok");
+  await page.waitForTimeout(400);
+  assert(await page.locator("#return").isHidden(), "and it closes when the promise is made again");
+
+  // 처음 돌아온 사람에게 '1번 멈췄어요'라고 하면 그건 실패 통보다
+  await seedGoal([dstr(-5)], dstr(-5), { cycles: 0, restarts: 0 });
+  await reload();
+  await page.click(".goal-card .btn");
+  await page.waitForTimeout(450);
+  assert(
+    await page.locator("#return-count").isHidden(),
+    "a first comeback is not told how many times it stumbled"
+  );
+  await page.click("#return-ok");
+  await page.waitForTimeout(350);
+
+  /* 오래 쉬었다 온 것(lapsed)도 같은 순간을 받는다 — 3일을 다 채우고 2주
+     쉬었다 돌아온 쪽이 오히려 더 큰 복귀다. */
+  await seedGoal([dstr(-16), dstr(-15), dstr(-14)], dstr(-14), { cycles: 4, restarts: 0 });
+  await reload();
+  await page.click(".goal-card .btn");
+  await page.waitForTimeout(500);
+  assert(
+    await page.locator("#return").isVisible(),
+    "coming back from a long rest gets the same moment"
+  );
+  await page.click("#return-ok");
+  await page.waitForTimeout(350);
+
+  /* 완주 다음 날 바로 이어 가는 것(resting)은 멈춘 적이 없다. 여기에 '다시
+     왔네요'가 뜨면 멈추지도 않은 사람에게 멈췄다고 말하는 셈이다. */
+  await seedGoal([dstr(-3), dstr(-2), dstr(-1)], dstr(-1), { cycles: 2, restarts: 0 });
+  await reload();
+  await page.click(".goal-card .btn");
+  await page.waitForTimeout(500);
+  assert(
+    await page.locator("#return").isHidden(),
+    "but carrying straight on the next day is not a comeback"
+  );
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 

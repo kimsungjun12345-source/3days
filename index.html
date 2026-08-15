@@ -288,6 +288,21 @@
     </div>
 
     <!-- 완주 축하 -->
+    <!-- ── 다시 온 순간 ─────────────────────
+         완주 축하(아래 cheer)와 일부러 다르게 생겼다. 완주는 '해냈다'는
+         성취라 화면 한가운데서 크게 열리고, 이쪽은 '돌아왔다'는 안도라
+         아래에서 조용히 올라온다. 두 감정이 같은 크기로 오면 뭉개진다.
+         docs/POSITIONING.md 참고. -->
+    <div class="return-backdrop" id="return" hidden>
+      <div class="return-sheet" role="dialog" aria-modal="true" aria-labelledby="return-title">
+        <div class="return-cairn" id="return-cairn" aria-hidden="true"></div>
+        <h2 class="return-title" id="return-title">다시 왔네요</h2>
+        <p class="return-word" id="return-word"></p>
+        <p class="return-count" id="return-count" hidden></p>
+        <button class="btn btn-rest" id="return-ok">좋아, 다시 해볼게</button>
+      </div>
+    </div>
+
     <div class="cheer-backdrop" id="cheer" hidden>
       <div class="cheer" role="dialog" aria-modal="true" aria-labelledby="cheer-title">
         <button type="button" class="cheer-x" id="cheer-close" aria-label="닫기">✕</button>

@@ -173,11 +173,20 @@ const AUDIT = (dimmed) => {
       "축하": async () => { await page.evaluate(() => { closeDetail(); heldGoalId = null; render(); showCheer(state.goals[0]); }); },
       // 탑을 세운 날에만 뜨는 백업 권유
       "축하+백업": async () => { await page.evaluate(() => { document.getElementById("backup-note").hidden = false; }); },
-      // 첫 돌을 얹은 직후의 알림 권유
-      "알림 권유": async () => {
+      // 끊겼다 돌아온 순간. 이 앱이 가장 중요하게 여기는 화면이라 색도 함께 본다
+      "다시 온 순간": async () => {
         await page.evaluate(() => {
           closeCheer();
           document.getElementById("backup-note").hidden = true;
+          // '2번 멈췄지만 2번 돌아왔어요' 줄까지 함께 보이도록
+          state.goals[0].restarts = 2;
+          showReturn(state.goals[0]);
+        });
+      },
+      // 첫 돌을 얹은 직후의 알림 권유
+      "알림 권유": async () => {
+        await page.evaluate(() => {
+          closeReturn();
           document.getElementById("ask-notify").hidden = false;
         });
       },
