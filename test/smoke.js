@@ -1169,7 +1169,15 @@ function dstr(offset) {
     "prefilled with what is there now"
   );
   await page.fill("#input-title", "아침에 물 한 잔");
+  // 아이콘 격자는 접혀 있다 — 바꾸려는 사람만 칸 옆의 아이콘을 눌러 편다
+  assert(await page.locator("#icon-row").isHidden(), "the icon grid stays folded until asked for");
+  await page.click("#btn-icon");
+  await page.waitForTimeout(200);
+  assert(await page.locator("#icon-row").isVisible(), "and opens when the chosen icon is tapped");
   await page.click('.icon-option[data-icon="sun"]');
+  await page.waitForTimeout(200);
+  // 고르고 나면 다시 접힌다 — 볼일 끝난 격자가 자리를 차지할 이유가 없다
+  assert(await page.locator("#icon-row").isHidden(), "and folds itself once one is chosen");
   await page.click("#btn-submit-goal");
   await page.waitForTimeout(400);
 

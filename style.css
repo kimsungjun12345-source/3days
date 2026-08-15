@@ -838,6 +838,11 @@ body {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.icon-row[hidden] {
+  display: none;
 }
 
 .icon-option {
@@ -1112,13 +1117,40 @@ body {
   display: none;
 }
 
-/* 글자 수는 칸 안 오른쪽에 조용히 앉는다. 위에 줄을 하나 더 두면
-   그 줄 하나가 화면을 또 나눈다. */
+/* 아이콘 하나 + 입력칸 한 줄. 아이콘은 고른 것만 서고, 격자는 눌러야 편다. */
 .field-title {
-  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.field-title .field-hint {
+.icon-pick {
+  flex-shrink: 0;
+  width: 54px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.6px solid var(--line);
+  border-radius: 14px;
+  background: var(--chip);
+  color: var(--accent-ink);
+  cursor: pointer;
+}
+
+.icon-pick[aria-expanded="true"] {
+  border-color: var(--accent);
+}
+
+/* 글자 수는 칸 안 오른쪽에 조용히 앉는다. 위에 줄을 하나 더 두면
+   그 줄 하나가 화면을 또 나눈다. */
+.field-input {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.field-input .field-hint {
   position: absolute;
   right: 14px;
   top: 50%;

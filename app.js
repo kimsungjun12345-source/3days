@@ -2155,6 +2155,20 @@ function selectIcon(key) {
   $("icon-row")
     .querySelectorAll(".icon-option")
     .forEach((el) => el.classList.toggle("selected", el.dataset.icon === key));
+  // 칸 옆의 단추가 지금 고른 것을 그대로 보여 준다 — 격자가 접혀 있어도
+  const pick = $("btn-icon");
+  if (pick) {
+    pick.innerHTML = iconSVG(key, 22);
+    pick.setAttribute("aria-label", `아이콘 ${ICONS[key].label} — 눌러서 바꾸기`);
+  }
+}
+
+/* 아이콘 격자를 편다/접는다 */
+function toggleIconRow(open) {
+  const row = $("icon-row");
+  const want = open === undefined ? row.hidden : open;
+  row.hidden = !want;
+  $("btn-icon").setAttribute("aria-expanded", String(want));
 }
 
 function setupModal() {
@@ -2166,9 +2180,19 @@ function setupModal() {
     b.dataset.icon = key;
     b.innerHTML = iconSVG(key, 20);
     b.setAttribute("aria-label", ICONS[key].label);
-    b.addEventListener("click", () => selectIcon(key));
+    b.addEventListener("click", () => {
+      selectIcon(key);
+      // 고르고 나면 접는다 — 볼일이 끝난 격자가 남아 화면을 차지할 이유가 없다
+      toggleIconRow(false);
+      haptic(6);
+    });
     row.appendChild(b);
   }
+
+  $("btn-icon").addEventListener("click", () => {
+    toggleIconRow();
+    haptic(6);
+  });
 
   // 빈 입력창 앞에서 막히지 않도록 추천 문구를 눌러 바로 채운다
   const sug = $("suggest-row");
@@ -2826,6 +2850,9 @@ function openModal(opts = {}) {
   // 고칠 때는 추천 칩을 감춘다 — 이미 정한 것을 고르는 자리가 아니다
   $("suggest-row").closest(".sheet-group").hidden = !!edit;
   $("btn-cancel").hidden = !!opts.first;
+  // 열 때마다 아이콘 격자는 접힌 채로 — 지난번에 펴 둔 것이 따라오면 안 된다
+  toggleIconRow(false);
+  selectIcon(selectedIcon);
   $("modal").hidden = false;
   document.body.classList.add("sheet-open");
   const scroll = $("sheet-scroll");
