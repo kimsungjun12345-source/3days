@@ -590,6 +590,15 @@ function dstr(offset) {
     titles.some((t) => t.includes("돌 하나")),
     "one page explains that three checks make one stone, got: " + titles.join(" / ")
   );
+  /* 끊겨도 된다는 것이 이 앱이 다른 습관 앱과 갈리는 유일한 지점이다.
+     그런데 그 장이 오랫동안 맨 뒤에 있었다 — 가장 안 읽히는 자리다.
+     처음 온 사람이 "또 매일 체크하는 앱이구나"로 판단을 끝내기 전에 와야 한다. */
+  const recoveryAt = titles.findIndex((t) => t.includes("끊겨도"));
+  assert(recoveryAt !== -1, "one page promises that stones survive a break, got: " + titles.join(" / "));
+  assert(
+    recoveryAt < titles.length - 1,
+    `and it does not hide at the very end (page ${recoveryAt + 1} of ${titles.length})`
+  );
   assert((await page.locator("#ob-next").textContent()).includes("시작"), "last page invites you in");
 
   // 놓친 장으로 돌아갈 수 있어야 한다 — 특히 '칸 셋이 돌 하나' 장은
@@ -693,9 +702,13 @@ function dstr(offset) {
   );
   assert(await page.locator("#btn-submit-goal").isDisabled(), "cannot promise an empty goal");
 
+  /* 칩의 글자를 검사에 박아 두지 않는다. 추천 목록은 앱이 무엇을 담는
+     곳인지를 말하는 자리라 제품 방향이 바뀌면 같이 바뀌는데, 그때마다
+     멀쩡한 검사가 깨진다. 재야 할 것은 '고른 그 칩이 그대로 들어가는가'다. */
+  const chip3 = (await page.locator(".suggest-chip:nth-child(3)").textContent()).trim();
   await page.click(".suggest-chip:nth-child(3)");
   await page.waitForTimeout(150);
-  assert((await page.inputValue("#input-title")) === "자기 전 스트레칭", "a chip fills the title");
+  assert((await page.inputValue("#input-title")) === chip3, `a chip fills the title (${chip3})`);
   assert((await page.locator(".suggest-chip.on").count()) === 1, "the chosen chip stays lit");
   assert(await page.locator("#btn-submit-goal").isEnabled(), "the promise button wakes up");
   assert(
@@ -1016,8 +1029,15 @@ function dstr(offset) {
   assert(await fp.locator("#onboard").isHidden(), "the walkthrough can be skipped");
   assert(await fp.locator("#modal").isVisible(), "and it hands straight over to making one");
   assert(
-    (await fp.locator("#modal-title").textContent()).includes("3일"),
-    "asked as a question"
+    (await fp.locator("#modal-title").textContent()).trim().endsWith("?"),
+    "asked as a question, not labelled '새 작심'"
+  );
+  /* 여기서 담는 것이 '목표'가 아니라 '매일 반복할 행동'이라는 게 드러나야
+     한다. 안 그러면 '취업하기'나 '토익 900점'이 들어오고, 그 순간 이 앱이
+     목표 관리 앱인지 투두인지 모호해진다. docs/POSITIONING.md 참고. */
+  assert(
+    (await fp.locator("#modal-sub").textContent()).includes("매일"),
+    "and it says what kind of thing goes in here"
   );
 
   // 만들고 나면 규칙을 한 줄로 계속 붙여 둔다 (첫 돌을 얹기 전까지)
