@@ -178,9 +178,9 @@ const AUDIT = (dimmed) => {
         await page.evaluate(() => {
           closeCheer();
           document.getElementById("backup-note").hidden = true;
-          // '2번 멈췄지만 2번 돌아왔어요' 줄까지 함께 보이도록
+          // '지금까지 2번 다시 돌아왔어요' 줄까지 함께 보이도록
           state.goals[0].restarts = 2;
-          showReturn(state.goals[0]);
+          askReturn(state.goals[0], "broken");
         });
       },
       // 첫 돌을 얹은 직후의 알림 권유

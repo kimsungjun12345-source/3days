@@ -276,10 +276,6 @@ function nextCycle(goal, from) {
     render();
     if (from !== "lapsed") toast("sleep", "내일 첫 칸부터 시작해요");
   }
-  /* 쉬다가 돌아온 사람은 인사가 다르다. 예전에는 여기도 토스트 한 줄이었는데,
-     이 앱이 가장 크게 대접해야 할 순간이 가장 작은 대접을 받고 있던 셈이다.
-     완주 다음 날 바로 이어 가는 것(resting)은 멈춘 적이 없으므로 열지 않는다. */
-  if (from === "lapsed") showReturn(goal);
 }
 
 /* 끊긴 뒤 다시 쌓기 — 쌓은 날은 유지, 사이클만 새로 */
@@ -295,7 +291,6 @@ function restart(goal) {
     save();
     render();
   }
-  showReturn(goal);
 }
 
 function removeGoal(goal) {
@@ -1107,11 +1102,12 @@ function renderGoalCard(goal) {
   } else if (status === "lapsed") {
     btn.classList.add("btn-rest");
     btn.textContent = "다시 쌓기 시작";
-    btn.addEventListener("click", () => nextCycle(goal, "lapsed"));
+    // 다시 오는 것은 묻고 나서 — askReturn이 시트를 띄우고, 누르면 그때 시작한다
+    btn.addEventListener("click", () => askReturn(goal, "lapsed"));
   } else if (status === "broken") {
     btn.classList.add("btn-rest");
     btn.textContent = "괜찮아요, 다시 쌓기";
-    btn.addEventListener("click", () => restart(goal));
+    btn.addEventListener("click", () => askReturn(goal, "broken"));
   } else if (checkedToday(goal) && goal.checks.length === 0) {
     btn.classList.add("btn-done");
     btn.textContent = "내일 첫 칸부터 시작해요";
@@ -1724,10 +1720,24 @@ function setupTabs() {
  * 완주는 '해냈다'는 성취고 이쪽은 '돌아왔다'는 안도다. 같은 크기로 터뜨리면
  * 둘 다 뭉개지므로, 여기는 아래에서 조용히 올라오는 작은 시트다.
  *
- * 닫는 버튼을 자동 사라짐 대신 둔 이유: 누르는 행위 자체가 다시 하겠다는
- * 대답이라서다. 1초 뒤에 저절로 사라지면 읽기도 전에 지나가고, 무엇보다
- * 사용자가 아무것도 하지 않은 것이 된다. */
-function showReturn(goal) {
+ * 이 시트는 다시 시작하기 **전에** 뜬다. 처음에는 restart를 먼저 하고
+ * 알려 주기만 했는데, 그러면 '좋아, 다시 해볼게'라는 버튼이 거짓말이 된다 —
+ * 누르기 전에 이미 시작돼 있고, 바깥을 눌러 닫아도 되돌릴 방법이 없다.
+ * 복귀가 이 앱에서 가장 중요한 행동이라면 사용자가 실제로 그 순간을 골라야
+ * 하므로, 묻고 나서 누른 그때 상태가 바뀐다. 바깥을 누르면 아무 일도
+ * 일어나지 않는다.
+ *
+ * 덕분에 comeback_started도 시트를 본 횟수가 아니라 실제로 다시 시작한
+ * 횟수를 세게 됐다. 이 앱의 판정 지표라 그 차이가 크다.
+ *
+ * 자동으로 사라지게 하지 않은 이유도 같다. 1초 뒤에 지나가면 읽기도 전에
+ * 끝나고, 무엇보다 사용자가 아무것도 고르지 않은 것이 된다. */
+let returnGoalId = null;
+let returnFrom = null;
+
+function askReturn(goal, from) {
+  returnGoalId = goal.id;
+  returnFrom = from;
   const stones = stoneCount(goal);
   const ch = goalCharacter(goal);
   const { current } = towersOf(goal);
@@ -1741,21 +1751,41 @@ function showReturn(goal) {
     ? `멈춘 건 괜찮아요. 쌓아 둔 돌 ${stones}개는 그대로예요.\n오늘부터 다시 3일이에요.`
     : "멈춘 건 괜찮아요.\n오늘부터 다시 3일이에요.";
 
-  /* '다시 쌓음'을 부정적인 수가 아니라 자랑으로 적는다. 처음 돌아온 사람에게
-     '1번 멈췄어요'라고 하면 그건 그냥 실패 통보라, 두 번째부터 보여 준다. */
+  /* 세는 것은 멈춘 횟수가 아니라 돌아온 횟수다.
+   *
+   * 한동안 '3번 멈췄지만 3번 돌아왔어요'라고 적어 두었는데, 위로하는 모양을
+   * 하고서 실패 횟수를 앞세우는 문장이었다. 이 앱이 세기로 한 것은 restarts —
+   * '다시 쌓기를 시작한 횟수' 하나뿐이니 문장도 그것만 말하면 된다.
+   *
+   * 시트가 다시 시작하기 '전에' 뜨므로 이 수는 지난 복귀들을 가리킨다.
+   * 그래서 '지금까지'를 붙인다 — 아직 누르지 않은 이번 것까지 세면 거짓말이
+   * 되고, 무엇보다 "전에도 해냈잖아"가 지금 필요한 말이다. */
   const back = goal.restarts;
-  $("return-count").hidden = back < 2;
-  if (back >= 2) $("return-count").textContent = `${back}번 멈췄지만 ${back}번 돌아왔어요`;
+  $("return-count").hidden = back < 1;
+  if (back >= 1) $("return-count").textContent = `지금까지 ${back}번 다시 돌아왔어요`;
 
   const el = $("return");
   el.hidden = false;
   requestAnimationFrame(() => el.classList.add("show"));
 }
 
+/* 닫기만 한다 — 물어보기만 하고 만 것이므로 아무 일도 일어나지 않는다 */
 function closeReturn() {
   const el = $("return");
   el.classList.remove("show");
   setTimeout(() => (el.hidden = true), 220);
+  returnGoalId = null;
+  returnFrom = null;
+}
+
+/* '좋아, 다시 해볼게'를 누른 그때 실제로 다시 시작한다 */
+function acceptReturn() {
+  const goal = state.goals.find((g) => g.id === returnGoalId);
+  const from = returnFrom;
+  closeReturn();
+  if (!goal) return;
+  if (from === "lapsed") nextCycle(goal, "lapsed");
+  else restart(goal);
 }
 
 /* ── 완주 축하 ─────────────────────── */
@@ -2250,7 +2280,7 @@ function setupModal() {
     if (goal) nextCycle(goal);
   });
 
-  $("return-ok").addEventListener("click", closeReturn);
+  $("return-ok").addEventListener("click", acceptReturn);
   // 바깥을 눌러도 닫힌다 — 붙잡아 두는 화면이 아니다
   $("return").addEventListener("click", (ev) => {
     if (ev.target === $("return")) closeReturn();

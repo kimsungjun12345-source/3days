@@ -1847,12 +1847,16 @@ function dstr(offset) {
   await page.click("#detail-close");
   await page.waitForTimeout(200);
 
-  /* 48. 돌아온 순간이 토스트 한 줄로 지나가지 않는다.
+  /* 48. 돌아온 순간이 토스트 한 줄로 지나가지 않는다 — 그리고 사용자가 고른다.
    *
    * 이 앱이 다른 습관 앱과 갈리는 지점은 '안 끊기게 하는 것'이 아니라
    * '끊긴 뒤에 돌아오게 하는 것'이다. 그런데 완주는 화면을 통째로 쓰는
    * 축하를 받고 돌아온 순간은 토스트 한 줄이었다 — 제품이 말하는 것과
-   * 제품이 실제로 보상하는 행동이 어긋나 있었다. docs/POSITIONING.md 참고. */
+   * 제품이 실제로 보상하는 행동이 어긋나 있었다.
+   *
+   * 시트는 다시 시작하기 '전에' 뜬다. 처음에는 먼저 시작하고 알려 주기만
+   * 했는데, 그러면 '좋아, 다시 해볼게'가 거짓말이 된다 — 누르기 전에 이미
+   * 시작돼 있고 바깥을 눌러도 되돌릴 수 없다. docs/POSITIONING.md 참고. */
   const seedGoal = (checks, last, extra) =>
     page.evaluate((d) => {
       localStorage.setItem("jaksim3.v1", JSON.stringify({ goals: [
@@ -1860,6 +1864,7 @@ function dstr(offset) {
           checks: d.checks, history: d.checks, lastCheckDate: d.last,
           totalDays: d.checks.length, completedCycles: d.cycles, restarts: d.restarts }]}));
     }, { checks, last, cycles: (extra && extra.cycles) || 0, restarts: (extra && extra.restarts) || 0 });
+  const restartsNow = () => page.evaluate(() => state.goals[0].restarts);
 
   // 끊긴 뒤(broken) 다시 쌓기
   await seedGoal([dstr(-5), dstr(-4)], dstr(-4), { cycles: 3, restarts: 1 });
@@ -1876,7 +1881,6 @@ function dstr(offset) {
     word: document.getElementById("return-word").textContent,
     countShown: !document.getElementById("return-count").hidden,
     count: document.getElementById("return-count").textContent,
-    stones: document.querySelectorAll("#return-cairn .stone-top").length,
     cheerOpen: !document.getElementById("cheer").hidden,
   }));
   assert(back.open, "coming back opens a moment of its own, not a toast");
@@ -1884,24 +1888,47 @@ function dstr(offset) {
   assert(back.word.includes("그대로"), `and says the stones are still there → ${back.word}`);
   // 완주 축하와 같은 화면이면 두 감정이 뭉개진다
   assert(!back.cheerOpen, "and it is not the completion celebration wearing a hat");
-  // 두 번째 복귀부터는 '다시 쌓음'을 자랑으로 적는다
-  assert(back.countShown && back.count.includes("돌아왔어요"), `counting comebacks as a record (${back.count})`);
+  /* 세는 것은 멈춘 횟수가 아니라 돌아온 횟수다. '멈췄지만'이 들어가면
+     위로하는 모양을 하고서 실패를 앞세우는 문장이 된다. */
+  assert(back.countShown, "past comebacks are worth saying out loud");
+  assert(
+    back.count.includes("다시 돌아왔어요") && !back.count.includes("멈"),
+    `counted as comebacks, not stumbles (${back.count})`
+  );
 
-  await page.click("#return-ok");
+  /* 여기가 이번 수정의 핵심이다 — 아직 아무 일도 일어나지 않았어야 한다.
+     버튼이 '좋아, 다시 해볼게'인데 이미 시작돼 있으면 버튼이 거짓말이다. */
+  assert((await restartsNow()) === 1, "nothing has happened yet — the sheet only asked");
+
+  // 바깥을 누르면 물어만 본 것이 된다
+  await page.mouse.click(195, 60);
   await page.waitForTimeout(400);
-  assert(await page.locator("#return").isHidden(), "and it closes when the promise is made again");
+  assert(await page.locator("#return").isHidden(), "tapping outside closes the question");
+  assert((await restartsNow()) === 1, "and answering nothing starts nothing");
 
-  // 처음 돌아온 사람에게 '1번 멈췄어요'라고 하면 그건 실패 통보다
+  // 이번에는 실제로 고른다
+  await page.click(".goal-card .btn");
+  await page.waitForTimeout(450);
+  await page.click("#return-ok");
+  await page.waitForTimeout(500);
+  assert(await page.locator("#return").isHidden(), "choosing it closes the sheet");
+  assert((await restartsNow()) === 2, "and only then does the comeback count");
+  assert(
+    (await page.locator(".goal-card .dot.done").count()) === 1,
+    "with today standing as the first of the new three"
+  );
+
+  // 처음 돌아온 사람에게는 아직 셀 복귀가 없다
   await seedGoal([dstr(-5)], dstr(-5), { cycles: 0, restarts: 0 });
   await reload();
   await page.click(".goal-card .btn");
   await page.waitForTimeout(450);
   assert(
     await page.locator("#return-count").isHidden(),
-    "a first comeback is not told how many times it stumbled"
+    "a first comeback has no earlier ones to point at"
   );
   await page.click("#return-ok");
-  await page.waitForTimeout(350);
+  await page.waitForTimeout(400);
 
   /* 오래 쉬었다 온 것(lapsed)도 같은 순간을 받는다 — 3일을 다 채우고 2주
      쉬었다 돌아온 쪽이 오히려 더 큰 복귀다. */
@@ -1913,8 +1940,10 @@ function dstr(offset) {
     await page.locator("#return").isVisible(),
     "coming back from a long rest gets the same moment"
   );
+  assert((await restartsNow()) === 0, "and it asks first here too");
   await page.click("#return-ok");
-  await page.waitForTimeout(350);
+  await page.waitForTimeout(500);
+  assert((await restartsNow()) === 1, "then counts once chosen");
 
   /* 완주 다음 날 바로 이어 가는 것(resting)은 멈춘 적이 없다. 여기에 '다시
      왔네요'가 뜨면 멈추지도 않은 사람에게 멈췄다고 말하는 셈이다. */
@@ -1925,6 +1954,10 @@ function dstr(offset) {
   assert(
     await page.locator("#return").isHidden(),
     "but carrying straight on the next day is not a comeback"
+  );
+  assert(
+    (await page.evaluate(() => state.goals[0].completedCycles)) === 3,
+    "and it just carries on, without asking"
   );
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
