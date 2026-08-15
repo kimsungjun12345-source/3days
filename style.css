@@ -807,7 +807,7 @@ body {
 .modal-sub {
   color: var(--gray);
   font-size: 0.86rem;
-  margin: 4px 0 16px;
+  margin: 4px 0 0;
   word-break: keep-all;
 }
 
@@ -816,7 +816,6 @@ body {
   display: flex;
   gap: 7px;
   flex-wrap: wrap;
-  margin: 12px 0 14px;
 }
 
 .suggest-chip {
@@ -839,7 +838,6 @@ body {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 4px;
 }
 
 .icon-option {
@@ -863,8 +861,8 @@ body {
 
 #input-title {
   width: 100%;
-  height: 52px;
-  padding: 0 16px;
+  height: 54px;
+  padding: 0 58px 0 16px;
   font-size: 1rem;
   font-family: inherit;
   border: 1.6px solid var(--line);
@@ -1099,6 +1097,35 @@ body {
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--gray-strong);
+}
+
+/* 작심 만들기 시트의 세 덩어리 — 고르기 · 쓰기 · 아이콘.
+ *
+ * 이름표를 걷어낸 자리를 여백이 대신한다. 무엇을 하는 자리인지 글자로
+ * 설명하는 대신 덩어리 사이를 벌려서 나눈다. 여백을 아무 데나 늘리지는
+ * 않는다 — 덩어리 안은 촘촘하게 두고 덩어리 사이만 띄워야 셋으로 읽힌다. */
+.sheet-group {
+  margin-top: 22px;
+}
+
+.sheet-group[hidden] {
+  display: none;
+}
+
+/* 글자 수는 칸 안 오른쪽에 조용히 앉는다. 위에 줄을 하나 더 두면
+   그 줄 하나가 화면을 또 나눈다. */
+.field-title {
+  position: relative;
+}
+
+.field-title .field-hint {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.74rem;
+  color: var(--gray);
+  pointer-events: none;
 }
 
 .field-hint {
