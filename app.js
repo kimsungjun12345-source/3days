@@ -199,22 +199,43 @@ function addGoal(title, icon) {
  * 나오는 값이라 따로 되돌릴 것이 없다. */
 /* 오늘 표시를 지울 수 있는가.
  *
- * '오늘 체크했다'(lastCheckDate)와 '이번 사이클에 오늘이 들어 있다'(checks)는
- * 같은 말이 아니다. 완주한 날 '또 3일 약속하기'를 누르면 checks는 비워지고
- * lastCheckDate만 오늘로 남는다 — 오늘 것은 이미 지난 사이클에 계산돼
- * 돌이 되었으므로 되돌릴 자리가 없다.
+ * 오늘 체크한 것은 두 자리 중 하나에 가 있다. 보통은 이번 사이클의 칸
+ * (checks)이고, 완주한 날 '또 3일 약속하기'까지 눌렀다면 checks는 비워지고
+ * 오늘 것은 이미 돌(completedCycles)로 넘어가 있다.
+ *
+ * 한동안 뒤쪽은 되돌릴 수 없다고 두었다. 돌이 된 것을 도로 푸는 일이라
+ * 조심스러웠는데, 사용자 눈에는 그냥 '오늘 잘못 눌렀다'일 뿐이다. 세 번째
+ * 칸을 눌러 완주해 놓고 축하 화면에서 다음 3일까지 시작해 버렸다면 되돌릴
+ * 길이 더 필요하지 덜 필요하지 않다. 두 자리 모두에서 지울 수 있게 한다.
  *
  * 예전에는 버튼을 lastCheckDate로 보여 주고 지우기는 checks로 했다. 그래서
- * 그 상태에서 버튼이 보이는데 눌러도 아무 일이 없었다. 보이면 반드시
- * 작동해야 하므로, 두 곳이 같은 것을 묻게 한다. */
+ * 버튼이 보이는데 눌러도 아무 일이 없었다. 보이면 반드시 작동해야 하므로,
+ * 두 곳이 같은 것을 묻게 한다. */
 function canUndoToday(goal) {
-  return goal.checks.includes(todayStr());
+  const t = todayStr();
+  if (goal.checks.includes(t)) return true;
+  // 오늘 것이 이미 돌로 넘어간 경우
+  return goal.completedCycles > 0 && goal.lastCheckDate === t && (goal.history || []).includes(t);
 }
 
 function undoToday(goal) {
   const t = todayStr();
   if (!canUndoToday(goal)) return false;
-  goal.checks = goal.checks.filter((d) => d !== t);
+  if (goal.checks.includes(t)) {
+    goal.checks = goal.checks.filter((d) => d !== t);
+  } else {
+    /* 돌을 도로 풀고 그 사이클의 앞 두 날을 칸으로 되살린다.
+     *
+     * 어느 날이 그 사이클이었는지는 따로 적어 두지 않지만 알아낼 수 있다 —
+     * 사이클은 언제나 연달아 체크한 세 날이므로, 오늘을 뺀 history의 마지막
+     * 둘이 그 사이클의 첫째·둘째 날이다.
+     *
+     * 이미 나간 cycle_completed와 next_cycle_started는 되부를 수 없다.
+     * 완주한 그날 안에 되돌리는 드문 경우라 그대로 둔다 — 측정을 위해
+     * 사용자가 못 되돌리게 하는 것은 앞뒤가 바뀐 일이다. */
+    goal.completedCycles = Math.max(0, goal.completedCycles - 1);
+    goal.checks = (goal.history || []).filter((d) => d !== t).slice(-2);
+  }
   goal.history = (goal.history || []).filter((d) => d !== t);
   goal.totalDays = Math.max(0, goal.totalDays - 1);
   goal.lastCheckDate = goal.checks[goal.checks.length - 1] || goal.history[goal.history.length - 1] || "";
@@ -2800,10 +2821,10 @@ function openModal(opts = {}) {
     ? "이름과 아이콘만 바뀌어요. 쌓은 돌은 그대로입니다."
     : opts.first
       ? "운동, 공부, 작업처럼 매일 반복할 것 하나면 충분해요."
-      : "매일 반복하고 싶은 것 하나. 거창하지 않아도 괜찮아요.";
+      : "매일 반복하고 싶은 것 하나면 돼요.";
   $("btn-submit-goal").textContent = edit ? "수정하기" : "3일 약속하기";
-  $("suggest-label").hidden = !!edit;
-  $("suggest-row").hidden = !!edit;
+  // 고칠 때는 추천 칩을 감춘다 — 이미 정한 것을 고르는 자리가 아니다
+  $("suggest-row").closest(".sheet-group").hidden = !!edit;
   $("btn-cancel").hidden = !!opts.first;
   $("modal").hidden = false;
   document.body.classList.add("sheet-open");
@@ -2829,7 +2850,12 @@ function closeModal() {
 function syncTitleState() {
   const value = $("input-title").value.trim();
   $("btn-submit-goal").disabled = !value;
-  $("title-count").textContent = `${$("input-title").value.length}/30`;
+  /* 남은 글자는 끝이 보일 때만 알려 준다. 늘 떠 있으면 한 글자도 안 쓴
+     사람에게 먼저 한도부터 말하는 셈이고, 그만큼 화면에 글자가 는다. */
+  const len = $("input-title").value.length;
+  const near = len >= 22;
+  $("title-count").hidden = !near;
+  if (near) $("title-count").textContent = `${len}/30`;
   $("suggest-row")
     .querySelectorAll(".suggest-chip")
     .forEach((el) => el.classList.toggle("on", el.textContent === value));

@@ -1424,37 +1424,53 @@ function dstr(offset) {
 
   await page.evaluate(() => { track = window.__origTrack; });
 
-  /* 40. 보이는 '오늘 표시 지우기'는 반드시 작동한다.
+  /* 40. 오늘 것은 돌이 된 뒤에도 되돌릴 수 있다.
    *
-   * 예전에는 버튼을 lastCheckDate로 보여 주고 지우기는 checks로 했다.
-   * 완주한 날 '또 3일 약속하기'를 누르면 checks만 비워지므로, 버튼이
-   * 보이는데 눌러도 아무 일이 없었다. 두 조건이 같은 것을 묻는지 본다. */
+   * 여기는 두 번 고쳤다. 처음에는 버튼을 lastCheckDate로 보여 주고 지우기는
+   * checks로 해서, 버튼이 보이는데 눌러도 아무 일이 없었다. 그다음에는 두
+   * 조건을 맞추느라 '완주한 날 다음 3일까지 시작했으면 되돌릴 수 없다'로
+   * 두었는데, 그건 사용자 눈에는 그냥 '오늘 잘못 눌렀는데 못 지운다'였다.
+   * 세 번째 칸을 눌러 놓고 축하 화면에서 다음 3일까지 시작해 버린 사람에게는
+   * 되돌릴 길이 더 필요하지 덜 필요하지 않다. */
   await page.evaluate((d) => {
     localStorage.setItem("jaksim3.v1", JSON.stringify({ goals: [
-      { id: "u", title: "물 한 잔", icon: "water", createdAt: "",
+      { id: "u", title: "운동하러 가기", icon: "run", createdAt: "",
         checks: [d[2], d[1], d[0]], history: [d[2], d[1], d[0]], lastCheckDate: d[0],
         totalDays: 3, completedCycles: 0, restarts: 0 }]}));
   }, [dstr(0), dstr(-1), dstr(-2)]);
   await reload();
 
-  // 완주한 날 다음 사이클을 시작하면 checks는 비고 lastCheckDate만 오늘로 남는다
+  // 완주한 날 다음 사이클을 시작하면 checks는 비고 오늘 것은 돌로 넘어간다
   await page.evaluate(() => nextCycle(state.goals[0]));
   await page.waitForTimeout(300);
   const afterNext = await page.evaluate(() => ({
-    checkedToday: checkedToday(state.goals[0]),
+    checks: state.goals[0].checks.length,
+    cycles: state.goals[0].completedCycles,
+    stones: stoneCount(state.goals[0]),
     canUndo: canUndoToday(state.goals[0]),
   }));
-  assert(
-    afterNext.checkedToday && !afterNext.canUndo,
-    "after starting the next cycle today's mark is no longer undoable"
-  );
+  assert(afterNext.checks === 0 && afterNext.cycles === 1, "the finished three days became a stone");
+  assert(afterNext.canUndo, "and today is still undoable even though it turned into one");
+
   await page.click(".goal-card .goal-top");
   await page.waitForTimeout(300);
-  assert(
-    await page.locator("#detail-undo").isHidden(),
-    "so the button that would do nothing is not shown"
-  );
-  await page.click("#detail-close");
+  assert(await page.locator("#detail-undo").isVisible(), "so the button is there to press");
+  await page.click("#detail-undo");
+  await page.waitForTimeout(500);
+  const unwound = await page.evaluate(() => ({
+    checks: state.goals[0].checks.length,
+    cycles: state.goals[0].completedCycles,
+    stones: stoneCount(state.goals[0]),
+    days: state.goals[0].totalDays,
+    hasToday: state.goals[0].history.includes(
+      new Date().toISOString().slice(0, 10)
+    ),
+  }));
+  // 돌이 도로 풀리고 그 사이클의 앞 두 날이 칸으로 돌아와야 한다
+  assert(unwound.cycles === 0 && unwound.stones === 0, "undoing takes the stone back apart");
+  assert(unwound.checks === 2, `and the first two days return as squares (${unwound.checks})`);
+  assert(unwound.days === 2, `with the day count following (${unwound.days})`);
+  // 지우고 나면 시트가 스스로 닫힌다 — 따로 닫을 것이 없다
   await page.waitForTimeout(200);
 
   // 되돌릴 수 있을 때는 보이고, 누르면 실제로 지워진다
