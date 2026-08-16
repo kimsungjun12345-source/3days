@@ -329,11 +329,9 @@
     <!-- 새 작심 — 내용만큼만 높이를 갖고, 약속 버튼은 바닥에 붙어 있다 -->
     <div class="modal-backdrop" id="modal" hidden>
       <div class="modal sheet-page" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-        <!-- 닫기만 있는 줄. 제목은 아래 본문에 두어야 입력칸·칩과 왼쪽이
-             맞는다 — 머리줄에 두면 ✕이 있을 때와 없을 때 제목이 8px씩
-             움직인다. -->
         <header class="sheet-head">
           <button type="button" class="sheet-close" id="btn-cancel" aria-label="닫기">✕</button>
+          <h2 id="modal-title">새 작심</h2>
         </header>
 
         <form id="form-add">
@@ -343,8 +341,11 @@
                빽빽해졌다. 무엇을 하는 자리인지는 생김새가 이미 말한다.
                읽어 주는 기기에는 aria-label로 같은 말을 전한다. -->
           <div class="sheet-scroll" id="sheet-scroll">
-            <h2 class="sheet-title" id="modal-title">새 작심</h2>
             <p class="modal-sub" id="modal-sub">거창할 필요 없어요. 딱 3일만 해볼 것 하나.</p>
+
+            <div class="sheet-group">
+              <div class="suggest-row" id="suggest-row" role="group" aria-label="골라 볼까요"></div>
+            </div>
 
             <!-- 아이콘은 고른 것 하나만 칸 옆에 선다.
                  열 개짜리 격자를 늘 펼쳐 두면 화면에서 가장 큰 덩어리가
@@ -378,17 +379,6 @@
             </div>
 
             <div class="icon-row" id="icon-row" role="group" aria-label="아이콘 고르기" hidden></div>
-
-            <!-- 예시는 답하는 칸 아래에 둔다. 묻고 → 답하고 → 막히면 고르는
-                 순서라야 화면이 한 줄로 읽힌다. -->
-            <div class="sheet-group">
-              <div class="suggest-row" id="suggest-row" role="group" aria-label="골라 볼까요"></div>
-            </div>
-
-            <!-- 남는 자리에는 지금 약속하려는 그것을 둔다 — 아직 돌이 하나도
-                 없는 탑과, 사흘이 들어올 빈 자리. 글자를 더 붙이는 대신
-                 이 앱이 무엇을 세는지를 그림이 말한다. -->
-            <div class="sheet-art" id="modal-art" aria-hidden="true"></div>
           </div>
 
           <div class="sheet-foot">

@@ -1066,20 +1066,23 @@ body {
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
-  padding: calc(10px + env(safe-area-inset-top)) 12px 0;
+  /* 좌우는 본문(.sheet-scroll)과 같은 20px. 12px이면 ✕이 없는 첫 실행에서
+     제목만 왼쪽으로 8px 튀어나온다. */
+  padding: calc(10px + env(safe-area-inset-top)) 20px 0;
   min-height: 44px;
 }
 
 /* 화면 한 장을 쓰는 만큼 묻는 말도 제 크기로 선다 */
-.sheet-title {
+.sheet-head h2 {
   font-family: var(--font-title);
-  font-size: 1.34rem;
+  font-size: 1.2rem;
   font-weight: 700;
-  line-height: 1.4;
   word-break: keep-all;
 }
 
 .sheet-close {
+  /* 아이콘만 왼쪽 여백 안으로 당겨 글자와 세로줄을 맞춘다 */
+  margin-left: -10px;
   width: 40px;
   height: 40px;
   display: flex;
@@ -1110,12 +1113,9 @@ body {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 2px 20px 14px;
-  /* 내용은 위쪽에 모으고 남는 세로는 아래로 흘린다. 한가운데에 띄워 보니
-     위아래로 300px씩 빈 자리가 생겨서, 여유로운 것이 아니라 덜 만든 화면으로
-     보였다. 여백은 고르게 흩는 것이 아니라 한쪽으로 몰아야 여백이 된다. */
-  display: flex;
-  flex-direction: column;
-  padding-top: 26px;
+  /* 화면이 커진 만큼 위도 띄운다. 내용은 위에서부터 흐르고 남는 세로는
+     그대로 둔다 — 여백은 고르게 흩는 것이 아니라 한쪽으로 몰아야 여백이 된다. */
+  padding-top: 18px;
 }
 
 .sheet-foot {
@@ -1158,28 +1158,6 @@ body {
   margin-top: 30px;
 }
 
-.sheet-scroll > .sheet-group:first-of-type {
-  margin-top: 14px;
-}
-
-/* 남는 세로를 그림이 받는다. 아무것도 없는 채로 500px을 비워 두면 여유가
-   아니라 덜 만든 화면으로 보이고, 글자를 더 넣으면 조용함을 잃는다. */
-.sheet-art {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 0 12px;
-  opacity: 0.65;
-}
-
-.sheet-art svg {
-  display: block;
-  width: auto;
-  max-width: 150px;
-  max-height: 100%;
-}
 
 .sheet-group[hidden] {
   display: none;

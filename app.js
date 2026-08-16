@@ -2854,13 +2854,6 @@ function openModal(opts = {}) {
   $("input-title").placeholder = opts.first
     ? "운동, 공부처럼 매일 반복할 것"
     : "매일 반복하고 싶은 것 하나";
-  /* 남는 자리의 그림 — 아직 돌이 없는 탑과 사흘이 들어올 빈 자리.
-     고칠 때는 이미 선 탑이 있으므로 그 탑의 돌로, 만들 때는 새로 받게 될
-     자리의 돌로 그린다. */
-  $("modal-art").innerHTML = cairnSVG(
-    0, true, 2, STONES_PER_TOWER, 0,
-    edit ? goalCharacter(edit) : characterOf(state.goals.length)
-  );
   $("btn-submit-goal").textContent = edit ? "수정하기" : "3일 약속하기";
   // 고칠 때는 추천 칩을 감춘다 — 이미 정한 것을 고르는 자리가 아니다
   $("suggest-row").closest(".sheet-group").hidden = !!edit;
