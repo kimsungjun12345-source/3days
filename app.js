@@ -2155,20 +2155,6 @@ function selectIcon(key) {
   $("icon-row")
     .querySelectorAll(".icon-option")
     .forEach((el) => el.classList.toggle("selected", el.dataset.icon === key));
-  // 칸 옆의 단추가 지금 고른 것을 그대로 보여 준다 — 격자가 접혀 있어도
-  const pick = $("btn-icon");
-  if (pick) {
-    pick.innerHTML = iconSVG(key, 22);
-    pick.setAttribute("aria-label", `아이콘 ${ICONS[key].label} — 눌러서 바꾸기`);
-  }
-}
-
-/* 아이콘 격자를 편다/접는다 */
-function toggleIconRow(open) {
-  const row = $("icon-row");
-  const want = open === undefined ? row.hidden : open;
-  row.hidden = !want;
-  $("btn-icon").setAttribute("aria-expanded", String(want));
 }
 
 function setupModal() {
@@ -2180,19 +2166,9 @@ function setupModal() {
     b.dataset.icon = key;
     b.innerHTML = iconSVG(key, 20);
     b.setAttribute("aria-label", ICONS[key].label);
-    b.addEventListener("click", () => {
-      selectIcon(key);
-      // 고르고 나면 접는다 — 볼일이 끝난 격자가 남아 화면을 차지할 이유가 없다
-      toggleIconRow(false);
-      haptic(6);
-    });
+    b.addEventListener("click", () => selectIcon(key));
     row.appendChild(b);
   }
-
-  $("btn-icon").addEventListener("click", () => {
-    toggleIconRow();
-    haptic(6);
-  });
 
   // 빈 입력창 앞에서 막히지 않도록 추천 문구를 눌러 바로 채운다
   const sug = $("suggest-row");
@@ -2841,26 +2817,15 @@ function openModal(opts = {}) {
     : opts.first
       ? "매일 하고 싶은 일이 있나요?"
       : "새 작심";
-  /* 만들 때는 설명 줄을 따로 두지 않는다.
-   *
-   * 제목이 이미 묻고 있는데 그 아래 한 줄을 더 붙이면, 아직 아무것도 안 한
-   * 사람 앞에 글자 두 줄이 먼저 선다. 무엇을 넣는 자리인지는 넣는 칸이
-   * 말하는 편이 낫다 — 그래서 그 문장은 입력칸의 흐린 글씨로 옮겼다.
-   * 고칠 때는 남긴다. '쌓은 돌은 그대로'는 안심시키는 말이라 자리값을 한다. */
-  $("modal-sub").hidden = !edit;
   $("modal-sub").textContent = edit
     ? "이름과 아이콘만 바뀌어요. 쌓은 돌은 그대로입니다."
-    : "";
-  $("input-title").placeholder = opts.first
-    ? "운동, 공부처럼 매일 반복할 것"
-    : "매일 반복하고 싶은 것 하나";
+    : opts.first
+      ? "운동, 공부, 작업처럼 매일 반복할 것 하나면 충분해요."
+      : "매일 반복하고 싶은 것 하나면 돼요.";
   $("btn-submit-goal").textContent = edit ? "수정하기" : "3일 약속하기";
-  // 고칠 때는 추천 칩을 감춘다 — 이미 정한 것을 고르는 자리가 아니다
-  $("suggest-row").closest(".sheet-group").hidden = !!edit;
+  // 고칠 때는 추천 칩 덩어리를 통째로 감춘다 — 이미 정한 것을 고르는 자리가 아니다
+  $("suggest-field").hidden = !!edit;
   $("btn-cancel").hidden = !!opts.first;
-  // 열 때마다 아이콘 격자는 접힌 채로 — 지난번에 펴 둔 것이 따라오면 안 된다
-  toggleIconRow(false);
-  selectIcon(selectedIcon);
   $("modal").hidden = false;
   document.body.classList.add("sheet-open");
   const scroll = $("sheet-scroll");
@@ -2885,12 +2850,7 @@ function closeModal() {
 function syncTitleState() {
   const value = $("input-title").value.trim();
   $("btn-submit-goal").disabled = !value;
-  /* 남은 글자는 끝이 보일 때만 알려 준다. 늘 떠 있으면 한 글자도 안 쓴
-     사람에게 먼저 한도부터 말하는 셈이고, 그만큼 화면에 글자가 는다. */
-  const len = $("input-title").value.length;
-  const near = len >= 22;
-  $("title-count").hidden = !near;
-  if (near) $("title-count").textContent = `${len}/30`;
+  $("title-count").textContent = `${$("input-title").value.length}/30`;
   $("suggest-row")
     .querySelectorAll(".suggest-chip")
     .forEach((el) => el.classList.toggle("on", el.textContent === value));

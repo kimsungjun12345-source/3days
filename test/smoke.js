@@ -1045,16 +1045,10 @@ function dstr(offset) {
   );
   /* 여기서 담는 것이 '목표'가 아니라 '매일 반복할 행동'이라는 게 드러나야
      한다. 안 그러면 '취업하기'나 '토익 900점'이 들어오고, 그 순간 이 앱이
-     목표 관리 앱인지 투두인지 모호해진다. docs/POSITIONING.md 참고.
-     그 말은 제목 아래 설명 줄이 아니라 넣는 칸 자체가 한다 — 설명 줄을
-     따로 두면 아무것도 안 한 사람 앞에 글자 두 줄이 먼저 선다. */
+     목표 관리 앱인지 투두인지 모호해진다. docs/POSITIONING.md 참고. */
   assert(
-    await fp.locator("#modal-sub").isHidden(),
-    "with no explanation line stacked under the question"
-  );
-  assert(
-    (await fp.locator("#input-title").getAttribute("placeholder")).includes("매일"),
-    "and the field itself says what kind of thing goes in it"
+    (await fp.locator("#modal-sub").textContent()).includes("매일"),
+    "and it says what kind of thing goes in here"
   );
 
   // 만들고 나면 규칙을 한 줄로 계속 붙여 둔다 (첫 돌을 얹기 전까지)
@@ -1175,15 +1169,7 @@ function dstr(offset) {
     "prefilled with what is there now"
   );
   await page.fill("#input-title", "아침에 물 한 잔");
-  // 아이콘 격자는 접혀 있다 — 바꾸려는 사람만 칸 옆의 아이콘을 눌러 편다
-  assert(await page.locator("#icon-row").isHidden(), "the icon grid stays folded until asked for");
-  await page.click("#btn-icon");
-  await page.waitForTimeout(200);
-  assert(await page.locator("#icon-row").isVisible(), "and opens when the chosen icon is tapped");
   await page.click('.icon-option[data-icon="sun"]');
-  await page.waitForTimeout(200);
-  // 고르고 나면 다시 접힌다 — 볼일 끝난 격자가 자리를 차지할 이유가 없다
-  assert(await page.locator("#icon-row").isHidden(), "and folds itself once one is chosen");
   await page.click("#btn-submit-goal");
   await page.waitForTimeout(400);
 

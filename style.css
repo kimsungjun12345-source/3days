@@ -56,7 +56,7 @@
   --ghost-stone: rgba(168, 159, 142, 0.14);
 
   --shadow-card: 0 1px 4px rgba(40, 35, 25, 0.04);
-  --scrim: rgba(27, 26, 24, 0.55);
+  --scrim: rgba(27, 26, 24, 0.4);
 
   --on-accent: #fff;          /* 주황·초록 버튼 위 글자 */
   --solid-bg: #1b1a18;        /* '또 작심하기' 같은 진한 버튼 */
@@ -793,12 +793,6 @@ body {
   animation: slide-up 0.25s ease;
 }
 
-/* 화면을 다 쓰는 쪽은 모서리를 둥글리지 않는다 — 둥근 모서리는 '아래에서
-   올라온 조각'이라는 신호인데, 여기는 조각이 아니라 한 장이다. */
-.modal.sheet-page {
-  border-radius: 0;
-}
-
 @keyframes slide-up {
   from { transform: translateY(40px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
@@ -813,45 +807,24 @@ body {
 .modal-sub {
   color: var(--gray);
   font-size: 0.86rem;
-  margin: 4px 0 0;
+  margin: 4px 0 16px;
   word-break: keep-all;
 }
 
 /* 추천 문구 칩 */
-/* 추천은 두 줄이 아니라 한 줄로, 넘치면 옆으로 민다.
-   여섯 개를 두 줄로 깔면 그것만으로 가로 띠가 둘이고, 아래 입력칸·버튼까지
-   더하면 작은 시트에 띠가 여섯 겹이 된다. 줄을 하나 줄이는 것이 여백을
-   늘리는 것보다 시트를 훨씬 조용하게 만든다. */
 .suggest-row {
   display: flex;
   gap: 7px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
-  /* 시트 좌우 여백까지 밀어내 끝이 잘린 것이 아니라 이어지는 것으로 보이게 */
-  margin: 0 -20px;
-  padding: 2px 20px;
-  scroll-padding-left: 20px;
-}
-
-.suggest-row::-webkit-scrollbar {
-  display: none;
+  flex-wrap: wrap;
+  margin: 12px 0 14px;
 }
 
 .suggest-chip {
-  flex-shrink: 0;
-}
-
-/* 칩은 테두리 대신 채움으로 선다.
-   여섯 개가 각자 윤곽선을 두르면 그 줄만으로 선이 여섯 줄이고, 아래 입력칸
-   테두리와 겹쳐 화면이 칸으로 빽빽해진다. 눌리는 것이라는 신호는 채움만으로
-   충분하다 — 선을 아끼면 진짜 테두리가 필요한 하나(입력칸)가 살아난다. */
-.suggest-chip {
-  border: 1px solid transparent;
-  background: var(--chip);
+  border: 1px solid var(--line);
+  background: var(--card);
   color: var(--gray-strong);
   border-radius: 999px;
-  padding: 8px 13px;
+  padding: 7px 12px;
   font-family: inherit;
   font-size: 0.82rem;
   cursor: pointer;
@@ -866,11 +839,7 @@ body {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 14px;
-}
-
-.icon-row[hidden] {
-  display: none;
+  margin-bottom: 4px;
 }
 
 .icon-option {
@@ -894,8 +863,8 @@ body {
 
 #input-title {
   width: 100%;
-  height: 54px;
-  padding: 0 58px 0 16px;
+  height: 52px;
+  padding: 0 16px;
   font-size: 1rem;
   font-family: inherit;
   border: 1.6px solid var(--line);
@@ -1041,12 +1010,10 @@ body {
 /* 작심 만들기는 화면 한 장을 통째로 쓴다.
  *
  * 아래에서 조금 올라오는 시트였을 때는, 시트를 아무리 줄여도 뒤의 홈 화면이
- * 그대로 비쳐서 두 화면이 한 화면에 겹쳐 보였다. 줄일수록 더 겹쳤다.
- * 화면을 다 쓰면 뒤가 아예 없어지고, 남는 세로를 여백으로 돌릴 수 있다.
- * 무언가를 정하는 동안에는 그것만 보이는 편이 낫다.
+ * 비쳐서 두 화면이 한 화면에 겹쳐 보였다. 화면을 다 쓰면 뒤가 아예 없어지고,
+ * 담고 있는 것은 그대로여도 하나하나가 숨 쉴 자리를 얻는다.
  *
- * 높이는 여전히 dvh로 잰다 — 키보드가 올라오면 화면이 줄어드는데 vh는
- * 그걸 모른다. */
+ * 높이는 dvh로 잰다 — 키보드가 올라오면 화면이 줄어드는데 vh는 그걸 모른다. */
 .sheet-page {
   display: flex;
   flex-direction: column;
@@ -1054,6 +1021,12 @@ body {
   padding: 0;
   background: var(--bg);
   animation: sheet-rise 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 화면 한 장이므로 모서리를 둥글리지 않는다 — 둥근 모서리는 '아래에서
+   올라온 조각'이라는 신호인데, 여기는 조각이 아니다. */
+.modal.sheet-page {
+  border-radius: 0;
 }
 
 @keyframes sheet-rise {
@@ -1066,18 +1039,15 @@ body {
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
-  /* 좌우는 본문(.sheet-scroll)과 같은 20px. 12px이면 ✕이 없는 첫 실행에서
-     제목만 왼쪽으로 8px 튀어나온다. */
-  padding: calc(10px + env(safe-area-inset-top)) 20px 0;
-  min-height: 44px;
+  /* 좌우는 본문과 같은 20px. 12px이면 ✕이 없는 첫 실행에서 제목만
+     왼쪽으로 8px 튀어나온다. */
+  padding: calc(10px + env(safe-area-inset-top)) 20px 2px;
 }
 
-/* 화면 한 장을 쓰는 만큼 묻는 말도 제 크기로 선다 */
 .sheet-head h2 {
   font-family: var(--font-title);
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 700;
-  word-break: keep-all;
 }
 
 .sheet-close {
@@ -1113,12 +1083,28 @@ body {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 2px 20px 14px;
-  /* 남는 세로를 한쪽에 몰지 않고 덩어리 사이에 고르게 나눈다.
-     위에 붙여 두면 아래가 통째로 비어 화면이 반만 쓰인 것처럼 보인다. */
+  /* 남는 세로를 한쪽에 몰지 않고 덩어리 사이에 고르게 나눈다. 위에 붙여
+     두면 아래가 통째로 비어 화면을 반만 쓴 것처럼 보이고, 가운데에 띄우면
+     위아래가 똑같이 빈다. 담긴 것이 그대로여도 간격만으로 화면이 조용해진다. */
   display: flex;
   flex-direction: column;
   justify-content: space-evenly;
-  padding-top: 8px;
+}
+
+/* 이름표는 제 칸의 머리라 바로 아래에 붙고, 덩어리 사이 간격은
+   space-evenly가 정한다. 간격을 정하는 곳이 둘이면 반드시 어긋난다. */
+.field-label {
+  margin: 0 0 10px;
+}
+
+.field > .suggest-row,
+.field > .icon-row,
+.sheet-scroll .modal-sub {
+  margin: 0;
+}
+
+.field[hidden] {
+  display: none;
 }
 
 .sheet-foot {
@@ -1150,65 +1136,6 @@ body {
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--gray-strong);
-}
-
-/* 작심 만들기 시트의 세 덩어리 — 고르기 · 쓰기 · 아이콘.
- *
- * 이름표를 걷어낸 자리를 여백이 대신한다. 무엇을 하는 자리인지 글자로
- * 설명하는 대신 덩어리 사이를 벌려서 나눈다. 여백을 아무 데나 늘리지는
- * 않는다 — 덩어리 안은 촘촘하게 두고 덩어리 사이만 띄워야 셋으로 읽힌다. */
-/* 간격은 space-evenly가 정하므로 덩어리는 제 여백을 갖지 않는다 */
-.sheet-group {
-  margin-top: 0;
-}
-
-
-.sheet-group[hidden] {
-  display: none;
-}
-
-/* 아이콘 하나 + 입력칸 한 줄. 아이콘은 고른 것만 서고, 격자는 눌러야 편다. */
-.field-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.icon-pick {
-  flex-shrink: 0;
-  width: 54px;
-  height: 54px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1.6px solid transparent;
-  border-radius: 14px;
-  background: var(--chip);
-  color: var(--accent-ink);
-  cursor: pointer;
-}
-
-/* 격자를 펴 둔 동안에만 테두리가 선다 — 지금 이 단추가 무언가를 열어 뒀다는 표시 */
-.icon-pick[aria-expanded="true"] {
-  border-color: var(--accent);
-}
-
-/* 글자 수는 칸 안 오른쪽에 조용히 앉는다. 위에 줄을 하나 더 두면
-   그 줄 하나가 화면을 또 나눈다. */
-.field-input {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-}
-
-.field-input .field-hint {
-  position: absolute;
-  right: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 0.74rem;
-  color: var(--gray);
-  pointer-events: none;
 }
 
 .field-hint {
