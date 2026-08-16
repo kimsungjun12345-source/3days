@@ -779,7 +779,7 @@ body {
   inset: 0;
   background: var(--scrim);
   display: flex;
-  align-items: flex-end;
+  align-items: stretch;
   justify-content: center;
   z-index: 20;
 }
@@ -791,6 +791,12 @@ body {
   width: 100%;
   max-width: 430px;
   animation: slide-up 0.25s ease;
+}
+
+/* 화면을 다 쓰는 쪽은 모서리를 둥글리지 않는다 — 둥근 모서리는 '아래에서
+   올라온 조각'이라는 신호인데, 여기는 조각이 아니라 한 장이다. */
+.modal.sheet-page {
+  border-radius: 0;
 }
 
 @keyframes slide-up {
@@ -1032,12 +1038,19 @@ body {
  * 그래서 내용만큼만 높이를 갖는 바텀시트로 되돌리되, 덜컹거림을 막아 준
  * 구조 — 스크롤 영역과 바닥에 붙은 버튼 — 는 그대로 둔다. 아래에 붙어 있으니
  * 키보드가 올라와도 버튼은 항상 키보드 바로 위에 남는다. */
+/* 작심 만들기는 화면 한 장을 통째로 쓴다.
+ *
+ * 아래에서 조금 올라오는 시트였을 때는, 시트를 아무리 줄여도 뒤의 홈 화면이
+ * 그대로 비쳐서 두 화면이 한 화면에 겹쳐 보였다. 줄일수록 더 겹쳤다.
+ * 화면을 다 쓰면 뒤가 아예 없어지고, 남는 세로를 여백으로 돌릴 수 있다.
+ * 무언가를 정하는 동안에는 그것만 보이는 편이 낫다.
+ *
+ * 높이는 여전히 dvh로 잰다 — 키보드가 올라오면 화면이 줄어드는데 vh는
+ * 그걸 모른다. */
 .sheet-page {
   display: flex;
   flex-direction: column;
-  max-height: 88vh;
-  /* 키보드가 올라오면 화면이 줄어든다. vh는 그걸 모르지만 dvh는 안다 */
-  max-height: 88dvh;
+  height: 100dvh;
   padding: 0;
   background: var(--bg);
   animation: sheet-rise 0.26s cubic-bezier(0.22, 1, 0.36, 1);
@@ -1053,13 +1066,17 @@ body {
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
-  padding: 8px 12px 2px;
+  padding: calc(10px + env(safe-area-inset-top)) 12px 0;
+  min-height: 44px;
 }
 
-.sheet-head h2 {
+/* 화면 한 장을 쓰는 만큼 묻는 말도 제 크기로 선다 */
+.sheet-title {
   font-family: var(--font-title);
-  font-size: 1.1rem;
+  font-size: 1.34rem;
   font-weight: 700;
+  line-height: 1.4;
+  word-break: keep-all;
 }
 
 .sheet-close {
@@ -1093,11 +1110,17 @@ body {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 2px 20px 14px;
+  /* 내용은 위쪽에 모으고 남는 세로는 아래로 흘린다. 한가운데에 띄워 보니
+     위아래로 300px씩 빈 자리가 생겨서, 여유로운 것이 아니라 덜 만든 화면으로
+     보였다. 여백은 고르게 흩는 것이 아니라 한쪽으로 몰아야 여백이 된다. */
+  display: flex;
+  flex-direction: column;
+  padding-top: 26px;
 }
 
 .sheet-foot {
   flex-shrink: 0;
-  padding: 10px 20px calc(14px + env(safe-area-inset-bottom));
+  padding: 14px 20px calc(20px + env(safe-area-inset-bottom));
   background: var(--bg);
 }
 
@@ -1132,7 +1155,30 @@ body {
  * 설명하는 대신 덩어리 사이를 벌려서 나눈다. 여백을 아무 데나 늘리지는
  * 않는다 — 덩어리 안은 촘촘하게 두고 덩어리 사이만 띄워야 셋으로 읽힌다. */
 .sheet-group {
-  margin-top: 22px;
+  margin-top: 30px;
+}
+
+.sheet-scroll > .sheet-group:first-of-type {
+  margin-top: 14px;
+}
+
+/* 남는 세로를 그림이 받는다. 아무것도 없는 채로 500px을 비워 두면 여유가
+   아니라 덜 만든 화면으로 보이고, 글자를 더 넣으면 조용함을 잃는다. */
+.sheet-art {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 0 12px;
+  opacity: 0.65;
+}
+
+.sheet-art svg {
+  display: block;
+  width: auto;
+  max-width: 150px;
+  max-height: 100%;
 }
 
 .sheet-group[hidden] {
