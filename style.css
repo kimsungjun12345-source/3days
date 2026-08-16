@@ -866,7 +866,7 @@ body {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 .icon-row[hidden] {
@@ -1113,9 +1113,12 @@ body {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 2px 20px 14px;
-  /* 화면이 커진 만큼 위도 띄운다. 내용은 위에서부터 흐르고 남는 세로는
-     그대로 둔다 — 여백은 고르게 흩는 것이 아니라 한쪽으로 몰아야 여백이 된다. */
-  padding-top: 18px;
+  /* 남는 세로를 한쪽에 몰지 않고 덩어리 사이에 고르게 나눈다.
+     위에 붙여 두면 아래가 통째로 비어 화면이 반만 쓰인 것처럼 보인다. */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  padding-top: 8px;
 }
 
 .sheet-foot {
@@ -1154,8 +1157,9 @@ body {
  * 이름표를 걷어낸 자리를 여백이 대신한다. 무엇을 하는 자리인지 글자로
  * 설명하는 대신 덩어리 사이를 벌려서 나눈다. 여백을 아무 데나 늘리지는
  * 않는다 — 덩어리 안은 촘촘하게 두고 덩어리 사이만 띄워야 셋으로 읽힌다. */
+/* 간격은 space-evenly가 정하므로 덩어리는 제 여백을 갖지 않는다 */
 .sheet-group {
-  margin-top: 30px;
+  margin-top: 0;
 }
 
 
