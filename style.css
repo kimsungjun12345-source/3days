@@ -1035,13 +1035,21 @@ body {
 }
 
 .sheet-head {
-  display: flex;
-  align-items: center;
-  gap: 4px;
   flex-shrink: 0;
   /* 좌우는 본문과 같은 20px. 12px이면 ✕이 없는 첫 실행에서 제목만
      왼쪽으로 8px 튀어나온다. */
-  padding: calc(10px + env(safe-area-inset-top)) 20px 2px;
+  padding: calc(20px + env(safe-area-inset-top)) 20px 4px;
+}
+
+.sheet-head-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 설명은 제목에 딸린 줄이라 바로 아래 붙는다 */
+.sheet-head .modal-sub {
+  margin: 6px 0 0;
 }
 
 .sheet-head h2 {
@@ -1098,8 +1106,7 @@ body {
 }
 
 .field > .suggest-row,
-.field > .icon-row,
-.sheet-scroll .modal-sub {
+.field > .icon-row {
   margin: 0;
 }
 
