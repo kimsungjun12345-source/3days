@@ -326,49 +326,54 @@
       </div>
     </div>
 
-    <!-- 새 작심 — 내용만큼만 높이를 갖고, 약속 버튼은 바닥에 붙어 있다 -->
+    <!-- 새 작심 — 화면 한 장을 통째로 쓰고, 약속 버튼은 바닥에 붙어 있다 -->
     <div class="modal-backdrop" id="modal" hidden>
       <div class="modal sheet-page" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-        <!-- 묻는 말과 그 설명은 한 덩어리다. 부제를 아래 본문에 두었더니
-             제목과도 떨어지고 칸들과도 떨어져서, 글자 두 줄만 허공에 뜬
-             것처럼 보였다. 머리에 붙여 두면 본문은 칸 셋만 고르게 나눈다. -->
-        <header class="sheet-head">
-          <div class="sheet-head-top">
-            <button type="button" class="sheet-close" id="btn-cancel" aria-label="닫기">✕</button>
-            <h2 id="modal-title">새 작심</h2>
-          </div>
-          <p class="modal-sub" id="modal-sub">거창할 필요 없어요. 딱 3일만 해볼 것 하나.</p>
-        </header>
+        <!-- 닫기는 화면 것이지 물음의 것이 아니다. 제목 옆에 붙여 뒀더니
+             제목이 버튼에 딸린 이름표처럼 읽혔다. 여기서는 모서리에 두고,
+             물음은 아래 답과 함께 내려보낸다. -->
+        <div class="sheet-bar">
+          <button type="button" class="sheet-close" id="btn-cancel" aria-label="닫기">✕</button>
+        </div>
 
         <form id="form-add">
           <div class="sheet-scroll" id="sheet-scroll">
+            <!-- 묻는 말과 답하는 칸은 한 덩어리다. 물음만 화면 꼭대기에
+                 붙여 두면, 답이 한참 아래에서 시작해 물음이 혼자 떠 있다.
+                 통째로 가운데에 세우면 물음-답이 한 호흡으로 읽힌다. -->
+            <div class="sheet-body">
+              <header class="sheet-head">
+                <h2 id="modal-title">새 작심</h2>
+                <p class="modal-sub" id="modal-sub">거창할 필요 없어요. 딱 3일만 해볼 것 하나.</p>
+              </header>
 
-            <!-- 이름표와 그 칸은 한 덩어리로 묶는다. 따로 두면 남는 세로를
-                 고르게 나눌 때 이름표가 제 칸에서 떨어져 허공에 뜬다. -->
-            <div class="field" id="suggest-field">
-              <p class="field-label" id="suggest-label">골라 볼까요</p>
-              <div class="suggest-row" id="suggest-row"></div>
-            </div>
+              <!-- 이름표와 그 칸은 한 덩어리로 묶는다. 따로 두면 남는 세로를
+                   고르게 나눌 때 이름표가 제 칸에서 떨어져 허공에 뜬다. -->
+              <div class="field" id="suggest-field">
+                <p class="field-label" id="suggest-label">골라 볼까요</p>
+                <div class="suggest-row" id="suggest-row"></div>
+              </div>
 
-            <div class="field">
-              <p class="field-label">
-                직접 쓰기
-                <span class="field-hint" id="title-count">0/30</span>
-              </p>
-              <input
-                type="text"
-                id="input-title"
-                maxlength="30"
-                placeholder="예: 운동하러 가기"
-                autocomplete="off"
-                enterkeyhint="done"
-                required
-              />
-            </div>
+              <div class="field">
+                <p class="field-label">
+                  직접 쓰기
+                  <span class="field-hint" id="title-count">0/30</span>
+                </p>
+                <input
+                  type="text"
+                  id="input-title"
+                  maxlength="30"
+                  placeholder="예: 운동하러 가기"
+                  autocomplete="off"
+                  enterkeyhint="done"
+                  required
+                />
+              </div>
 
-            <div class="field">
-              <p class="field-label">아이콘</p>
-              <div class="icon-row" id="icon-row"></div>
+              <div class="field">
+                <p class="field-label">아이콘</p>
+                <div class="icon-row" id="icon-row"></div>
+              </div>
             </div>
           </div>
 

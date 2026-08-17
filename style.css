@@ -1034,17 +1034,19 @@ body {
   to { transform: translateY(0); opacity: 1; }
 }
 
-.sheet-head {
+/* ✕만 놓이는 줄. 첫 실행에는 ✕이 감춰지는데, 그때도 높이는 그대로
+   남아야 아래 덩어리가 두 경우에 같은 자리에 선다. */
+.sheet-bar {
   flex-shrink: 0;
-  /* 좌우는 본문과 같은 20px. 12px이면 ✕이 없는 첫 실행에서 제목만
-     왼쪽으로 8px 튀어나온다. */
-  padding: calc(20px + env(safe-area-inset-top)) 20px 4px;
+  height: 40px;
+  margin-top: env(safe-area-inset-top);
+  padding: 0 10px;
 }
 
-.sheet-head-top {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.sheet-head {
+  /* 물음과 첫 칸 사이 — 칸과 칸 사이(26px)보다 넓어야 머리로 읽히고,
+     그렇다고 답과 남남이 될 만큼 벌리지는 않는다 */
+  margin: 0 0 30px;
 }
 
 /* 설명은 제목에 딸린 줄이라 바로 아래 붙는다 */
@@ -1059,8 +1061,6 @@ body {
 }
 
 .sheet-close {
-  /* 아이콘만 왼쪽 여백 안으로 당겨 글자와 세로줄을 맞춘다 */
-  margin-left: -10px;
   width: 40px;
   height: 40px;
   display: flex;
@@ -1090,19 +1090,28 @@ body {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 2px 20px 14px;
-  /* 남는 세로를 한쪽에 몰지 않고 덩어리 사이에 고르게 나눈다. 위에 붙여
-     두면 아래가 통째로 비어 화면을 반만 쓴 것처럼 보이고, 가운데에 띄우면
-     위아래가 똑같이 빈다. 담긴 것이 그대로여도 간격만으로 화면이 조용해진다. */
+  padding: 0 20px 14px;
   display: flex;
   flex-direction: column;
-  justify-content: space-evenly;
 }
 
-/* 이름표는 제 칸의 머리라 바로 아래에 붙고, 덩어리 사이 간격은
-   space-evenly가 정한다. 간격을 정하는 곳이 둘이면 반드시 어긋난다. */
-.field-label {
-  margin: 0 0 10px;
+/* 여백은 덩어리 '안'이 아니라 '바깥'에 있어야 한다.
+ *
+ * 남는 세로를 칸 사이에 고르게 나눠 봤더니, 칸 하나하나가 100px씩 떨어져
+ * 서로 남처럼 보였다. '골라 볼까요'와 그 아래 칩이 한 벌인 것은 보이는데
+ * 세 벌이 한 화면에 있다는 것이 안 보인다. 벌어져야 할 것은 부품 사이가
+ * 아니라 이 덩어리와 화면 가장자리 사이다.
+ *
+ * 가운데 세우는 데 justify-content를 쓰지 않는 이유: 글자 크기를 키워
+ * 내용이 넘치면 위쪽이 스크롤로 닿지 않는 곳에 잘려 나간다. auto 마진은
+ * 남을 때만 벌어지고 모자라면 0이 된다. */
+.sheet-body {
+  margin: auto 0;
+}
+
+/* 칸과 칸 사이 — 한 벌로 읽힐 만큼만 */
+.field + .field {
+  margin-top: 26px;
 }
 
 .field > .suggest-row,
@@ -1135,11 +1144,13 @@ body {
   cursor: default;
 }
 
+/* 이름표는 제 칸의 머리라 바로 아래에 붙는다. 칸 사이 간격은 .field가
+   혼자 정한다 — 간격을 정하는 곳이 둘이면 반드시 어긋난다. */
 .field-label {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin: 15px 0 8px;
+  margin: 0 0 8px;
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--gray-strong);
@@ -1149,15 +1160,6 @@ body {
   font-size: 0.74rem;
   font-weight: 500;
   color: var(--dot-empty);
-}
-
-.sheet-scroll .modal-sub {
-  margin: 0 0 2px;
-}
-
-.sheet-scroll .suggest-row,
-.sheet-scroll .icon-row {
-  margin: 0;
 }
 
 /* 아이콘은 10개다. 한 줄에 6개씩 두 줄로 두면 폭이 남아 헐거워 보인다.
