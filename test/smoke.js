@@ -2047,8 +2047,10 @@ function dstr(offset) {
     };
   });
   assert(breakSlide.title === "끊겨도 돌은 그대로", "the recovery slide is still the fourth");
-  assert(breakSlide.done === 3 && breakSlide.gap && breakSlide.today === 1,
-    "and it draws three done days, a gap, then a fresh first day");
+  /* 왼쪽이 두 칸인 것이 이 장의 요점이다. 셋이면 3일을 끝내고 쉰 그림이라,
+     정작 사람이 멈추는 자리(두 칸째)를 안 보여 주게 된다. */
+  assert(breakSlide.done === 2 && breakSlide.gap && breakSlide.today === 1,
+    "and it draws a three-day run that stopped at two, a gap, then a fresh first day");
   assert(breakSlide.stone, "with the tower still standing above the gap");
   assert(breakSlide.fits, "and the row fits the screen instead of wrapping");
   await page.evaluate(() => closeOnboard());
