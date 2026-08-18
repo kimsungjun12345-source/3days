@@ -186,7 +186,8 @@ Android Studio를 설치한 뒤 `npm run android` → Build → Generate Signed 
 - 스크린샷 최소 2장 (`store/screenshots/android/`)
 - 짧은 설명·전체 설명 (`store/LISTING.md`)
 - 개인정보 처리방침 URL (`store/privacy.html`을 호스팅)
-- 데이터 안전 양식: **수집 항목 없음**으로 신고
+- 데이터 안전 양식: **`docs/ANALYTICS.md`의 표 그대로.** Firebase Analytics를
+  붙였으므로 '수집 항목 없음'이 아니다 — 앱 활동·기기 ID를 신고한다
 
 #### 버전 올리기
 
@@ -202,7 +203,11 @@ Android Studio를 설치한 뒤 `npm run android` → Build → Generate Signed 
 - **개인정보 처리방침**: 기록이 기기 안에만 있고 서버로 보내지 않더라도
   스토어에는 방침 URL이 필요합니다. "수집하는 정보 없음"이라도 문서는
   있어야 합니다.
-- **데이터 안전 양식**(Play): 수집 항목 없음으로 신고하면 됩니다.
+- **데이터 안전 양식**(Play): 한때 '수집 항목 없음'이었지만 Firebase Analytics를
+  붙인 뒤로는 거짓 신고가 됩니다. 방침 페이지에는 쓰고 콘솔에는 안 쓰면
+  정책 위반으로 내려갑니다. 답은 `docs/ANALYTICS.md`에 표로 있습니다.
+- **App Privacy · ATT**(App Store): 같은 이유로 `docs/ANALYTICS.md`의 iOS 표를
+  씁니다. 광고 ID 수집을 끄지 않았다면 ATT 질문의 답이 달라집니다.
 
 ## 알림이 동작하는 방식
 
