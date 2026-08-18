@@ -1051,14 +1051,13 @@ function dstr(offset) {
     "and it says what kind of thing goes in here"
   );
 
-  // 만들고 나면 규칙을 한 줄로 계속 붙여 둔다 (첫 돌을 얹기 전까지)
+  // 만들고 나면 규칙과 약속을 한 줄로 계속 붙여 둔다 (첫 돌을 얹기 전까지)
   await fp.click(".suggest-chip");
   await fp.click("#btn-submit-goal");
   await fp.waitForTimeout(400);
-  assert(
-    (await fp.locator("#note").textContent()).includes("세 칸"),
-    "the rule stays on screen until the first stone"
-  );
+  const firstNote = await fp.locator("#note").textContent();
+  assert(firstNote.includes("3일"), "the rule stays on screen until the first stone");
+  assert(firstNote.includes("그대로"), "and so does the promise that a missed day takes nothing away");
   await fp.reload();
   await fp.waitForTimeout(900);
   assert(await fp.locator("#onboard").isHidden(), "and the walkthrough never asks twice");
@@ -1975,6 +1974,84 @@ function dstr(offset) {
     (await page.evaluate(() => state.goals[0].completedCycles)) === 3,
     "and it just carries on, without asking"
   );
+
+  /* ── 49. 스트릭이 있던 자리 ──────────────────────
+   *
+   * 카드에서 습관 앱이 '🔥 12일 연속'을 두는 자리에 이 앱이 세기로 한 수가
+   * 서 있는지. 그 자리가 비어 있으면 스트릭을 일부러 버린 앱이 아니라
+   * 스트릭이 아직 없는 앱으로 읽힌다.
+   *
+   * 폭도 함께 잰다. 한 줄에 다 못 들어가면 말줄임표에 잘려 숫자가 보이다
+   * 말고, 그러면 있느니만 못하다 — 360px 기기와 큰 글씨에서 확인한다. */
+  const statusOf = () => page.locator(".goal-card .goal-status").textContent();
+  const statusFits = () =>
+    page.evaluate(() => {
+      const s = document.querySelector(".goal-card .goal-status");
+      return s.scrollWidth <= s.closest(".goal-tt").clientWidth + 1;
+    });
+
+  await seedGoal([dstr(-1)], dstr(-1), { cycles: 4, restarts: 3 });
+  await reload();
+  assert((await statusOf()).includes("3번 다시 쌓는 중"), "a goal that came back says so where a streak would be");
+  assert(await statusFits(), "and it fits the line instead of being cut off");
+
+  // 다시 온 적 없는 작심은 그대로 며칠째인지를 말한다
+  await seedGoal([dstr(-1)], dstr(-1), { cycles: 1, restarts: 0 });
+  await reload();
+  assert((await statusOf()).includes("둘째 날"), "a goal that never broke still counts its days");
+
+  // 완주한 순간만은 그 순간의 말이 먼저다
+  await seedGoal([dstr(-2), dstr(-1), dstr(0)], dstr(0), { cycles: 1, restarts: 3 });
+  await reload();
+  assert((await statusOf()).includes("돌 하나 완성"), "the moment of finishing still speaks first");
+
+  // 끊긴 카드는 이미 돌아오라고 말하고 있다 — 같은 말을 두 번 하지 않는다
+  await seedGoal([dstr(-5), dstr(-4)], dstr(-4), { cycles: 3, restarts: 3 });
+  await reload();
+  assert((await statusOf()).includes("그대로"), "a broken card keeps saying what is still there");
+
+  // 작은 화면 + 큰 글씨에서도 잘리지 않아야 의미가 있다
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.addStyleTag({ content: "html{font-size:130%}" });
+  await seedGoal([dstr(-1)], dstr(-1), { cycles: 4, restarts: 3 });
+  await reload();
+  await page.addStyleTag({ content: "html{font-size:130%}" });
+  await page.waitForTimeout(200);
+  assert(await statusFits(), "and it still fits at 360px with 130% system text");
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  /* ── 50. 처음 온 사람에게 하는 말 ──────────────────
+   *
+   * 돌 하나를 얹기 전까지 홈에 뜨는 유일한 문장이다. 규칙만 설명하면
+   * 첫날 화면에 이 앱이 다른 습관 앱과 갈리는 말이 한 마디도 없게 된다. */
+  await seedGoal([], null, { cycles: 0, restarts: 0 });
+  await reload();
+  const note = await page.locator("#note").textContent();
+  assert(note.includes("3일"), "the one line on home still teaches the rule");
+  assert(note.includes("그대로"), "and promises that a missed day takes nothing away");
+
+  /* 안내에서도 '끊겨도 그대로'가 말이 아니라 그림으로 서 있는지 */
+  const breakSlide = await page.evaluate(() => {
+    closeDetail();
+    openOnboard();
+    obIndex = ONBOARD.findIndex((x) => x.art === obBreakArt);
+    paintOnboard();
+    const line = document.querySelector(".ob-break-line");
+    return {
+      title: document.querySelector(".ob-title").textContent,
+      gap: !!document.querySelector(".ob-break-gap"),
+      done: document.querySelectorAll(".ob-break-line .dot.done").length,
+      today: document.querySelectorAll(".ob-break-line .dot.today").length,
+      stone: !!document.querySelector(".ob-break-stone svg"),
+      fits: line.getBoundingClientRect().width <= document.querySelector(".ob-body").clientWidth,
+    };
+  });
+  assert(breakSlide.title === "끊겨도 돌은 그대로", "the recovery slide is still the fourth");
+  assert(breakSlide.done === 3 && breakSlide.gap && breakSlide.today === 1,
+    "and it draws three done days, a gap, then a fresh first day");
+  assert(breakSlide.stone, "with the tower still standing above the gap");
+  assert(breakSlide.fits, "and the row fits the screen instead of wrapping");
+  await page.evaluate(() => closeOnboard());
 
   assert(errors.length === 0, "no console/page errors" + (errors.length ? " → " + errors.join("; ") : ""));
 

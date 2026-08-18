@@ -2487,11 +2487,57 @@ body {
 }
 
 .ob-art-dots,
-.ob-art-rule {
+.ob-art-rule,
+.ob-art-break {
   align-items: center;
   flex-direction: column;
   justify-content: center;
   gap: 10px;
+}
+
+/* 끊김을 그리는 장만 무대를 옆으로 넓힌다. 지난 3일 · 쉼 · 다시 3일을
+   한 줄에 늘어놓아야 '가운데가 비었는데 위는 그대로'가 한눈에 읽히는데,
+   150px 안에서는 그 줄이 접힌다. 높이는 다른 장과 같게 두어 장을 넘겨도
+   그림이 위아래로 튀지 않는다. */
+.ob-art-break {
+  width: 100%;
+  gap: 10px;
+}
+
+.ob-break-stone {
+  width: 88px;
+}
+
+.ob-break-stone svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.ob-break-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ob-art-break .ob-dots-demo {
+  gap: 6px;
+}
+
+.ob-art-break .ob-dots-demo .dot {
+  width: 30px;
+  height: 30px;
+  font-size: 0.78rem;
+}
+
+/* 빈 자리를 빨갛게 칠하지 않는다 — 쉰 것은 실패가 아니라 그냥 빈 자리다.
+   점선 테두리는 '아직 아무것도 없다'는 말이지 '잘못됐다'는 말이 아니다. */
+.ob-break-gap {
+  padding: 6px 12px;
+  border: 1px dashed var(--dot-empty);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  color: var(--gray);
 }
 
 .ob-demo {

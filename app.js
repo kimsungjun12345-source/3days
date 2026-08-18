@@ -1010,7 +1010,13 @@ function renderStats() {
   const teaching = hasGoals && totalStones() === 0;
   note.hidden = !teaching;
   if (teaching) {
-    note.innerHTML = "오늘 해내면 칸이 하나 채워져요. <b>세 칸을 다 채우면 돌 하나</b>가 쌓입니다.";
+    /* 두 문장 다 규칙 설명이었을 때는('오늘 해내면 칸이 하나 채워져요.
+     * 세 칸을 다 채우면 돌 하나가 쌓입니다') 홈에서 이 앱이 다른 습관 앱과
+     * 갈리는 말이 한 마디도 없었다. 칸을 채우고 보상을 모으는 규칙은 여느
+     * 트래커와 같은 말이라, 처음 온 사람 눈에는 첫날 화면이 통째로 남들과
+     * 같아 보인다. 돌 하나를 얹기 전까지 홈에 뜨는 유일한 문장이므로,
+     * 절반은 규칙에 쓰되 나머지 절반은 이 앱의 약속에 쓴다. */
+    note.innerHTML = "3일을 채우면 돌 하나가 쌓여요. <b>며칠 빠뜨려도 쌓은 돌은 그대로</b>입니다.";
   }
 }
 
@@ -1022,13 +1028,33 @@ function renderGoals() {
   }
 }
 
+/* 상태줄은 한 줄에 들어가야 한다 — 위로하는 말은 버튼과 아래 배너가 맡는다.
+ *
+ * 순서가 곧 우선순위다. 이 줄에 들어갈 폭은 360px 기기에서 124px뿐이라
+ * 두 가지를 나란히 놓을 수 없다. 한때 '다시 4번' 칩을 앞에 붙여 봤는데
+ * 뒤에 무슨 말이 오든 전부 말줄임표에 잘렸다.
+ *
+ * 그래서 겹칠 때 무엇을 남길지 정해 둔다.
+ *
+ * 1. 쉬는 중 · 끊김 — 지금 돌아오라고 말해야 하는 자리다.
+ * 2. 완주 — 그 순간의 말이 다른 무엇보다 먼저다.
+ * 3. 다시 쌓는 중 — 습관 앱을 써 본 사람은 여기서 '🔥 12일 연속'을 찾는다.
+ *    그 자리가 그냥 비어 있으면 스트릭을 일부러 버린 앱이 아니라 스트릭이
+ *    아직 없는 앱으로 읽힌다. 버렸다는 것을 보이려면 그 자리에 다른 것이
+ *    서 있어야 하고, 이 앱이 세기로 한 수는 restarts다.
+ * 4. 나머지 — 지금 며칠째인지.
+ *
+ * 4번을 3번에 내주는 것이 아깝지 않은 이유: 며칠째인지는 바로 옆 칸 세
+ * 개가 이미 말하고 있고, 셋째 날의 '오늘이면 돌 하나 완성'은 그 아래
+ * 버튼이 '오늘 해내고 돌 완성하기'로 더 크게 말한다. 같은 것을 두 번
+ * 말하느라 한 번도 안 한 말을 못 하고 있었다. */
 function statusLine(goal, status) {
   const n = goal.checks.length;
-  if (status === "complete") return `<b>돌 하나 완성!</b>`;
-  // 상태줄은 한 줄에 들어가야 한다 — 위로하는 말은 버튼과 아래 배너가 맡는다
-  if (status === "resting") return `어제 완성 · <b>오늘 이어서</b>`;
   if (status === "lapsed") return `<span class="ok">${daysSinceLastCheck(goal)}일째 쉬는 중</span>`;
   if (status === "broken") return `<span class="ok">쌓아둔 ${goal.totalDays}일은 그대로예요</span>`;
+  if (status === "complete") return `<b>돌 하나 완성!</b>`;
+  if (goal.restarts >= 1) return `<span class="ok">${goal.restarts}번 다시 쌓는 중</span>`;
+  if (status === "resting") return `어제 완성 · <b>오늘 이어서</b>`;
   if (checkedToday(goal) && n === 0) return `내일 새 돌을 시작해요`;
   if (checkedToday(goal)) return `${DAY_KO[n - 1]} 날 완료`;
   if (n === 2) return `<b>오늘이면 돌 하나 완성</b>`;
@@ -1403,10 +1429,13 @@ function paintMonthCal(prefix, offset, doneSet, marks) {
 function historyWord(goal) {
   const h = [...(goal.history || [])].sort();
   if (h.length === 0) return "아직 첫 돌 전이에요.";
-  /* '무너지고'라고 쓰지 않는다 — restarts에는 3일을 채우고 한참 쉬었다
-     돌아온 경우도 들어 있고, 그건 무너진 것이 아니라 멈췄던 것이다. */
+  /* 멈춘 횟수는 세지 않는다. '3번 멈췄다가 다시 왔어요'는 위로하는 모양을
+     하고서 실패를 앞세우는 문장이고, 스트릭을 버리면서 같이 버리기로 한
+     것이 그것이다. restarts의 정의 자체가 '다시 쌓기를 시작한 횟수'이므로
+     문장도 그것만 말하면 된다. 복귀 시트는 이미 이렇게 고쳤는데 여기만
+     옛 어법으로 남아 있었다. */
   if (goal.restarts > 0) {
-    return `${goal.restarts}번 멈췄다가 다시 왔어요. 그게 이 탑의 진짜 기록이에요.`;
+    return `${goal.restarts}번 다시 돌아왔어요. 그게 이 탑의 진짜 기록이에요.`;
   }
   const built = towersOf(goal);
   if (built.done > 0) {
@@ -2026,6 +2055,29 @@ function obDotsArt(filled, todayIdx, cap) {
   </div>`;
 }
 
+/* '끊겨도 돌은 그대로'를 한 장의 그림으로.
+ *
+ * 이 한 줄이 이 앱이 다른 습관 앱과 갈리는 유일한 지점인데, 오래도록
+ * 삽화가 그냥 돌탑이었다 — 다음 장과 똑같은 그림이었으니 사실상 주장만
+ * 있고 근거는 없는 장이었다. 스트릭 앱을 써 본 사람은 '끊긴다'는 말에서
+ * 0으로 돌아가는 장면을 떠올리므로, 안 돌아간다는 것은 말이 아니라
+ * 그림으로 보여 줘야 한다.
+ *
+ * 그래서 지난 3일 · 쉼 · 다시 시작한 3일을 한 줄에 늘어놓고, 그 위에
+ * 탑을 그대로 세워 둔다. 가운데가 비었는데 위가 안 낮아졌다는 것이
+ * 이 장에서 읽혀야 할 전부다. */
+function obBreakArt() {
+  return `<div class="ob-art ob-art-break">
+    <div class="ob-break-stone">${cairnSVG(3, false, 0, 9)}</div>
+    <div class="ob-break-line">
+      <span class="ob-break-seg">${obDots(3, -1)}</span>
+      <span class="ob-break-gap" aria-label="며칠 쉼">쉼</span>
+      <span class="ob-break-seg">${obDots(0, 0)}</span>
+    </div>
+    <span class="ob-cap">비어도 탑은 낮아지지 않아요</span>
+  </div>`;
+}
+
 /* '칸 세 개 → 돌 하나'를 한 장의 그림으로. 이 앱에서 가장 헷갈리는
  * 규칙이라 글로 설명하지 않고 위아래로 나란히 놓아 보여 준다. */
 function obRuleArt() {
@@ -2051,12 +2103,19 @@ function obRuleArt() {
  *
  * 그래서 회복을 앞으로 당겼다. 다만 맨 앞에 두지는 않았다 — "쌓아 둔 돌은
  * 그대로"라고 말하려면 돌이 무엇인지가 먼저 서 있어야 하기 때문이다.
- * 대신 첫 장의 마지막 줄이 그 약속을 미리 한 번 건넨다. */
+ *
+ * 첫 장은 방법이 아니라 문제로 연다. "약속은 3일치만 / 한 달 계획은 쉽게
+ * 무너져요"는 짧게 끊어 하자는 마이크로 습관 앱이 전부 하는 말이라, 그
+ * 문장으로 시작하면 첫 줄부터 남들과 같은 자리에 선다. 이 앱이 답하기로 한
+ * 물음은 '어떻게 잘게 쪼갤까'가 아니라 '왜 항상 며칠 뒤에 멈추지'다.
+ *
+ * 다만 규정하는 것은 사람이 아니라 상황이다. "의지가 약해서"가 아니라
+ * "루틴은 원래 끊긴다" — 앱이 먼저 사용자에게 라벨을 붙이면 안 된다. */
 const ONBOARD = [
   {
     art: () => obDotsArt(0, 0, "3일짜리 약속 하나"),
-    title: "약속은 3일치만",
-    body: "한 달 계획은 쉽게 무너져요.\n3일은 해볼 만하고, <b>무너져도 다시 3일이면 됩니다.</b>",
+    title: "루틴은 원래 끊겨요",
+    body: "3일쯤 하다 멈추는 건 흔한 일이에요.\n그래서 여기선 <b>약속을 3일치만</b> 합니다.",
   },
   {
     art: () => obDotsArt(2, 2, "이틀째 · 한 칸 남았어요"),
@@ -2069,7 +2128,7 @@ const ONBOARD = [
     body: "칸 세 개는 돌 세 개가 아니라 <b>돌 하나</b>예요.\n3일을 끝낸 날에만 탑이 한 칸 높아져요.",
   },
   {
-    art: () => `<div class="ob-art">${cairnSVG(5, false, 0, 9, OB_FRAME_TOP)}</div>`,
+    art: obBreakArt,
     title: "끊겨도 돌은 그대로",
     body: "며칠 빠뜨려도 쌓아 둔 돌은 없어지지 않아요.\n<b>돌아온 날부터 다시 3일이에요.</b>",
   },

@@ -165,8 +165,15 @@ const AUDIT = (dimmed) => {
         await page.click(".suggest-chip");
       },
       "안내": async () => { await page.click("#btn-cancel"); await page.evaluate(() => openOnboard()); },
+      /* 장을 '다음 버튼 N번'이 아니라 번호로 세운다. 앞 화면이 몇 장째에
+         두고 갔는지에 기대면, 장을 하나 끼울 때마다 뒤의 화면이 조용히
+         엉뚱한 장을 재게 된다. */
+      // 이 앱이 다른 습관 앱과 갈리는 장. 점선 '쉼' 칸은 여기에만 있는 색이라 함께 잰다
+      "안내 끊김": async () => {
+        await page.evaluate(() => { obIndex = ONBOARD.findIndex((p) => p.art === obBreakArt); paintOnboard(); });
+      },
       "안내 마지막": async () => {
-        await page.evaluate(() => { for (let i = 0; i < 4; i++) document.getElementById("ob-next").click(); });
+        await page.evaluate(() => { obIndex = ONBOARD.length - 1; paintOnboard(); });
       },
       "기록 상세": async () => { await page.evaluate(() => { closeOnboard(); openDetail(state.goals[0]); }); },
       // 3일을 채우면 바로 뜨는 축하 화면
