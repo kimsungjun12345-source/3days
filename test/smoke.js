@@ -509,7 +509,7 @@ function dstr(offset) {
     };
   });
   assert(theme.bg === "rgb(22, 21, 19)", "dark theme paints a dark page, got: " + theme.bg);
-  assert(theme.stone === "#c2baa9", "stones switch to their night tone, got: " + theme.stone);
+  assert(theme.stone === "#B2A89D", "stones switch to their night tone, got: " + theme.stone);
 
   // 버튼 배경과 글자가 충분히 대비되는지 (밝은 버튼 위 흰 글자 같은 사고 방지)
   const lum = (rgb) => {
@@ -964,19 +964,22 @@ function dstr(offset) {
     }));
     save();
     render();
+    /* 돌빛은 이제 filter가 아니라 작심마다 다른 CSS 변수(--stone-top-1)로
+       준다. 탑 그룹의 .stone-tone-N이 그 값을 쥔다 — 셋이 서로 달라야 한다. */
     const tone = (id) => {
       const el = document.querySelector(`#hero-garden .tower-current[data-goal-id="${id}"]`);
-      return el ? getComputedStyle(el).filter : null;
+      return el ? getComputedStyle(el).getPropertyValue("--stone-top-1").trim() : null;
     };
-    /* 돌은 타원이 아니라 조약돌 path라서 ry 같은 속성이 없다.
-       실제로 그려진 높이를 재는 편이 '납작함이 다른가'를 더 곧게 묻는다. */
-    const width = (id) => {
+    /* 세 조약돌은 발자국(bounding box)을 일부러 똑같이 맞춰 두어(fitBox)
+       탑이 단정하다. 그래서 다른 것은 크기가 아니라 윤곽 곡선이다 — 맨 위
+       돌의 path(d)가 작심마다 달라야 셋이 서로 다른 돌로 읽힌다. */
+    const shape = (id) => {
       const el = document.querySelector(`#hero-garden .tower-current[data-goal-id="${id}"] .stone-top`);
-      return el ? Math.round(el.getBBox().height * 10) : 0;
+      return el ? el.getAttribute("d") : null;
     };
     return {
       tones: ["s0", "s1", "s2"].map(tone),
-      flats: ["s0", "s1", "s2"].map(width),
+      shapes: ["s0", "s1", "s2"].map(shape),
       lanes: ["s0", "s1", "s2"].map((id) => {
         const el = document.querySelector(`#hero-garden .tower-current[data-goal-id="${id}"]`);
         return el ? el.getAttribute("transform") : null;
@@ -984,7 +987,7 @@ function dstr(offset) {
     };
   });
   assert(new Set(stones.tones).size === 3, "each goal's stones catch the light differently");
-  assert(new Set(stones.flats).size === 3, "and each goal's stones have their own shape");
+  assert(new Set(stones.shapes).size === 3, "and each goal's stones have their own shape");
 
   // 자리는 고정이어야 한다 — 많이 쌓은 순으로 자리를 주면 어제 가운데
   // 있던 탑이 오늘 옆으로 밀려서 '내 정원'이라는 기억이 안 생긴다

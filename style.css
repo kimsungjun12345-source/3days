@@ -45,9 +45,12 @@
   --stone-side-2: #bdb4a2;
   --stone-side-3: #8f8674;
   --stone-side-4: #655d4e;
-  --stone-top-1: #e3ddd1;
-  --stone-top-2: #c7bfae;
-  --stone-top-3: #a19885;
+  --stone-top-1: #D2CCC2;
+  --stone-top-2: #C3BAAE;
+  --stone-top-3: #AB9F8E;
+  --stone-top-4: #988973;
+  --stone-belly: #4A4034;
+  --stone-rim: #E4DDCF;
   --stone-shadow: rgba(52, 44, 33, 0.38);
   --stone-shine: rgba(255, 252, 244, 0.26);
   --ground-shadow: rgba(74, 64, 48, 0.2);
@@ -102,7 +105,12 @@
   --stone-side-2: #8c8474;
   --stone-side-3: #635c4e;
   --stone-side-4: #423c33;
-  --stone-top-1: #c2baa9;
+  --stone-top-1: #B2A89D;
+  --stone-top-2: #A29789;
+  --stone-top-3: #887B6B;
+  --stone-top-4: #6E6357;
+  --stone-belly: #000000;
+  --stone-rim: #D8D0C2;
   --stone-top-2: #9d9584;
   --stone-top-3: #726a5c;
   --stone-shadow: rgba(0, 0, 0, 0.5);
@@ -1302,17 +1310,7 @@ body {
  * 밝은 화면과 어두운 화면에서 필요한 보정이 다르다. 밝은 쪽에서 시원하게
  * 보이는 밝기 보정을 어두운 쪽에 그대로 쓰면 돌이 배경에서 떠서 빛난다.
  */
-.stone-tone-1 { filter: hue-rotate(16deg) saturate(0.5) brightness(1.07); }  /* 창백한 판석 */
-.stone-tone-2 { filter: saturate(1.25) brightness(0.86); }                   /* 짙은 조약돌 */
-.stone-tone-3 { filter: hue-rotate(-12deg) saturate(0.8) brightness(1.12); } /* 밝은 사암 */
-.stone-tone-4 { filter: hue-rotate(40deg) saturate(0.42) brightness(0.84); } /* 이끼 낀 돌 */
-.stone-tone-5 { filter: saturate(0.2) brightness(0.98); }                    /* 무채색 자갈 */
 
-:root[data-theme="dark"] .stone-tone-1 { filter: hue-rotate(16deg) saturate(0.5) brightness(0.95); }
-:root[data-theme="dark"] .stone-tone-2 { filter: saturate(1.3) brightness(0.78); }
-:root[data-theme="dark"] .stone-tone-3 { filter: hue-rotate(-12deg) saturate(0.85) brightness(1.04); }
-:root[data-theme="dark"] .stone-tone-4 { filter: hue-rotate(40deg) saturate(0.45) brightness(0.7); }
-:root[data-theme="dark"] .stone-tone-5 { filter: saturate(0.2) brightness(0.84); }
 
 /* 쌓는 중인 돌 자리는 늘 남아 있고, 숨을 쉬는 건 오늘 할 일이 남았을 때뿐.
    오늘 해내면 깜빡임이 멎으면서 자리가 차분해진다 — 그것 자체가 보상이다. */
@@ -2790,4 +2788,34 @@ body.sheet-open {
 /* 입력창을 누를 때 화면이 확대되지 않도록 (iOS는 16px 미만이면 확대한다) */
 #input-title {
   font-size: 16px;
+}
+
+
+
+
+
+/* ── 조약돌 톤: 방사 4 stop + 바닥 그늘 ── */
+@media (prefers-color-scheme: dark) {
+}
+
+/* ── 조약돌 톤: 볼륨 방사 + 배 그림자 + 림 라이트 ── */
+.stone-tone-0 { --stone-top-1:#D2CCC2; --stone-top-2:#C3BAAE; --stone-top-3:#AB9F8E; --stone-top-4:#988973; --stone-belly:#4A4034; --stone-rim:#E4DDCF; }
+.stone-tone-1 { --stone-top-1:#BEC3BA; --stone-top-2:#ACB2A7; --stone-top-3:#8F9889; --stone-top-4:#788271; --stone-belly:#4A4034; --stone-rim:#E4DDCF; }
+.stone-tone-2 { --stone-top-1:#C5CCD1; --stone-top-2:#B1BAC1; --stone-top-3:#929FA8; --stone-top-4:#788994; --stone-belly:#4A4034; --stone-rim:#E4DDCF; }
+.stone-tone-3 { --stone-top-1:#CCB8AF; --stone-top-2:#BEA599; --stone-top-3:#A88677; --stone-top-4:#936F5E; --stone-belly:#4A4034; --stone-rim:#E4DDCF; }
+.stone-tone-4 { --stone-top-1:#C8C7C6; --stone-top-2:#B6B6B4; --stone-top-3:#9B9A97; --stone-top-4:#858380; --stone-belly:#4A4034; --stone-rim:#E4DDCF; }
+.stone-tone-5 { --stone-top-1:#C8C0C6; --stone-top-2:#B7ADB4; --stone-top-3:#9D8F99; --stone-top-4:#887683; --stone-belly:#4A4034; --stone-rim:#E4DDCF; }
+:root[data-theme="dark"] .stone-tone-0 { --stone-top-1:#B2A89D; --stone-top-2:#A29789; --stone-top-3:#887B6B; --stone-top-4:#6E6357; --stone-belly:#000000; --stone-rim:#D8D0C2; }
+:root[data-theme="dark"] .stone-tone-1 { --stone-top-1:#9EA59B; --stone-top-2:#8C9488; --stone-top-3:#70786C; --stone-top-4:#596056; --stone-belly:#000000; --stone-rim:#D8D0C2; }
+:root[data-theme="dark"] .stone-tone-2 { --stone-top-1:#9FA9AF; --stone-top-2:#8C979E; --stone-top-3:#6E7C84; --stone-top-4:#59646B; --stone-belly:#000000; --stone-rim:#D8D0C2; }
+:root[data-theme="dark"] .stone-tone-3 { --stone-top-1:#AC9890; --stone-top-2:#9D857C; --stone-top-3:#816960; --stone-top-4:#67534D; --stone-belly:#000000; --stone-rim:#D8D0C2; }
+:root[data-theme="dark"] .stone-tone-4 { --stone-top-1:#A5A4A3; --stone-top-2:#949391; --stone-top-3:#787774; --stone-top-4:#605F5E; --stone-belly:#000000; --stone-rim:#D8D0C2; }
+:root[data-theme="dark"] .stone-tone-5 { --stone-top-1:#A59CA3; --stone-top-2:#948A91; --stone-top-3:#796D76; --stone-top-4:#60585E; --stone-belly:#000000; --stone-rim:#D8D0C2; }
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme="light"]) .stone-tone-0 { --stone-top-1:#B2A89D; --stone-top-2:#A29789; --stone-top-3:#887B6B; --stone-top-4:#6E6357; --stone-belly:#000000; --stone-rim:#D8D0C2; }
+:root:not([data-theme="light"]) .stone-tone-1 { --stone-top-1:#9EA59B; --stone-top-2:#8C9488; --stone-top-3:#70786C; --stone-top-4:#596056; --stone-belly:#000000; --stone-rim:#D8D0C2; }
+:root:not([data-theme="light"]) .stone-tone-2 { --stone-top-1:#9FA9AF; --stone-top-2:#8C979E; --stone-top-3:#6E7C84; --stone-top-4:#59646B; --stone-belly:#000000; --stone-rim:#D8D0C2; }
+:root:not([data-theme="light"]) .stone-tone-3 { --stone-top-1:#AC9890; --stone-top-2:#9D857C; --stone-top-3:#816960; --stone-top-4:#67534D; --stone-belly:#000000; --stone-rim:#D8D0C2; }
+:root:not([data-theme="light"]) .stone-tone-4 { --stone-top-1:#A5A4A3; --stone-top-2:#949391; --stone-top-3:#787774; --stone-top-4:#605F5E; --stone-belly:#000000; --stone-rim:#D8D0C2; }
+:root:not([data-theme="light"]) .stone-tone-5 { --stone-top-1:#A59CA3; --stone-top-2:#948A91; --stone-top-3:#796D76; --stone-top-4:#60585E; --stone-belly:#000000; --stone-rim:#D8D0C2; }
 }

@@ -1,3 +1,74 @@
+/* ── 작심마다 다른 돌: 세 조약돌 A·B·C ──
+   무작위로 흔들지 않고 낮은 하모닉 셋으로 '설계'해 고정한다. 발자국은
+   fitBox가 강제로 맞추므로 셋이 늘 같은 크기로 쌓인다. 자세한 근거는
+   docs/BRAND.md. */
+/* 조약돌 A·B·C — 무작위로 흔들지 않고 낮은 하모닉 몇 개로 '설계'한다.
+ *
+ * r(θ) = 1 + a1·cos(θ-φ1) + a2·cos(2θ-φ2) + a3·cos(3θ-φ3)
+ *   a1 : 한쪽을 좁히거나 밀어 무게를 옮긴다 (비대칭·눌림)
+ *   a2 : 길쭉함
+ *   a3 : 조약돌 특유의 완만한 세 결 — 이게 '돌'을 만든다. 크면 삼각김밥이 된다
+ * 진폭을 작게 묶으면 매끈하고, 위상만 돌리면 세 개가 남처럼 안 보이면서 다르다. */
+const R2 = Math.PI / 180;
+const SPEC = [
+  // A 가장 안정적인 둥근 형태
+  { a1: 0.015, p1: 210, a2: 0.02, p2: 100, a3: 0.018, p3: 30 },
+  // B 살짝 길쭉하고 왼쪽이 조금 좁은 형태
+  { a1: 0.055, p1: 8,   a2: 0.06, p2: 95,  a3: 0.02,  p3: 140 },
+  // C 조금 더 비대칭이고 자연스럽게 눌린 형태
+  { a1: 0.05,  p1: 235, a2: 0.02, p2: 60,  a3: 0.05,  p3: 205 },
+];
+const BOX = { x0: 10, x1: 90, y0: 28, y1: 72 };
+const N = 60;
+
+function pts(spec) {
+  const cx = 50, cy = 50, rx = 40, ry = 22, out = [];
+  for (let i = 0; i < N; i++) {
+    const th = (i / N) * Math.PI * 2;
+    const R = 1 + spec.a1 * Math.cos(th - spec.p1 * R2)
+                + spec.a2 * Math.cos(2 * th - spec.p2 * R2)
+                + spec.a3 * Math.cos(3 * th - spec.p3 * R2);
+    out.push([cx + Math.cos(th) * rx * R, cy + Math.sin(th) * ry * R]);
+  }
+  return fit(out);
+}
+function fit(p) {
+  const xs = p.map((q) => q[0]), ys = p.map((q) => q[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const sx = (BOX.x1 - BOX.x0) / (x1 - x0), sy = (BOX.y1 - BOX.y0) / (y1 - y0);
+  return p.map(([x, y]) => [BOX.x0 + (x - x0) * sx, BOX.y0 + (y - y0) * sy]);
+}
+// Catmull-Rom → 닫힌 매끈한 곡선
+function smooth(p) {
+  const n = p.length;
+  let d = `M${p[0][0].toFixed(2)},${p[0][1].toFixed(2)}`;
+  for (let i = 0; i < n; i++) {
+    const p0 = p[(i - 1 + n) % n], p1 = p[i], p2 = p[(i + 1) % n], p3 = p[(i + 2) % n];
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += ` C${c1[0].toFixed(2)},${c1[1].toFixed(2)} ${c2[0].toFixed(2)},${c2[1].toFixed(2)} ${p2[0].toFixed(2)},${p2[1].toFixed(2)}`;
+  }
+  return d + "Z";
+}
+// 앞면 벽 — 아랫반을 t만큼 아래로, 끝은 얇게(55%)
+function wall(p, t) {
+  const cy = 50, ymax = Math.max(...p.map((q) => q[1]));
+  const front = p.filter((q) => q[1] >= cy - 0.01).sort((a, b) => a[0] - b[0]);
+  const hAt = (y) => t * (0.55 + 0.45 * Math.max(0, (y - cy) / (ymax - cy)));
+  let d = `M${front[0][0].toFixed(2)},${front[0][1].toFixed(2)}`;
+  for (const [x, y] of front.slice(1)) d += ` L${x.toFixed(2)},${y.toFixed(2)}`;
+  for (let i = front.length - 1; i >= 0; i--) {
+    const [x, y] = front[i]; d += ` L${x.toFixed(2)},${(y + hAt(y)).toFixed(2)}`;
+  }
+  return d + "Z";
+}
+
+const PEB = SPEC.map(pts);
+function pebbleTop(i) { return smooth(PEB[i]); }
+function pebbleWall(i, t) { return wall(PEB[i], t); }
+
+
+
 /* 셋돌하나 — 3일마다 돌 하나, 무너지면 다시 쌓는 습관 앱 */
 
 const STORAGE_KEY = "jaksim3.v1";
@@ -346,19 +417,28 @@ const MAX_STONES = 5;
 let stoneDefsSeq = 0;
 
 function stoneDefs(uid) {
-  return `<radialGradient id="stoneSide-${uid}" cx="33%" cy="20%" r="92%">
-    <stop offset="0%" stop-color="var(--stone-side-1)"/>
-    <stop offset="34%" stop-color="var(--stone-side-2)"/>
-    <stop offset="72%" stop-color="var(--stone-side-3)"/>
-    <stop offset="100%" stop-color="var(--stone-side-4)"/>
-  </radialGradient>
-  <radialGradient id="stoneTop-${uid}" cx="32%" cy="24%" r="86%">
+  return `<radialGradient id="stoneTop-${uid}" cx="40%" cy="28%" r="95%">
     <stop offset="0%" stop-color="var(--stone-top-1)"/>
-    <stop offset="46%" stop-color="var(--stone-top-2)"/>
-    <stop offset="100%" stop-color="var(--stone-top-3)"/>
+    <stop offset="35%" stop-color="var(--stone-top-2)"/>
+    <stop offset="72%" stop-color="var(--stone-top-3)"/>
+    <stop offset="100%" stop-color="var(--stone-top-4)"/>
   </radialGradient>
-  <filter id="softShadow-${uid}" x="-60%" y="-60%" width="220%" height="220%">
-    <feGaussianBlur stdDeviation="2.2"/>
+  <radialGradient id="stoneBelly-${uid}" cx="50%" cy="95%" r="60%">
+    <stop offset="0%" stop-color="var(--stone-belly)" stop-opacity="0.42"/>
+    <stop offset="65%" stop-color="var(--stone-belly)" stop-opacity="0.10"/>
+    <stop offset="100%" stop-color="var(--stone-belly)" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="stoneRim-${uid}" cx="40%" cy="14%" r="42%">
+    <stop offset="0%" stop-color="var(--stone-rim)" stop-opacity="0.55"/>
+    <stop offset="100%" stop-color="var(--stone-rim)" stop-opacity="0"/>
+  </radialGradient>
+  <filter id="stoneGrain-${uid}" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" stitchTiles="stitch" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.6 0.6 0.6 0 0"/>
+  </filter>
+  <filter id="stoneMottle-${uid}" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" seed="7" stitchTiles="stitch" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.7 0.7 0.7 0 0"/>
   </filter>
   <filter id="groundShadow-${uid}" x="-60%" y="-120%" width="220%" height="340%">
     <feGaussianBlur stdDeviation="3.4"/>
@@ -380,20 +460,32 @@ function wobble(seed, k) {
  * 바꿔 두었다. 가까이 보면 손으로 주운 돌 같았지만, 여러 채가 서면 울퉁불퉁한
  * 덩어리로 뭉쳐 보였다 — 특히 정원 탭이 탑을 크게 그리게 된 뒤로. 돌탑이
  * 단정해 보이는 쪽이 이 앱에 맞아서 처음의 타원으로 되돌렸다. */
-function stonePiece(cx, cy, rx, ry, tilt, uid) {
-  const t = ry * 0.66;
+/* 돌 하나 — 위에서 비스듬히 본 조약돌. pebbleTop/pebbleWall이 준 곡선을
+ * 이 층의 크기로 앉힌다. 입체는 윤곽이 아니라 음영이 만든다:
+ *   벽(옆면)은 가로로 밝기가 변하고, 끝으로 갈수록 얇아진다.
+ *   윗면은 빛 쪽이 부풀고 반대쪽 가장자리가 떨어지는 돔이다.
+ * 두께는 ry의 0.42 — 0.66은 조약돌치고 두꺼워 원반으로 읽혔다. */
+function stonePiece(cx, cy, rx, ry, tilt, uid, layer = 0, seed = 0) {
   const rot = `rotate(${tilt} ${cx} ${cy})`;
+  const kind = (layer + seed) % 3;
+  const sx = (rx * 2) / 80, sy = (ry * 2) / 44;
+  const box = `translate(${cx.toFixed(2)} ${cy.toFixed(2)}) scale(${sx.toFixed(4)} ${sy.toFixed(4)}) translate(-50 -50)`;
+  const d = pebbleTop(kind);
+  const cid = `sc-${uid}-${layer}`;
+  /* 진짜 돌 질감은 세 겹이 만든다: 볼륨 방사 음영 + 아래 초승달(배) + 윗머리
+     림. 그 위에 얼룩(큰 반점, multiply)으로 톤 변화를, 미세결(soft-light)로
+     표면 거칠기를 얹는다. 이 두 결이 없으면 매끈한 플라스틱이 된다. */
   return `<g transform="${rot}">
-    <ellipse cx="${(cx + rx * 0.09).toFixed(1)}" cy="${(cy + t + ry * 0.42).toFixed(1)}"
-      rx="${(rx * 0.95).toFixed(1)}" ry="${(ry * 0.52).toFixed(1)}"
-      fill="var(--stone-shadow)" filter="url(#softShadow-${uid})"/>
-    <ellipse cx="${cx.toFixed(1)}" cy="${(cy + t).toFixed(1)}"
-      rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="url(#stoneSide-${uid})"/>
-    <ellipse class="stone-top" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}"
-      rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="url(#stoneTop-${uid})"/>
-    <ellipse cx="${(cx - rx * 0.26).toFixed(1)}" cy="${(cy - ry * 0.32).toFixed(1)}"
-      rx="${(rx * 0.28).toFixed(1)}" ry="${(ry * 0.24).toFixed(1)}"
-      fill="var(--stone-shine)"/>
+    <g transform="${box}">
+      <clipPath id="${cid}"><path d="${d}"/></clipPath>
+      <path class="stone-top" d="${d}" fill="url(#stoneTop-${uid})"/>
+      <path d="${d}" fill="url(#stoneBelly-${uid})"/>
+      <path d="${d}" fill="url(#stoneRim-${uid})"/>
+      <g clip-path="url(#${cid})">
+        <rect x="0" y="0" width="100" height="100" filter="url(#stoneMottle-${uid})" opacity="0.13" style="mix-blend-mode:multiply"/>
+        <rect x="0" y="0" width="100" height="100" filter="url(#stoneGrain-${uid})" opacity="0.24" style="mix-blend-mode:soft-light"/>
+      </g>
+    </g>
   </g>`;
 }
 
@@ -408,7 +500,7 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0, ch =
   const shown = Math.min(stones, max);
   let y = -4;
   let rx = 40;
-  let ry = 13.5 * ch.flat;
+  let ry = 17 * ch.flat;
   let top = 0;
   // 바닥 그림자는 마지막에 앞쪽으로 끼워 넣는다 — 크기가 실제로 서 있는
   // 것의 발 너비를 따라야 하는데, 그건 다 그려 보기 전에는 알 수 없다.
@@ -427,10 +519,10 @@ function stoneStack(stones, building, max = MAX_STONES, ghost = 0, uid = 0, ch =
    * 들쭉날쭉해져서, 여러 채가 서면 정돈된 정원으로 읽히지 않았다.
    * 탑의 결은 작심마다 다른 돌의 성격(ch)이 이미 맡고 있다. */
   for (let i = 0; i < shown; i++) {
-    y -= ry * 1.5;
+    y -= ry * 1.42;
     const tilt = (i % 2 === 0 ? -1 : 1.05) * ch.tilt;
     const cx = i % 2 === 0 ? -1.5 : 1.5;
-    parts.push(stonePiece(cx, y, rx, ry, tilt, uid));
+    parts.push(stonePiece(cx, y, rx, ry, tilt, uid, i, ch.seed || 0));
     lastW = rx;
     lastH = ry;
     foot = Math.max(foot, rx + Math.abs(cx));
@@ -570,7 +662,7 @@ const STONE_CHARACTERS = [
 
 function characterOf(index) {
   const i = index % STONE_CHARACTERS.length;
-  return { ...STONE_CHARACTERS[i], toneClass: `stone-tone-${i}` };
+  return { ...STONE_CHARACTERS[i], toneClass: `stone-tone-${i}`, seed: i };
 }
 
 /* 이 작심의 돌 — 정원·축하 화면·기록이 모두 같은 돌을 써야
@@ -787,11 +879,14 @@ function gardenSVG(goals, opts = {}) {
       const jitter = wobble(gi * 17 + t, 2) * 0.008;
       const x = Math.min(0.97, Math.max(0.03, baseX + sway + jitter)) * W;
       const shrink = 1 - SHRINK * depth;
-      const scale = shrink * 0.62;
+      const scale = shrink * 0.70;
       // 작아진 만큼만 눈높이 쪽으로 올라간다 — 그래야 땅 위에 선 것으로 읽힌다
       const y = groundY - HORIZON * (1 - shrink);
       // 멀어질수록 공기에 잠긴다 — 옅어지고 대비도 함께 낮아진다
-      const opacity = (1 - 0.34 * depth).toFixed(2);
+      /* 투명도로 거리를 주지 않는다 — 탑이 옆으로 겹치면 뒤 돌이 비쳐
+         보여서 돌이 유리처럼 읽혔다. 거리는 크기(shrink)와 자리(위로 갈수록
+         뒤)와 그리는 순서(뒤부터 그려 앞이 덮음)로만 준다. 돌은 늘 불투명. */
+      const opacity = "1";
       drawList.push({
         goal, ch,
         // 쌓는 중인 탑은 첫 쪽에만 있다 — 그 뒤 쪽은 이미 완성된 것들이다
@@ -818,17 +913,20 @@ function gardenSVG(goals, opts = {}) {
   const groups = drawList.map((t) => {
     frontY = Math.max(frontY, t.y);
     backY = Math.min(backY, t.y);
+    /* 그라데이션을 탑 안쪽에 둔다 — 정원의 모든 탑이 defs 하나를 공유하면
+       작심마다 다른 돌빛(.stone-tone-N이 쥔 CSS 변수)이 defs까지 닿지 못해
+       여섯 색이 전부 같은 회색으로 묻는다. 탑마다 제 uid로 제 그라데이션을
+       갖게 하면, 그 defs가 tone 클래스 아래에 놓여 변수가 제대로 내려온다. */
+    const tuid = ++stoneDefsSeq;
     const { markup, top, foot } = stoneStack(
-      t.stones, t.building, STONES_PER_TOWER, 0, uid, t.ch
+      t.stones, t.building, STONES_PER_TOWER, 0, tuid, t.ch
     );
     minX = Math.min(minX, t.x - foot * t.scale);
     maxX = Math.max(maxX, t.x + foot * t.scale);
     minY = Math.min(minY, t.y + top * t.scale);
-    // 안쪽 g를 한 겹 더 두는 이유: 바깥 g의 transform(위치·크기)을
-    // CSS 애니메이션이 덮어쓰지 않도록 흔들림은 안쪽에서만 준다
     return `<g class="tower ${t.ch.toneClass}${t.current ? " tower-current" : ""}" data-goal-id="${t.goal.id}"
       transform="translate(${t.x.toFixed(1)} ${t.y.toFixed(1)}) scale(${t.scale.toFixed(3)})"
-      opacity="${t.opacity}"><g class="tower-inner">${markup}</g></g>`;
+      opacity="${t.opacity}"><defs>${stoneDefs(tuid)}</defs><g class="tower-inner">${markup}</g></g>`;
   });
 
   /* 틀을 그림에 맞춘다.
