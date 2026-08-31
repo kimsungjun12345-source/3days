@@ -154,6 +154,9 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  /* 가족 피드백: 전반적으로 글자가 작다. 기본을 16px→17px로 올려 모든
+     rem 글자가 한 단계 커진다. 고정 px 칸들은 그대로라 여백 안에서 커진다. */
+  font-size: 106.25%;
 }
 
 body {
@@ -267,7 +270,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: calc(
-    100dvh - 22px - var(--appbar-h) - 96px
+    100dvh - 22px - var(--appbar-h) - 100px
     - env(safe-area-inset-top) - env(safe-area-inset-bottom)
   );
 }
