@@ -814,7 +814,7 @@ body {
 
 .modal-sub {
   color: var(--gray);
-  font-size: 0.86rem;
+  font-size: 0.95rem;
   margin: 4px 0 16px;
   word-break: keep-all;
 }
@@ -832,9 +832,9 @@ body {
   background: var(--card);
   color: var(--gray-strong);
   border-radius: 999px;
-  padding: 7px 12px;
+  padding: 9px 15px;
   font-family: inherit;
-  font-size: 0.82rem;
+  font-size: 0.92rem;
   cursor: pointer;
 }
 
@@ -1064,7 +1064,7 @@ body {
 
 .sheet-head h2 {
   font-family: var(--font-title);
-  font-size: 1.1rem;
+  font-size: 1.28rem;
   font-weight: 700;
 }
 
@@ -1114,7 +1114,9 @@ body {
  * 내용이 넘치면 위쪽이 스크롤로 닿지 않는 곳에 잘려 나간다. auto 마진은
  * 남을 때만 벌어지고 모자라면 0이 된다. */
 .sheet-body {
-  margin: auto 0;
+  /* 내용을 가운데에 띄우면 위가 휑하게 빈다는 피드백이 있었다. 위에 적당한
+     숨만 두고 위쪽에 붙여, 아이콘·칩이 화면 가운데로 올라오게 한다. */
+  margin: 8px 0 auto;
 }
 
 /* 칸과 칸 사이 — 한 벌로 읽힐 만큼만 */
@@ -1158,14 +1160,14 @@ body {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin: 0 0 8px;
-  font-size: 0.8rem;
+  margin: 0 0 10px;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--gray-strong);
 }
 
 .field-hint {
-  font-size: 0.74rem;
+  font-size: 0.82rem;
   font-weight: 500;
   color: var(--dot-empty);
 }
@@ -1180,7 +1182,7 @@ body {
 
 .sheet-scroll .icon-option {
   width: 100%;
-  height: 46px;
+  height: 60px;
 }
 
 /* 고른 칩은 눈에 띄게 — 키보드를 열지 않고도 뭘 골랐는지 보인다 */

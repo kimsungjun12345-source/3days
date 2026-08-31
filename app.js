@@ -2345,7 +2345,7 @@ function setupModal() {
     b.type = "button";
     b.className = "icon-option" + (key === selectedIcon ? " selected" : "");
     b.dataset.icon = key;
-    b.innerHTML = iconSVG(key, 20);
+    b.innerHTML = iconSVG(key, 28);
     b.setAttribute("aria-label", ICONS[key].label);
     b.addEventListener("click", () => selectIcon(key));
     row.appendChild(b);
