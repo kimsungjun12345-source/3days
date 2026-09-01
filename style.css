@@ -185,16 +185,28 @@ body {
   padding: 6px 2px 20px;
 }
 
+/* 워드마크는 단색이다. 예전에는 '하나'만 코랄로 칠했는데, 기본 웹폰트에
+   한 단어만 강조색을 얹은 모양이 'AI가 만든 로고'처럼 읽혔고 BRAND.md도
+   첫 버전은 단색으로 가기로 적어 두었다. 대신 이름의 '돌'을 색이 아니라
+   먹빛 돌탑 한 점으로 옆에 세워, 글자에 기대지 않는 상징을 하나 둔다. */
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-family: var(--font-title);
-  font-size: 1.25rem;
+  font-size: 1.3rem;
   font-weight: 700;
   letter-spacing: 0.01em;
+  color: var(--ink);
 }
 
-.brand em {
-  font-style: normal;
-  color: var(--accent-ink);
+.brand-mark {
+  display: inline-flex;
+  color: var(--ink);
+}
+
+.brand-mark svg {
+  display: block;
 }
 
 /* ── 히어로 ───────────────────────── */
@@ -2807,10 +2819,6 @@ body {
   animation: intro-text 0.5s 1.6s ease forwards;
 }
 
-.intro-brand em {
-  font-style: normal;
-  color: var(--accent-ink);
-}
 
 .intro-line {
   font-size: 0.88rem;

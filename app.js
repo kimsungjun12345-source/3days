@@ -2519,6 +2519,7 @@ function setupModal() {
   });
 
   setupThemeToggle();
+  setupFontScale();
   setupNotifyToggle();
   setupAskNotify();
   setupDevTools();
@@ -2623,6 +2624,41 @@ const THEME_LABEL = {
 function themePref() {
   const v = localStorage.getItem(THEME_KEY);
   return v === "light" || v === "dark" ? v : "auto";
+}
+
+/* 글자 크기 — 보통(기본)/크게/아주 크게. 실제 크기 적용은 <head>의
+   applyFontScale가 하고(첫 화면 번쩍임 방지), 여기서는 고른 값을 저장하고
+   세그먼트 상태만 맞춘다. 화면 밝기와 같은 구조다. */
+const FONT_LABEL = { m: "기본 크기예요", l: "조금 크게", xl: "가장 크게" };
+
+function fontPref() {
+  const v = localStorage.getItem(window.FONT_KEY);
+  return v === "l" || v === "xl" ? v : "m";
+}
+
+function setupFontScale() {
+  const seg = $("font-seg");
+  if (!seg) return;
+
+  const paint = () => {
+    const pref = fontPref();
+    seg.querySelectorAll(".seg-item").forEach((el) => {
+      const on = el.dataset.font === pref;
+      el.classList.toggle("on", on);
+      el.setAttribute("aria-checked", on ? "true" : "false");
+    });
+    $("font-sub").textContent = FONT_LABEL[pref];
+  };
+  paint();
+
+  seg.addEventListener("click", (ev) => {
+    const btn = ev.target.closest(".seg-item");
+    if (!btn || btn.dataset.font === fontPref()) return;
+    localStorage.setItem(window.FONT_KEY, btn.dataset.font);
+    applyFontScale();
+    paint();
+    haptic(6);
+  });
 }
 
 function setupThemeToggle() {
