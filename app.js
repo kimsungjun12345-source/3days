@@ -155,8 +155,39 @@ function load() {
   return data;
 }
 
+/* 저장은 이 앱에서 가장 중요한 순간이다 — 기록이 여기서만 산다.
+   용량 초과나 사파리 시크릿 모드처럼 setItem이 예외를 던지면, 예전에는
+   화면만 '완료'로 그려지고 저장은 조용히 실패했다. 그러면 사용자는 해낸
+   것이 남은 줄 알지만 다음에 열면 사라져 있다. 실패는 반드시 알린다 —
+   토스트는 뒤따르는 축하 토스트에 덮여 묻히므로, 막고 알리는 alert로.
+   한 세션에 한 번만 띄워 매 동작마다 도배하지 않는다. */
+let saveWarned = false;
 function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return true;
+  } catch (e) {
+    if (!saveWarned) {
+      saveWarned = true;
+      alert("기기 저장 공간이 부족해 기록이 저장되지 않았어요.\n설정 → 기록 내보내기로 지금 백업해 주세요.");
+    }
+    return false;
+  }
+}
+
+/* 브라우저 저장소는 OS가 공간이 부족하면 말없이 비울 수 있다. 이 앱의
+   전부인 기록이 거기 있으므로, 브라우저에 "이건 지우지 말아 달라"고 한 번
+   청해 둔다. 대부분 권한창 없이 사용 이력으로 판단하고, 거절되거나 지원하지
+   않아도 앱은 그대로 돈다 — 그래서 조용히, 실패해도 넘어간다. */
+async function requestPersistentStorage() {
+  try {
+    if (navigator.storage && navigator.storage.persist) {
+      if (await navigator.storage.persisted()) return;
+      await navigator.storage.persist();
+    }
+  } catch (e) {
+    /* 지원하지 않는 브라우저 — 넘어간다 */
+  }
 }
 
 let state = load();
@@ -1056,6 +1087,7 @@ function renderStats() {
   $("stats").hidden = !hasGoals;
   $("section-head").hidden = !hasGoals;
   $("empty").hidden = hasGoals;
+  updateBackupStatus();
   // 아직 아무것도 없을 땐 추가 버튼이 유일한 할 일이므로 눈에 띄게 둔다
   $("btn-add").classList.toggle("first-cta", !hasGoals);
 
@@ -1363,12 +1395,45 @@ function runPendingAnim() {
  * 방금 뭔가를 해내서 귀를 열어 둔 시점이다. 거절하면 다음 탑까지 묻지 않는다.
  */
 const BACKUP_ASKED_KEY = "jaksim3.backupAskedAt";
+const LAST_BACKUP_KEY = "jaksim3.lastBackupAt"; // 실제로 내보낸 시각(ms)
+
+/* 파일로 내보내는 데 성공한 순간을 적어 둔다. 이걸 알아야 (1) 최근에
+   스스로 백업한 사람을 또 조르지 않고 (2) 설정에서 '마지막 백업 N일 전'을
+   보여 줄 수 있다. */
+function markBackedUp() {
+  try {
+    localStorage.setItem(LAST_BACKUP_KEY, String(Date.now()));
+  } catch (e) {
+    /* 저장 실패는 save()가 이미 알린다 */
+  }
+  updateBackupStatus();
+}
+
+/* 설정의 '기록 내보내기' 설명줄에 마지막 백업 시점을 적는다. 오래 쓰면서도
+   한 번도 안 내보낸 사람에게는 '아직'을 보여, 잃을 게 커지는 걸 눈치채게
+   한다. */
+function updateBackupStatus() {
+  const el = $("export-sub");
+  if (!el) return;
+  const last = Number(localStorage.getItem(LAST_BACKUP_KEY) || 0);
+  if (!last) {
+    el.textContent = "아직 백업한 적 없어요 · 지금 파일로 저장해 둬요";
+    return;
+  }
+  const days = Math.floor((Date.now() - last) / 86400000);
+  el.textContent = days <= 0 ? "오늘 백업했어요" : `마지막 백업: ${days}일 전`;
+}
 
 function maybeOfferBackup() {
   const towers = state.goals.reduce((n, g) => n + towersOf(g).done, 0);
+  if (towers < 1) return;
   const asked = Number(localStorage.getItem(BACKUP_ASKED_KEY) || 0);
-  if (towers <= asked) return;
+  if (towers <= asked) return; // 이 탑 수에서는 이미 권했다
   localStorage.setItem(BACKUP_ASKED_KEY, String(towers));
+  // 최근 30일 안에 스스로 내보냈다면 굳이 또 권하지 않는다 — 백업하는
+  // 사람을 조르면 넛지가 소음이 되고, 정작 필요한 사람에게도 안 먹힌다
+  const last = Number(localStorage.getItem(LAST_BACKUP_KEY) || 0);
+  if (last && Date.now() - last < 30 * 86400000) return;
   // 축하를 먼저 보게 하고, 그 뒤에 조용히 띄운다
   setTimeout(() => {
     if (!$("cheer").hidden) $("backup-note").hidden = false;
@@ -1392,6 +1457,7 @@ async function exportData() {
   if (typeof nativeSaveText === "function") {
     const ok = await nativeSaveText(payload, name, "application/json");
     if (ok) {
+      markBackedUp();
       haptic(10);
       toast("stone", `${name} — 저장할 곳을 골라 주세요`);
       return;
@@ -1407,6 +1473,7 @@ async function exportData() {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+  markBackedUp();
   haptic(10);
   toast("stone", `${name} 으로 저장했어요`);
 }
@@ -1454,10 +1521,11 @@ function importData(file) {
     const warn = now ? `\n\n지금 앱에 있는 작심 ${now}개는 이 기록으로 대체됩니다.` : "";
     if (!confirm(`작심 ${goals.length}개를 불러올까요?${warn}`)) return;
     state = { goals };
-    save();
+    const ok = save();
     render();
     haptic(12);
-    toast("stone", `작심 ${goals.length}개를 불러왔어요`);
+    // 저장이 실패했으면 save()가 이미 알렸으니 '불러왔어요'로 덮지 않는다
+    if (ok) toast("stone", `작심 ${goals.length}개를 불러왔어요`);
   };
   reader.onerror = () => alert("파일을 읽지 못했어요.");
   reader.readAsText(file);
@@ -3080,6 +3148,7 @@ setupTabs();
 setupOnboard();
 setupIntro();
 render();
+requestPersistentStorage();
 
 document.addEventListener("keydown", (ev) => {
   if (ev.key === "Escape") closeTopLayer();
