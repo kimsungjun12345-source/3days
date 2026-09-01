@@ -1234,6 +1234,8 @@ function renderGoalCard(goal) {
 
   const dots = document.createElement("div");
   dots.className = "dots";
+  // 진행도는 카드 버튼의 aria-label이 말로 전한다 — 점은 그림으로만 둔다
+  dots.setAttribute("aria-hidden", "true");
   // 완주 다음 날부터는 지난 사이클의 ✓ 대신 비어 있는 세 칸을 보여 준다.
   // 다 채워진 칸이 남아 있으면 "이미 끝났다"로 읽혀 다음 걸음이 보이지 않는다.
   const showPrevChecks = status !== "resting" && status !== "lapsed";
@@ -1250,10 +1252,13 @@ function renderGoalCard(goal) {
   }
   top.appendChild(dots);
 
-  // 카드 윗부분을 누르면 이 작심이 걸어온 기록이 열린다
+  // 카드 윗부분을 누르면 이 작심이 걸어온 기록이 열린다.
+  // 라벨에 진행도(3일 중 며칠)를 넣어, 점 ✓②③을 못 보는 사람도 어디까지
+  // 왔는지 듣게 한다.
+  const shownDone = showPrevChecks ? goal.checks.length : 0;
   top.setAttribute("role", "button");
   top.setAttribute("tabindex", "0");
-  top.setAttribute("aria-label", `${goal.title} 기록 보기`);
+  top.setAttribute("aria-label", `${goal.title}, 3일 중 ${shownDone}일 채움, 기록 보기`);
   top.addEventListener("click", () => openDetail(goal));
   top.addEventListener("keydown", (ev) => {
     if (ev.key === "Enter" || ev.key === " ") {
@@ -1640,12 +1645,15 @@ function openDetail(goal) {
     `<div class="again"><b>${goal.restarts}</b><span>다시 쌓음</span></div>`;
   $("detail-undo").hidden = !canUndoToday(goal);
   paintDetailCal();
+  const wasHidden = $("detail").hidden;
   $("detail").hidden = false;
+  if (wasHidden) focusInto("detail");
 }
 
 function closeDetail() {
   $("detail").hidden = true;
   detailGoalId = null;
+  focusRestore();
 }
 
 /* ── 기록 탭 ─────────────────────────
@@ -1985,8 +1993,10 @@ function askReturn(goal, from) {
   if (back >= 1) $("return-count").textContent = `지금까지 ${back}번 다시 돌아왔어요`;
 
   const el = $("return");
+  const wasHidden = el.hidden;
   el.hidden = false;
   requestAnimationFrame(() => el.classList.add("show"));
+  if (wasHidden) focusInto("return");
 }
 
 /* 닫기만 한다 — 물어보기만 하고 만 것이므로 아무 일도 일어나지 않는다 */
@@ -1996,6 +2006,7 @@ function closeReturn() {
   setTimeout(() => (el.hidden = true), 220);
   returnGoalId = null;
   returnFrom = null;
+  focusRestore();
 }
 
 /* '좋아, 다시 해볼게'를 누른 그때 실제로 다시 시작한다 */
@@ -2081,10 +2092,12 @@ function showCheer(goal) {
 
   cheerGoalId = goal.id;
   const el = $("cheer");
+  const wasHidden = el.hidden;
   el.hidden = false;
   el.classList.remove("show");
   void el.offsetWidth;
   el.classList.add("show");
+  if (wasHidden) focusInto("cheer");
 
   /* 탑 완성은 이 앱에서 가장 큰 매듭이라 촉감도 축하 연출도 3일 완주와
      다르게 둔다 — 조금 더 긴 성공 패턴, 그리고 빛 번짐. */
@@ -2132,6 +2145,7 @@ function closeCheer() {
   setTimeout(() => (el.hidden = true), 220);
   $("backup-note").hidden = true;
   cheerGoalId = null;
+  focusRestore();
 }
 
 /* 완주한 돌이 카드에서 그 작심의 탑으로 날아가 얹힌다 */
@@ -2693,11 +2707,14 @@ function askNotify() {
   $("toast").hidden = true;
   $("ask-notify-time").textContent =
     `${friendlyTime(notifyHour(), notifyMinute())} · 언제든 바꿀 수 있어요`;
+  const wasHidden = $("ask-notify").hidden;
   $("ask-notify").hidden = false;
+  if (wasHidden) focusInto("ask-notify");
 }
 
 function closeAskNotify() {
   $("ask-notify").hidden = true;
+  focusRestore();
 }
 
 function setupAskNotify() {
@@ -3027,6 +3044,31 @@ function setupIntro() {
 
 /* 열려 있는 시트 중 가장 위의 것을 닫는다.
  * 안드로이드 뒤로가기와 ESC가 같은 규칙을 쓰도록 한곳에 모아 둔다. */
+/* 다이얼로그·시트가 열릴 때 포커스를 안으로 옮기고, 닫힐 때 부른 자리로
+   되돌린다. role="dialog" aria-modal만으로는 키보드·스크린리더 포커스가 뒤
+   화면에 남아, 완주 축하·돌아온 순간 같은 핵심 장면이 사용자에게 닿지
+   않는다. 포커스를 가두는(트래핑) 것까지는 하지 않는다 — 옮기고 되돌리는
+   것만으로 대부분의 손해를 막고, 트래핑은 얕은 시트 구조에서 오히려 버그를
+   만들기 쉽다. 입력창이 아니라 다이얼로그 상자에 포커스를 줘, 만들기 시트가
+   일부러 키보드를 안 올리는 동작도 그대로 지킨다. */
+const focusStack = [];
+function focusInto(rootId) {
+  const root = $(rootId);
+  if (!root) return;
+  focusStack.push(document.activeElement);
+  const dlg = root.matches('[role="dialog"]') ? root : root.querySelector('[role="dialog"]') || root;
+  if (!dlg.hasAttribute("tabindex")) dlg.setAttribute("tabindex", "-1");
+  requestAnimationFrame(() => {
+    try { dlg.focus({ preventScroll: true }); } catch (e) {}
+  });
+}
+function focusRestore() {
+  const el = focusStack.pop();
+  if (el && typeof el.focus === "function") {
+    try { el.focus({ preventScroll: true }); } catch (e) {}
+  }
+}
+
 function closeTopLayer() {
   if (!$("return").hidden) {
     closeReturn();
@@ -3111,8 +3153,12 @@ function openModal(opts = {}) {
   // 고칠 때는 추천 칩 덩어리를 통째로 감춘다 — 이미 정한 것을 고르는 자리가 아니다
   $("suggest-field").hidden = !!edit;
   $("btn-cancel").hidden = !!opts.first;
+  const wasHidden = $("modal").hidden;
   $("modal").hidden = false;
   document.body.classList.add("sheet-open");
+  // 입력창이 아니라 시트 상자에 포커스를 준다 — 일부러 키보드를 안 올리는
+  // 이 시트의 동작은 그대로 두면서 스크린리더·키보드만 시트 안으로 들인다
+  if (wasHidden) focusInto("modal");
   const scroll = $("sheet-scroll");
   if (scroll) {
     scroll.scrollTop = 0;
@@ -3128,6 +3174,7 @@ function closeModal() {
   $("modal").hidden = true;
   editingGoalId = null;
   document.body.classList.remove("sheet-open");
+  focusRestore();
 }
 
 /* 제목이 있어야 약속 버튼이 열린다 — 빈 채로 눌러 아무 일도 안 일어나는
