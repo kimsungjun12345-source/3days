@@ -2017,9 +2017,45 @@ function showCheer(goal) {
   el.classList.remove("show");
   void el.offsetWidth;
   el.classList.add("show");
-  haptic([10, 40, 18]);
 
-  if (towerDone) maybeOfferBackup();
+  /* 탑 완성은 이 앱에서 가장 큰 매듭이라 촉감도 축하 연출도 3일 완주와
+     다르게 둔다 — 조금 더 긴 성공 패턴, 그리고 빛 번짐. */
+  if (towerDone) {
+    haptic([12, 45, 20, 45, 30]);
+    cheerBloom();
+    maybeOfferBackup();
+  } else {
+    haptic([10, 40, 18]);
+  }
+}
+
+/* 탑 한 채를 완성한 순간에만 켜지는 축하 연출. 완성한 탑 뒤로 빛이 한 번
+   번지고(글로) 돌빛 부스러기 몇 개가 천천히 떠오른다(모트). 젠 톤을 지키려
+   수를 적게, 느리게 둔다. 요소는 전부 장식이라 aria-hidden으로 붙였다가
+   애니메이션이 끝나면 지운다. */
+function cheerBloom() {
+  if (reduceMotion) return;
+  const card = document.querySelector("#cheer .cheer");
+  if (!card) return;
+
+  const glow = document.createElement("span");
+  glow.className = "cheer-glow";
+  glow.setAttribute("aria-hidden", "true");
+  card.insertBefore(glow, card.firstChild); // z-index:-1 — 내용 뒤로 깔린다
+  setTimeout(() => glow.remove(), 1400);
+
+  for (let i = 0; i < 6; i++) {
+    const m = document.createElement("span");
+    m.className = "cheer-mote";
+    m.setAttribute("aria-hidden", "true");
+    m.style.left = 50 + (Math.random() * 2 - 1) * 18 + "%";
+    m.style.top = 92 + Math.random() * 24 + "px";
+    m.style.setProperty("--mx", (Math.random() * 2 - 1) * 44 + "px");
+    m.style.setProperty("--my", -(40 + Math.random() * 34) + "px");
+    m.style.animationDelay = i * 0.06 + "s";
+    card.appendChild(m); // 마지막 자식 — 탑 앞쪽에 떠오른다
+    setTimeout(() => m.remove(), 1600);
+  }
 }
 
 function closeCheer() {

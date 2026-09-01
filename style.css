@@ -1877,6 +1877,10 @@ body {
   box-shadow: 0 20px 50px rgba(27, 26, 24, 0.3);
   transform: translateY(16px) scale(0.96);
   transition: transform 0.32s cubic-bezier(0.34, 1.4, 0.64, 1);
+  /* 탑 완성 연출(빛·부스러기)이 카드 안에서만 번지도록. transform이 이미
+     쌓임 맥락을 만들어 두어, 빛(z-index:-1)은 카드 배경 위·내용 아래에 깔린다. */
+  position: relative;
+  overflow: hidden;
 }
 
 .cheer-backdrop.show .cheer {
@@ -1902,6 +1906,53 @@ body {
 @keyframes cheer-cairn-in {
   from { transform: translateY(10px) scale(0.9); opacity: 0; }
   to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* 탑 한 채를 다 쌓은 날에만 켜진다. 15일 — 이 앱에서 가장 큰 매듭이라
+   3일 완주와 같은 시트를 써도 이 순간만은 눈에 띄게 달라야 한다는 것이
+   POSITIONING의 요구다. 콘페티처럼 터뜨리는 대신, 완성한 탑 뒤로 따뜻한
+   빛이 한 번 번지고 돌빛 부스러기 몇 개가 천천히 떠오른다 — 젠 톤을
+   지키려 느리고 옅게 둔다. 장식이라 aria-hidden이고, 글자가 없어
+   명암비 검사에도 잡히지 않는다. */
+.cheer-glow {
+  position: absolute;
+  top: 100px;
+  left: 50%;
+  width: 220px;
+  height: 220px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 70%);
+  z-index: -1;
+  pointer-events: none;
+  animation: cheer-glow-bloom 1.3s ease-out forwards;
+}
+
+@keyframes cheer-glow-bloom {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  35% { opacity: 0.85; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.25); }
+}
+
+.cheer-mote {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0;
+  pointer-events: none;
+  animation: cheer-mote-rise 1.4s ease-out forwards;
+}
+
+@keyframes cheer-mote-rise {
+  0% { opacity: 0; transform: translate(0, 6px) scale(0.6); }
+  25% { opacity: 0.7; }
+  100% { opacity: 0; transform: translate(var(--mx), var(--my)) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cheer-glow, .cheer-mote { display: none; animation: none; }
 }
 
 .cheer-kicker {
