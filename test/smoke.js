@@ -47,6 +47,15 @@ function dstr(offset) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/* 이번 달 n일. 달력은 기본으로 '이번 달'을 보여주므로, 달력에 표시가
+   뜨는지 보는 검사는 이번 달 안의 날짜를 써야 한다. dstr(-1)은 매달 1일에
+   지난달로 넘어가 표시가 사라져서, 월초에만 검사가 깨졌다. */
+function monthDay(n) {
+  const d = new Date();
+  d.setDate(n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(n).padStart(2, "0")}`;
+}
+
 (async () => {
   const server = await serve();
   const browser = await launchBrowser();
@@ -539,7 +548,7 @@ function dstr(offset) {
       { id: "tb", title: "아침에 물 한 잔", icon: "water", createdAt: "",
         checks: [d1], history: [d1], lastCheckDate: d1,
         totalDays: 11, completedCycles: 3, restarts: 2 }]}));
-  }, dstr(-1));
+  }, monthDay(1));
   await reload();
 
   assert((await page.locator(".tab").count()) === 4, "four tabs are available");
@@ -1079,7 +1088,7 @@ function dstr(offset) {
     ];
     save();
     render();
-  }, [dstr(0), dstr(-1)]);
+  }, [monthDay(2), monthDay(1)]);
   await page.click('.tab[data-view="record"]');
   await page.waitForTimeout(350);
 
