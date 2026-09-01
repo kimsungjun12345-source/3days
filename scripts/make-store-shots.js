@@ -62,17 +62,17 @@ function history(days) {
 
 const GOALS = [
   {
-    id: "a", title: "아침에 물 한 잔 마시기", icon: "water",
+    id: "a", title: "운동하러 가기", icon: "run",
     checks: [dstr(-1)], lastCheckDate: dstr(-1),
     totalDays: 26, completedCycles: 7, restarts: 3,
   },
   {
-    id: "b", title: "자기 전 스트레칭", icon: "meditate",
+    id: "b", title: "밖에서 작업하기", icon: "sun",
     checks: [dstr(-2), dstr(-1)], lastCheckDate: dstr(-1),
     totalDays: 14, completedCycles: 4, restarts: 2,
   },
   {
-    id: "c", title: "책 10쪽 읽기", icon: "book",
+    id: "c", title: "책 10쪽 읽기", icon: "pen",
     checks: [dstr(-6)], lastCheckDate: dstr(-6),
     totalDays: 9, completedCycles: 3, restarts: 1,
   },
@@ -139,9 +139,9 @@ const SCENES = [
     setup: (page) => page.evaluate((g) => {
       localStorage.setItem("jaksim3.v1", JSON.stringify({ goals: g }));
     }, GOALS.concat([
-      { id: "d", title: "일기 세 줄 쓰기", icon: "pen", checks: [], lastCheckDate: null,
+      { id: "d", title: "영어 20분", icon: "book", checks: [], lastCheckDate: null,
         totalDays: 6, completedCycles: 2, restarts: 1 },
-      { id: "e", title: "10분 걷기", icon: "run", checks: [dstr(-1)], lastCheckDate: dstr(-1),
+      { id: "e", title: "산책하기", icon: "heart", checks: [dstr(-1)], lastCheckDate: dstr(-1),
         totalDays: 18, completedCycles: 5, restarts: 4 },
     ]).map((g) => ({ ...g, history: history(40) }))),
   },
