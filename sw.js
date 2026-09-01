@@ -5,6 +5,8 @@
  * 기록은 localStorage에 있으므로 오프라인에서도 그대로 동작한다.
  */
 
+// 이 리터럴은 개발용 기본값이다. www/로 빌드될 때 scripts/build.js가
+// 배포 커밋으로 바꿔 박아, 배포마다 새 워커로 인식되고 옛 캐시가 정리된다.
 const VERSION = "v5";
 const APP_CACHE = `jaksim3-app-${VERSION}`;
 const FONT_CACHE = `jaksim3-font-${VERSION}`;

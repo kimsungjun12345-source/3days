@@ -87,7 +87,24 @@ for (const file of FILES) {
     console.warn(`  건너뜀 (없음): ${file}`);
     continue;
   }
-  fs.copyFileSync(src, path.join(OUT, file));
+  if (file === "sw.js") {
+    /* 서비스워커의 캐시 이름(VERSION)을 배포 커밋으로 박는다.
+     *
+     * VERSION이 그대로면 sw.js가 바이트 단위로 같아 브라우저가 '새 워커'로
+     * 알아채지 못하고, 그러면 install/activate가 다시 돌지 않아 옛 캐시가
+     * 남는다. 배포마다 사람이 손으로 v5→v6로 올리는 걸 잊으면 사용자가
+     * 옛 화면에 갇힌다. 커밋을 박으면 배포마다 반드시 달라져 새 워커가 돌고
+     * 옛 캐시가 정리된다. 소스의 리터럴은 그대로 둬(직접 열어 보는 개발용),
+     * www/로 나갈 때만 바꾼다. */
+    const sw = fs.readFileSync(src, "utf8");
+    const tag = info.commit || "dev";
+    fs.writeFileSync(
+      path.join(OUT, file),
+      sw.replace(/const VERSION = "[^"]*";/, `const VERSION = "${tag}";`)
+    );
+  } else {
+    fs.copyFileSync(src, path.join(OUT, file));
+  }
   copied += 1;
 }
 for (const dir of DIRS) {
