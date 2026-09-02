@@ -54,13 +54,14 @@
   <meta name="apple-mobile-web-app-title" content="셋돌하나" />
   <meta name="mobile-web-app-capable" content="yes" />
 
-  <!-- 본문 글꼴 Pretendard. 스택의 첫 순위는 원래 Pretendard였는데 로드가
-       빠져 그동안 Noto Sans KR(대체)로 떴다 — 흔한 기본 얼굴이라 밋밋했다.
-       공식 CDN에서 화면에 실제로 쓰는 글자만 받는 dynamic-subset으로 불러온다.
-       네트워크가 없으면 시스템 한글 글꼴로 무너지므로(스택 뒷부분) 첫 실행
-       오프라인에서도 글은 읽힌다. 받아 둔 뒤로는 서비스워커가 캐시한다. -->
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.css" />
+  <!-- 본문 글꼴 IBM Plex Sans KR — 따뜻한 휴머니스트 고딕. 그동안은 스택
+       첫 순위 Pretendard가 로드되지 않아 Noto Sans KR로 떨어져 밋밋했다.
+       명조 제목과 섞여도 딱딱하지 않고 숫자·영문이 한글과 잘 어울린다.
+       구글폰트라 서비스워커가 그대로 캐시해, 한 번 받으면 오프라인에서도
+       같은 얼굴로 뜬다. 네트워크가 없는 첫 실행에서는 시스템 한글 글꼴로
+       무너지므로(스택 뒷부분) 글은 읽힌다. -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
   <!-- 제목 글꼴은 앱 안에 넣어 둔다 — 첫 실행에 네트워크가 없어도 같은 얼굴로 뜨도록 -->
   <link rel="stylesheet" href="fonts/gowun-batang/gowun-batang.css" />
   <link rel="stylesheet" href="style.css" />

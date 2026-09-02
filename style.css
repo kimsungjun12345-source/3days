@@ -36,7 +36,7 @@
 
   /* 제목은 본문과 다른 얼굴을 쓴다. 본문은 읽기 위한 글꼴, 제목은
      이 앱이 어떤 목소리인지 알려주는 글꼴이다. */
-  --font-body: Pretendard, "Noto Sans KR", -apple-system, BlinkMacSystemFont,
+  --font-body: "IBM Plex Sans KR", "Noto Sans KR", -apple-system, BlinkMacSystemFont,
     "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   --font-title: "Gowun Batang", var(--font-body);
 
