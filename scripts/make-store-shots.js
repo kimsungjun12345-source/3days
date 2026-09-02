@@ -15,6 +15,28 @@ const ROOT = path.resolve(__dirname, "..");
 const OUT = path.join(ROOT, "store", "screenshots");
 const PORT = 8944;
 
+/* 본문 글꼴(IBM Plex Sans KR)은 앱이 구글폰트에서 받는다 — 인터넷이 있는
+   보통 개발 환경에서는 그대로 렌더된다. 네트워크가 막힌 환경(오프라인 CI 등)
+   에서 실제 글꼴로 찍고 싶으면, @fontsource/ibm-plex-sans-kr의 files 폴더를
+   IBM_PLEX_DIR로 가리키면 그 woff2를 data URI로 심어 준다. */
+const IBM_DIR = process.env.IBM_PLEX_DIR;
+function buildFontCSS() {
+  if (!IBM_DIR) return "";
+  const LATIN = "U+0000-024F, U+2000-20CF, U+2190-2193, U+2212";
+  const KR = "U+1100-11FF, U+3130-318F, U+A960-A97F, U+AC00-D7A3, U+D7B0-D7FF";
+  let css = "";
+  for (const w of [400, 500, 700]) {
+    for (const [sub, range] of [["latin", LATIN], ["korean", KR]]) {
+      const f = path.join(IBM_DIR, `ibm-plex-sans-kr-${sub}-${w}-normal.woff2`);
+      if (!fs.existsSync(f)) continue;
+      const b64 = fs.readFileSync(f).toString("base64");
+      css += `@font-face{font-family:'IBM Plex Sans KR';font-weight:${w};font-display:swap;unicode-range:${range};src:url(data:font/woff2;base64,${b64}) format('woff2');}`;
+    }
+  }
+  return css;
+}
+const FONT_CSS = buildFontCSS();
+
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -164,13 +186,14 @@ function frameHTML({ shot, headline, sub, w, h }) {
   const sSize = Math.round(w * 0.036);
 
   return `<!DOCTYPE html><meta charset="utf-8">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@500;700&display=swap" rel="stylesheet">
   <style>
-    @font-face { font-family: 'AppFont'; src: local('Noto Sans KR'), local('Pretendard'); }
+    ${FONT_CSS}
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
       width:${w}px; height:${h}px; overflow:hidden;
       background: linear-gradient(170deg, #f7f6f3 0%, #f2efe8 52%, #eae4d8 100%);
-      font-family: 'Noto Sans KR', Pretendard, -apple-system, sans-serif;
+      font-family: 'IBM Plex Sans KR', 'Noto Sans KR', -apple-system, sans-serif;
       position:relative;
     }
     .copy {
@@ -233,8 +256,9 @@ function frameHTML({ shot, headline, sub, w, h }) {
     if (!scene.skipReload) await page.reload({ waitUntil: "load" });
     // 시트가 열린 장면은 뒤가 너무 어두우면 스토어에서 칙칙해 보인다
     await page.addStyleTag({
-      content: `.modal-backdrop, .cheer-backdrop { background: rgba(27,26,24,0.12) !important; }`,
+      content: `.modal-backdrop, .cheer-backdrop { background: rgba(27,26,24,0.12) !important; }` + FONT_CSS,
     });
+    if (FONT_CSS) await page.evaluate(() => document.fonts && document.fonts.ready).catch(() => {});
     await page.waitForTimeout(600);
     const shot = (await page.screenshot()).toString("base64");
     await ctx.close();

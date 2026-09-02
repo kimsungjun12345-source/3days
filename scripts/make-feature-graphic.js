@@ -82,16 +82,19 @@ function bannerHTML(gardenSvg) {
     .fg {
       width:1024px; height:500px; position:relative; overflow:hidden;
       background: radial-gradient(120% 140% at 18% 20%, #fbfaf7 0%, #f4f2ec 60%, #efece5 100%);
-      font-family: Pretendard, "Noto Sans KR", -apple-system, sans-serif;
+      font-family: "IBM Plex Sans KR", "Noto Sans KR", -apple-system, sans-serif;
       display:flex; align-items:center;
     }
     /* 왼쪽 — 이름과 문구 */
-    .fg-copy { padding-left:80px; width:520px; z-index:2; }
+    .fg-copy { padding-left:80px; width:560px; z-index:2; }
+    /* 워드마크는 앱바와 같은 락업 — 먹빛 돌탑 마크 + 단색 이름(코랄 강조 없음) */
     .fg-brand {
-      font-size:92px; font-weight:800; letter-spacing:-0.02em; line-height:1;
+      display:flex; align-items:center; gap:20px;
+      font-size:88px; font-weight:800; letter-spacing:-0.02em; line-height:1;
       color:#1b1a18; margin:0;
     }
-    .fg-brand em { color:#e85d3d; font-style:normal; }
+    .fg-mark { display:inline-flex; }
+    .fg-mark svg { display:block; }
     .fg-tag {
       font-size:31px; font-weight:600; color:#3c3833; margin:26px 0 0;
       letter-spacing:-0.01em;
@@ -117,7 +120,7 @@ function bannerHTML(gardenSvg) {
     <div class="fg-garden">${gardenSvg}</div>
     <div class="fg-veil"></div>
     <div class="fg-copy">
-      <h1 class="fg-brand">셋돌<em>하나</em></h1>
+      <h1 class="fg-brand"><span class="fg-mark" aria-hidden="true"><svg viewBox="0 0 20 20" width="66" height="66" fill="#1b1a18"><ellipse cx="10" cy="16.6" rx="7.6" ry="2.9"/><ellipse cx="10" cy="10.7" rx="5.9" ry="2.6"/><ellipse cx="10" cy="5.5" rx="4.2" ry="2.3"/></svg></span>셋돌하나</h1>
       <p class="fg-tag">3일을 해내면, 돌 하나.</p>
       <p class="fg-sub">무너져도 쌓은 건 그대로.</p>
     </div>
