@@ -54,7 +54,11 @@ self.addEventListener("activate", (event) => {
 });
 
 function isFont(url) {
-  return url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
+  if (url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com") return true;
+  // 본문 글꼴 Pretendard는 jsdelivr에서 온다 — CSS와 woff2를 함께 캐시해,
+  // 한 번 받아 두면 다음부터 오프라인에서도 같은 얼굴로 뜬다.
+  if (url.hostname === "cdn.jsdelivr.net" && url.pathname.includes("pretendard")) return true;
+  return false;
 }
 
 self.addEventListener("fetch", (event) => {
