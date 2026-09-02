@@ -503,18 +503,23 @@ function stonePiece(cx, cy, rx, ry, tilt, uid, layer = 0, seed = 0) {
   const box = `translate(${cx.toFixed(2)} ${cy.toFixed(2)}) scale(${sx.toFixed(4)} ${sy.toFixed(4)}) translate(-50 -50)`;
   const d = pebbleTop(kind);
   const cid = `sc-${uid}-${layer}`;
-  /* 진짜 돌 질감은 세 겹이 만든다: 볼륨 방사 음영 + 아래 초승달(배) + 윗머리
+  /* 진짜 돌 질감은 겹으로 만든다: 볼륨 방사 음영 + 아래 초승달(배) + 윗머리
      림. 그 위에 얼룩(큰 반점, multiply)으로 톤 변화를, 미세결(soft-light)로
-     표면 거칠기를 얹는다. 이 두 결이 없으면 매끈한 플라스틱이 된다. */
+     표면 거칠기를 얹는다.
+     림과 그레인은 '옛날 3D 렌더' 인상의 주범이었다 — 윗머리 광택은 젖은
+     플라스틱처럼, 짙은 그레인은 균일한 디지털 노이즈처럼 읽혔다. 그래서
+     림은 힌트만 남게 낮추고(0.3) 그레인도 눈에 띄는 노이즈가 아니라 아주
+     옅은 결(0.10)로 줄였다. 자연스러운 톤 변화는 저주파 얼룩(mottle)이 이미
+     맡고 있어, 이렇게 줄여도 플라스틱이 되지 않고 매트한 돌로 남는다. */
   return `<g transform="${rot}">
     <g transform="${box}">
       <clipPath id="${cid}"><path d="${d}"/></clipPath>
       <path class="stone-top" d="${d}" fill="url(#stoneTop-${uid})"/>
       <path d="${d}" fill="url(#stoneBelly-${uid})"/>
-      <path d="${d}" fill="url(#stoneRim-${uid})"/>
+      <path d="${d}" fill="url(#stoneRim-${uid})" opacity="0.3"/>
       <g clip-path="url(#${cid})">
         <rect x="0" y="0" width="100" height="100" filter="url(#stoneMottle-${uid})" opacity="0.13" style="mix-blend-mode:multiply"/>
-        <rect x="0" y="0" width="100" height="100" filter="url(#stoneGrain-${uid})" opacity="0.24" style="mix-blend-mode:soft-light"/>
+        <rect x="0" y="0" width="100" height="100" filter="url(#stoneGrain-${uid})" opacity="0.10" style="mix-blend-mode:soft-light"/>
       </g>
     </g>
   </g>`;
