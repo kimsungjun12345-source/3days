@@ -37,8 +37,6 @@ function cairnArt(shiftY) {
         fill="rgba(52,44,33,0.34)" filter="url(#b)"/>
       <ellipse cx="${cx}" cy="${s.cy + t}" rx="${s.rx}" ry="${s.ry}" fill="url(#side)"/>
       <ellipse cx="${cx}" cy="${s.cy}" rx="${s.rx}" ry="${s.ry}" fill="url(#top)"/>
-      <ellipse cx="${cx - s.rx * 0.24}" cy="${s.cy - s.ry * 0.34}" rx="${s.rx * 0.24}" ry="${s.ry * 0.2}"
-        fill="rgba(255,252,244,0.10)"/>
     </g>`;
   };
   return `<g transform="translate(0 ${shiftY})">
@@ -47,14 +45,18 @@ function cairnArt(shiftY) {
   </g>`;
 }
 
+/* 면(top)·두께(side) 그라데이션은 앱 화면 매트 돌(--stone-top-*)의 톤과
+   광원을 그대로 따른다. 예전 값은 가운데가 하얗게 뜨는 핫스팟이라 아이콘에서
+   반질반질한 '옛날 3D 구슬'로 보였다 — 밝은 끝을 낮추고 램프를 고르게 펴
+   매트한 돌로 맞췄다. 별도 반사광 타원(광택)도 뺐다. */
 const DEFS = `<defs>
-  <radialGradient id="side" cx="33%" cy="20%" r="92%">
-    <stop offset="0%" stop-color="#ded8cc"/><stop offset="34%" stop-color="#bdb4a2"/>
-    <stop offset="72%" stop-color="#8f8674"/><stop offset="100%" stop-color="#655d4e"/>
+  <radialGradient id="side" cx="40%" cy="30%" r="95%">
+    <stop offset="0%" stop-color="#c6bdaf"/><stop offset="40%" stop-color="#a79d8b"/>
+    <stop offset="74%" stop-color="#867c69"/><stop offset="100%" stop-color="#5f5749"/>
   </radialGradient>
-  <radialGradient id="top" cx="32%" cy="24%" r="86%">
-    <stop offset="0%" stop-color="#e3ddd1"/><stop offset="46%" stop-color="#c7bfae"/>
-    <stop offset="100%" stop-color="#a19885"/>
+  <radialGradient id="top" cx="40%" cy="30%" r="95%">
+    <stop offset="0%" stop-color="#d2ccc2"/><stop offset="35%" stop-color="#c3bab0"/>
+    <stop offset="72%" stop-color="#ab9f8e"/><stop offset="100%" stop-color="#94876f"/>
   </radialGradient>
   <filter id="b" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="9"/></filter>
   <filter id="gb" x="-60%" y="-120%" width="220%" height="340%"><feGaussianBlur stdDeviation="16"/></filter>
