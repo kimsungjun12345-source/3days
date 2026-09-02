@@ -16,28 +16,33 @@ const BG = "#26241f"; // 아이콘 배경 (짙은 잉크)
 const SPLASH_BG = "#f7f6f3"; // 실행 화면 배경 (앱 배경과 같게)
 const SPLASH_BG_NIGHT = "#161513"; // 어두운 테마에서 흰 화면이 번쩍이지 않도록
 
-/* 돌탑 그림 — 웹 아이콘과 같은 규칙(두께·광원·그림자) */
+/* 돌탑 그림 — 앱 화면 돌과 같은 결을 따른다.
+ *
+ * 돌탑을 예전보다 크게 키웠다(아이콘에서 돌이 주인공이 되도록). 그리고
+ * 앱 화면을 매트로 바꾼 것과 맞춰, 윗머리 광택(반사광 타원)을 0.28에서
+ * 0.10으로 낮췄다 — 세게 주면 아이콘에서도 젖은 플라스틱처럼 보인다.
+ * 볼륨은 방사 그라데이션이, 접지는 그림자가 그대로 맡는다. */
 function cairnArt(shiftY) {
   const stones = [
-    { cy: 700, rx: 260, ry: 88 },
-    { cy: 540, rx: 205, ry: 74 },
-    { cy: 400, rx: 155, ry: 60 },
+    { cy: 705, rx: 300, ry: 100 },
+    { cy: 530, rx: 234, ry: 84 },
+    { cy: 378, rx: 176, ry: 68 },
   ];
   const piece = (s, i) => {
     const t = s.ry * 0.66;
     const tilt = i % 2 === 0 ? -1.8 : 1.8;
-    const cx = 500 + (i % 2 === 0 ? -8 : 8);
+    const cx = 500 + (i % 2 === 0 ? -9 : 9);
     return `<g transform="rotate(${tilt} ${cx} ${s.cy})">
       <ellipse cx="${cx + s.rx * 0.09}" cy="${s.cy + t + s.ry * 0.42}" rx="${s.rx * 0.95}" ry="${s.ry * 0.52}"
         fill="rgba(52,44,33,0.34)" filter="url(#b)"/>
       <ellipse cx="${cx}" cy="${s.cy + t}" rx="${s.rx}" ry="${s.ry}" fill="url(#side)"/>
       <ellipse cx="${cx}" cy="${s.cy}" rx="${s.rx}" ry="${s.ry}" fill="url(#top)"/>
-      <ellipse cx="${cx - s.rx * 0.26}" cy="${s.cy - s.ry * 0.32}" rx="${s.rx * 0.28}" ry="${s.ry * 0.24}"
-        fill="rgba(255,252,244,0.28)"/>
+      <ellipse cx="${cx - s.rx * 0.24}" cy="${s.cy - s.ry * 0.34}" rx="${s.rx * 0.24}" ry="${s.ry * 0.2}"
+        fill="rgba(255,252,244,0.10)"/>
     </g>`;
   };
   return `<g transform="translate(0 ${shiftY})">
-    <ellipse cx="516" cy="806" rx="300" ry="34" fill="rgba(74,64,48,0.18)" filter="url(#gb)"/>
+    <ellipse cx="518" cy="838" rx="330" ry="36" fill="rgba(74,64,48,0.18)" filter="url(#gb)"/>
     ${stones.map(piece).join("\n")}
   </g>`;
 }
@@ -116,6 +121,19 @@ const ANDROID_SPLASH = [
   };
 
   let made = 0;
+
+  // ── 웹 / PWA 아이콘 (manifest·파비콘). 예전엔 손으로 만들어 두어 돌을
+  //    바꿔도 같이 갱신되지 않았다. 이제 같은 소스(cairnArt)에서 함께 뽑는다.
+  const webIcons = path.join(ROOT, "icons");
+  fs.mkdirSync(webIcons, { recursive: true });
+  await shoot(iconSVG(512, 0.1, BG), 512, 512, path.join(webIcons, "icon-512.png"));
+  await shoot(iconSVG(192, 0.1, BG), 192, 192, path.join(webIcons, "icon-192.png"));
+  // 마스커블: 둥근 마스크에 잘리지 않게 안쪽으로 더 넣는다(중앙 안전 영역)
+  await shoot(iconSVG(512, 0.18, BG), 512, 512, path.join(webIcons, "icon-maskable-512.png"));
+  await shoot(iconSVG(180, 0.1, BG), 180, 180, path.join(webIcons, "apple-touch-icon.png"));
+  fs.writeFileSync(path.join(webIcons, "icon.svg"), iconSVG(512, 0.1, BG));
+  made += 5;
+  console.log("웹/PWA 아이콘 완료");
 
   // ── 안드로이드
   const androidRes = path.join(ROOT, "android/app/src/main/res");
