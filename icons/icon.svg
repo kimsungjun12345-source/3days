@@ -14,23 +14,23 @@
 </defs><rect width="1000" height="1000" fill="#26241f"/>
     <g transform="translate(100 100) scale(0.8)"><g transform="translate(0 -95)">
     <ellipse cx="518" cy="838" rx="330" ry="36" fill="rgba(74,64,48,0.18)" filter="url(#gb)"/>
-    <g transform="rotate(-1.8 491 705)">
-      <ellipse cx="491" cy="767" rx="258" ry="30"
+    <g transform="rotate(-1.8 491 700)">
+      <ellipse cx="491" cy="778.12" rx="273.48" ry="37.8"
         fill="rgba(52,44,33,0.16)" filter="url(#b)"/>
-      <ellipse cx="491" cy="705" rx="300" ry="100" fill="url(#top)"/>
-      <ellipse cx="491" cy="705" rx="300" ry="100" fill="url(#belly)"/>
+      <ellipse cx="491" cy="700" rx="318" ry="126" fill="url(#top)"/>
+      <ellipse cx="491" cy="700" rx="318" ry="126" fill="url(#belly)"/>
     </g>
-<g transform="rotate(1.8 509 530)">
-      <ellipse cx="509" cy="582.08" rx="201.24" ry="25.2"
+<g transform="rotate(1.8 509 522)">
+      <ellipse cx="509" cy="586.48" rx="215" ry="31.2"
         fill="rgba(52,44,33,0.16)" filter="url(#b)"/>
-      <ellipse cx="509" cy="530" rx="234" ry="84" fill="url(#top)"/>
-      <ellipse cx="509" cy="530" rx="234" ry="84" fill="url(#belly)"/>
+      <ellipse cx="509" cy="522" rx="250" ry="104" fill="url(#top)"/>
+      <ellipse cx="509" cy="522" rx="250" ry="104" fill="url(#belly)"/>
     </g>
-<g transform="rotate(-1.8 491 378)">
-      <ellipse cx="491" cy="420.15999999999997" rx="151.35999999999999" ry="20.4"
+<g transform="rotate(-1.8 491 372)">
+      <ellipse cx="491" cy="425.32" rx="163.4" ry="25.8"
         fill="rgba(52,44,33,0.16)" filter="url(#b)"/>
-      <ellipse cx="491" cy="378" rx="176" ry="68" fill="url(#top)"/>
-      <ellipse cx="491" cy="378" rx="176" ry="68" fill="url(#belly)"/>
+      <ellipse cx="491" cy="372" rx="190" ry="86" fill="url(#top)"/>
+      <ellipse cx="491" cy="372" rx="190" ry="86" fill="url(#belly)"/>
     </g>
   </g></g>
   </svg>
