@@ -29,14 +29,17 @@ function cairnArt(shiftY) {
     { cy: 378, rx: 176, ry: 68 },
   ];
   const piece = (s, i) => {
-    const t = s.ry * 0.66;
     const tilt = i % 2 === 0 ? -1.8 : 1.8;
     const cx = 500 + (i % 2 === 0 ? -9 : 9);
+    /* 앱 화면 돌과 같은 방식 — 옆면(두께) 타원을 따로 겹치지 않는다.
+       조약돌 한 장(top)에 아래쪽 초승달 그림자(belly)만 얹어, 아래 돌에
+       얹힌 느낌과 볼륨을 함께 낸다. 겹친 타원 둘로 두께를 만들던 옛 방식은
+       '돌 두 개가 붙어 하나'로 읽혔다. 발치엔 아주 옅은 접지 그림자만 둔다. */
     return `<g transform="rotate(${tilt} ${cx} ${s.cy})">
-      <ellipse cx="${cx + s.rx * 0.09}" cy="${s.cy + t + s.ry * 0.42}" rx="${s.rx * 0.95}" ry="${s.ry * 0.52}"
-        fill="rgba(52,44,33,0.34)" filter="url(#b)"/>
-      <ellipse cx="${cx}" cy="${s.cy + t}" rx="${s.rx}" ry="${s.ry}" fill="url(#side)"/>
+      <ellipse cx="${cx}" cy="${s.cy + s.ry * 0.62}" rx="${s.rx * 0.86}" ry="${s.ry * 0.3}"
+        fill="rgba(52,44,33,0.16)" filter="url(#b)"/>
       <ellipse cx="${cx}" cy="${s.cy}" rx="${s.rx}" ry="${s.ry}" fill="url(#top)"/>
+      <ellipse cx="${cx}" cy="${s.cy}" rx="${s.rx}" ry="${s.ry}" fill="url(#belly)"/>
     </g>`;
   };
   return `<g transform="translate(0 ${shiftY})">
@@ -50,13 +53,14 @@ function cairnArt(shiftY) {
    반질반질한 '옛날 3D 구슬'로 보였다 — 밝은 끝을 낮추고 램프를 고르게 펴
    매트한 돌로 맞췄다. 별도 반사광 타원(광택)도 뺐다. */
 const DEFS = `<defs>
-  <radialGradient id="side" cx="40%" cy="30%" r="95%">
-    <stop offset="0%" stop-color="#c6bdaf"/><stop offset="40%" stop-color="#a79d8b"/>
-    <stop offset="74%" stop-color="#867c69"/><stop offset="100%" stop-color="#5f5749"/>
-  </radialGradient>
   <radialGradient id="top" cx="40%" cy="30%" r="95%">
     <stop offset="0%" stop-color="#d2ccc2"/><stop offset="35%" stop-color="#c3bab0"/>
     <stop offset="72%" stop-color="#ab9f8e"/><stop offset="100%" stop-color="#94876f"/>
+  </radialGradient>
+  <radialGradient id="belly" cx="50%" cy="90%" r="62%">
+    <stop offset="0%" stop-color="#4a4034" stop-opacity="0.42"/>
+    <stop offset="65%" stop-color="#4a4034" stop-opacity="0.10"/>
+    <stop offset="100%" stop-color="#4a4034" stop-opacity="0"/>
   </radialGradient>
   <filter id="b" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="9"/></filter>
   <filter id="gb" x="-60%" y="-120%" width="220%" height="340%"><feGaussianBlur stdDeviation="16"/></filter>

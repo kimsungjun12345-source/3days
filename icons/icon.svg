@@ -1,12 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 1000 1000">
     <defs>
-  <radialGradient id="side" cx="40%" cy="30%" r="95%">
-    <stop offset="0%" stop-color="#c6bdaf"/><stop offset="40%" stop-color="#a79d8b"/>
-    <stop offset="74%" stop-color="#867c69"/><stop offset="100%" stop-color="#5f5749"/>
-  </radialGradient>
   <radialGradient id="top" cx="40%" cy="30%" r="95%">
     <stop offset="0%" stop-color="#d2ccc2"/><stop offset="35%" stop-color="#c3bab0"/>
     <stop offset="72%" stop-color="#ab9f8e"/><stop offset="100%" stop-color="#94876f"/>
+  </radialGradient>
+  <radialGradient id="belly" cx="50%" cy="90%" r="62%">
+    <stop offset="0%" stop-color="#4a4034" stop-opacity="0.42"/>
+    <stop offset="65%" stop-color="#4a4034" stop-opacity="0.10"/>
+    <stop offset="100%" stop-color="#4a4034" stop-opacity="0"/>
   </radialGradient>
   <filter id="b" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="9"/></filter>
   <filter id="gb" x="-60%" y="-120%" width="220%" height="340%"><feGaussianBlur stdDeviation="16"/></filter>
@@ -14,22 +15,22 @@
     <g transform="translate(100 100) scale(0.8)"><g transform="translate(0 -95)">
     <ellipse cx="518" cy="838" rx="330" ry="36" fill="rgba(74,64,48,0.18)" filter="url(#gb)"/>
     <g transform="rotate(-1.8 491 705)">
-      <ellipse cx="518" cy="813" rx="285" ry="52"
-        fill="rgba(52,44,33,0.34)" filter="url(#b)"/>
-      <ellipse cx="491" cy="771" rx="300" ry="100" fill="url(#side)"/>
+      <ellipse cx="491" cy="767" rx="258" ry="30"
+        fill="rgba(52,44,33,0.16)" filter="url(#b)"/>
       <ellipse cx="491" cy="705" rx="300" ry="100" fill="url(#top)"/>
+      <ellipse cx="491" cy="705" rx="300" ry="100" fill="url(#belly)"/>
     </g>
 <g transform="rotate(1.8 509 530)">
-      <ellipse cx="530.06" cy="620.72" rx="222.29999999999998" ry="43.68"
-        fill="rgba(52,44,33,0.34)" filter="url(#b)"/>
-      <ellipse cx="509" cy="585.44" rx="234" ry="84" fill="url(#side)"/>
+      <ellipse cx="509" cy="582.08" rx="201.24" ry="25.2"
+        fill="rgba(52,44,33,0.16)" filter="url(#b)"/>
       <ellipse cx="509" cy="530" rx="234" ry="84" fill="url(#top)"/>
+      <ellipse cx="509" cy="530" rx="234" ry="84" fill="url(#belly)"/>
     </g>
 <g transform="rotate(-1.8 491 378)">
-      <ellipse cx="506.84" cy="451.44" rx="167.2" ry="35.36"
-        fill="rgba(52,44,33,0.34)" filter="url(#b)"/>
-      <ellipse cx="491" cy="422.88" rx="176" ry="68" fill="url(#side)"/>
+      <ellipse cx="491" cy="420.15999999999997" rx="151.35999999999999" ry="20.4"
+        fill="rgba(52,44,33,0.16)" filter="url(#b)"/>
       <ellipse cx="491" cy="378" rx="176" ry="68" fill="url(#top)"/>
+      <ellipse cx="491" cy="378" rx="176" ry="68" fill="url(#belly)"/>
     </g>
   </g></g>
   </svg>
