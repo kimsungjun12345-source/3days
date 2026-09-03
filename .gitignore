@@ -1,1 +1,23 @@
-m«ëˆ§½©buªàºg§¶­Š	è­å,j›jÇºà7an{¦Š)ßŠW¨¢ë_ŠW›n·š‘ºŞjG§r‡^v‹­¦ën¦)í¢X§zÊ•éà¶î˜7]yÊy×œ¡×¢›­†¥¥Ø¬¦V²¶¬™ë,j¢Šzn¶)éº×â•ç^}«¥µú+²×bŠ.¶›­¢ëiº×â•ç^}«¥µú+²×hº
+node_modules/
+test/screenshot.png
+
+# ë¹Œë“œë¡œ ë§Œë“¤ì–´ì§€ëŠ” ê²ƒ (npm run build / cap sync ë¡œ ì–¸ì œë“  ë‹¤ì‹œ ìƒì„±)
+www/
+build-info.js
+toss-sdk.js
+
+# App in Toss ë°°í¬ ì•„í‹°íŒ©íŠ¸ (ait build ë¡œ ì–¸ì œë“  ë‹¤ì‹œ ìƒì„±)
+*.ait
+
+# ë„¤ì´í‹°ë¸Œ ë¹Œë“œ ì‚°ì¶œë¬¼ â€” í”„ë¡œì íŠ¸ í´ë” ìì²´ëŠ” ì €ì¥ì†Œì— ë‘”ë‹¤
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/capacitor-cordova-android-plugins/
+ios/App/Pods/
+ios/App/build/
+ios/App/Podfile.lock
+ios/capacitor-cordova-ios-plugins/
+DerivedData/
+*.xcuserstate
