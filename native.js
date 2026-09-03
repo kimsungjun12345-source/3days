@@ -157,6 +157,21 @@ function notifyEnabled() {
   return localStorage.getItem(NOTIFY_PREF_KEY) === "1";
 }
 
+/* Apps in Toss는 Capacitor 앱이 아니므로 기기 로컬 알림 대신 Toss가
+ * 콘솔에 예약된 스마트 발송을 보낸다. SDK가 실제 Toss 환경에서 지원될
+ * 때만 이 경로를 연다. */
+function isTossNotificationMode() {
+  return !IS_NATIVE && !!(
+    window.TossNotification &&
+    typeof window.TossNotification.isSupported === "function" &&
+    window.TossNotification.isSupported()
+  );
+}
+
+function notificationAvailable() {
+  return !!(IS_NATIVE && NP.LocalNotifications) || isTossNotificationMode();
+}
+
 async function requestNotifyPermission() {
   if (!IS_NATIVE || !NP.LocalNotifications) return false;
   try {
@@ -168,6 +183,17 @@ async function requestNotifyPermission() {
 }
 
 async function setNotifyEnabled(on) {
+  if (isTossNotificationMode()) {
+    if (!on) return false;
+    const result = await window.TossNotification.requestAgreement();
+    const agreed = result === "newAgreement" || result === "alreadyAgreed";
+    if (agreed) {
+      localStorage.setItem(NOTIFY_PREF_KEY, "1");
+      track("notification_opt_in");
+    }
+    return agreed;
+  }
+
   if (on) {
     const ok = await requestNotifyPermission();
     if (!ok) return false;

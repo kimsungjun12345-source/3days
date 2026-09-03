@@ -248,11 +248,11 @@
         </button>
         <input type="file" id="file-import" accept="application/json,.json" hidden />
 
-        <!-- 다섯 번 누르면 개발자 도구가 열린다 (안드로이드 빌드 번호와 같은 방식) -->
+        <!-- 다섯 번 누르면 개발자 도구가 열린다. 빌드 정보는 사용자에게 노출하지 않는다. -->
         <button type="button" class="row-card row-info" id="row-about">
           <span class="row-text">
             <b>셋돌하나</b>
-            <span id="about-sub">기록은 이 기기에만 저장돼요 · v1.0</span>
+            <span id="about-sub">기록은 이 기기에만 저장돼요</span>
           </span>
         </button>
 
@@ -469,6 +469,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   <div id="confetti" class="confetti-layer" aria-hidden="true"></div>
   <script src="build-info.js"></script>
+  <script src="toss-sdk.js"></script>
   <script src="analytics.js"></script>
   <script src="icons.js"></script>
   <script src="native.js"></script>

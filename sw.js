@@ -6,7 +6,7 @@
  */
 
 // 이 리터럴은 개발용 기본값이다. www/로 빌드될 때 scripts/build.js가
-// 배포 커밋으로 바꿔 박아, 배포마다 새 워커로 인식되고 옛 캐시가 정리된다.
+// 배포 소스 지문으로 바꿔 박아, 내용이 달라질 때 새 워커로 인식되고 옛 캐시가 정리된다.
 const VERSION = "v5";
 const APP_CACHE = `jaksim3-app-${VERSION}`;
 const FONT_CACHE = `jaksim3-font-${VERSION}`;
@@ -15,6 +15,7 @@ const APP_SHELL = [
   "./",
   "./index.html",
   "./build-info.js",
+  "./toss-sdk.js",
   "./style.css",
   "./fonts/gowun-batang/gowun-batang.css",
   "./analytics.js",

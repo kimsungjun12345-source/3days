@@ -13,7 +13,7 @@
     "android": "npm run sync && cap open android",
     "test": "node test/smoke.js && node test/pwa.js && node test/contrast.js",
     "live": "node scripts/live-config.js",
-    "toss:build": "npm run build && ait build",
+    "toss:build": "BUILD_CHANNEL=release npm run build && ait build",
     "toss:deploy": "ait deploy"
   },
   "dependencies": {
@@ -33,6 +33,7 @@
     "@capacitor/android": "^8.5.0",
     "@capacitor/cli": "^8.5.0",
     "@capacitor/ios": "^8.5.0",
+    "esbuild": "^0.28.2",
     "playwright-core": "^1.62.1"
   }
 }

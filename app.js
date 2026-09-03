@@ -2729,7 +2729,7 @@ function setupThemeToggle() {
 const NOTIFY_ASKED_KEY = "jaksim3.notifyAsked";
 
 function shouldAskNotify() {
-  if (typeof IS_NATIVE === "undefined" || !IS_NATIVE) return false;
+  if (typeof notificationAvailable !== "function" || !notificationAvailable()) return false;
   if (localStorage.getItem(NOTIFY_ASKED_KEY)) return false;
   return !notifyEnabled();
 }
@@ -2746,8 +2746,10 @@ function askNotify() {
   localStorage.setItem(NOTIFY_ASKED_KEY, "1");
   // 시간 계산이 어긋나도 토스트가 버튼을 가리지 않도록 확실히 걷는다
   $("toast").hidden = true;
-  $("ask-notify-time").textContent =
-    `${friendlyTime(notifyHour(), notifyMinute())} · 언제든 바꿀 수 있어요`;
+  const tossMode = typeof isTossNotificationMode === "function" && isTossNotificationMode();
+  $("ask-notify-time").textContent = tossMode
+    ? "매일 저녁 8시 · 토스 알림 설정에서 관리해요"
+    : `${friendlyTime(notifyHour(), notifyMinute())} · 언제든 바꿀 수 있어요`;
   const wasHidden = $("ask-notify").hidden;
   $("ask-notify").hidden = false;
   if (wasHidden) focusInto("ask-notify");
@@ -2791,13 +2793,6 @@ function setupDevTools() {
   if (!about || !card || !banner) return;
 
   const build = window.BUILD || { channel: "dev", commit: "" };
-
-  /* 어느 빌드가 깔렸는지 여기서 바로 보인다. "그 기능이 없다"는 말을 들었을 때
-   * 제일 먼저 확인해야 하는 것이 '그게 든 빌드가 맞느냐'인데, 그동안은
-   * 앱 안에서 확인할 길이 없었다. */
-  if (build.commit) {
-    $("about-sub").textContent = `기록은 이 기기에만 저장돼요 · v1.0 · ${build.commit}`;
-  }
 
   /* 테스트하라고 만든 빌드에서 테스트 도구를 숨겨 두는 건 앞뒤가 맞지 않는다.
    * 스토어에 올리는 빌드(release)에서만 숨기고, 그때도 정보 줄을 다섯 번
@@ -2981,18 +2976,25 @@ function setupNotifyToggle() {
   const btn = $("btn-notify");
   const hourRow = $("notify-hour-row");
   const timeInput = $("notify-hour");
-  if (!row || !btn || typeof IS_NATIVE === "undefined" || !IS_NATIVE) return;
+  const tossMode = typeof isTossNotificationMode === "function" && isTossNotificationMode();
+  const capacitorMode = typeof IS_NATIVE !== "undefined" && IS_NATIVE;
+  const previewMode = !capacitorMode && !tossMode;
+  const fixedMode = tossMode || previewMode;
+  if (!row || !btn) return;
 
   row.hidden = false;
   hourRow.hidden = false;
-  timeInput.value = timeValue(notifyHour(), notifyMinute());
+  timeInput.value = fixedMode ? "20:00" : timeValue(notifyHour(), notifyMinute());
+  timeInput.disabled = fixedMode;
+  btn.setAttribute("aria-disabled", previewMode ? "true" : "false");
 
-  const label = () => friendlyTime(notifyHour(), notifyMinute());
+  const label = () => fixedMode ? "저녁 8시" : friendlyTime(notifyHour(), notifyMinute());
 
   /* 예약이 진짜로 잡혔는지를 화면에 적는다.
      "알림이 안 온다"를 확인할 방법이 앱 안에 없어서, 켜 두면 온다고 믿는
      수밖에 없었다. 다음 알림 시각이 보이면 그것만으로 절반은 진단이 된다. */
   const showNext = async () => {
+    if (fixedMode) return;
     if (!notifyEnabled() || typeof nextNotificationAt !== "function") return;
     const at = await nextNotificationAt();
     if (!notifyEnabled()) return;
@@ -3002,19 +3004,34 @@ function setupNotifyToggle() {
   };
 
   const paint = () => {
-    const on = notifyEnabled();
+    const on = previewMode ? false : notifyEnabled();
     btn.classList.toggle("on", on);
     btn.setAttribute("aria-checked", on ? "true" : "false");
     hourRow.classList.toggle("off", !on);
     $("notify-hour-label").textContent = label();
     $("notify-sub").textContent = on
       ? `${label()}에 조용히 알려드려요`
-      : "정해둔 시각에 한 번만 알려드려요";
+      : fixedMode
+        ? previewMode
+          ? "알림은 토스 앱에서 켤 수 있어요"
+          : "매일 저녁 8시에 받을 수 있어요"
+        : "정해둔 시각에 한 번만 알려드려요";
+    $("notify-hour-sub").textContent = fixedMode
+      ? "토스가 매일 같은 시간에 보내요"
+      : "아직 만회할 수 있는 시각이 좋아요";
     showNext();
   };
   paint();
 
   btn.addEventListener("click", async () => {
+    if (previewMode) {
+      toast("sleep", "토스 앱에서 열면 알림을 켤 수 있어요");
+      return;
+    }
+    if (tossMode && notifyEnabled()) {
+      toast("sleep", "알림 해제는 토스 알림 설정에서 할 수 있어요");
+      return;
+    }
     const turningOn = !notifyEnabled();
     const ok = await setNotifyEnabled(turningOn);
     paint();
@@ -3027,6 +3044,7 @@ function setupNotifyToggle() {
 
   // 투명하게 겹쳐 둔 입력창을 눌렀을 때 시계가 확실히 열리도록
   hourRow.querySelector(".time-pick").addEventListener("click", () => {
+    if (fixedMode) return;
     if (typeof timeInput.showPicker !== "function") return;
     try {
       timeInput.showPicker();
@@ -3036,6 +3054,7 @@ function setupNotifyToggle() {
   });
 
   timeInput.addEventListener("change", async () => {
+    if (fixedMode) return;
     const t = parseTimeValue(timeInput.value);
     // 시계를 열었다가 비운 채로 닫으면 빈 값이 온다 — 쓰던 시각을 지킨다
     if (!t) {

@@ -866,11 +866,10 @@ function monthDay(n) {
    * 기억하라고 요구한 것이 문제였다. 이제 개발용 빌드에서는 대놓고 보인다. */
   assert(await page.locator("#dev-card").isVisible(), "a dev build shows its dev tools plainly");
 
-  // 어느 빌드가 깔렸는지 앱 안에서 확인할 수 있어야 한다 —
-  // '그 기능이 없다'는 말을 들었을 때 제일 먼저 봐야 하는 것이 이것이다
+  // 사용자용 설정에는 내부 빌드 번호나 커밋을 노출하지 않는다
   assert(
-    /v\d/.test(await page.locator("#about-sub").textContent()),
-    "the version row says which build this is"
+    (await page.locator("#about-sub").textContent()) === "기록은 이 기기에만 저장돼요",
+    "the about row does not expose build identifiers"
   );
 
   // 정보 줄은 접었다 펴는 스위치가 된다

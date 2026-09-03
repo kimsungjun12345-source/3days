@@ -959,6 +959,10 @@ body {
  * 먼저 우리 말로 이유를 말하고, 승낙한 사람에게만 진짜로 묻는다.
  */
 .ask-sheet {
+  /* 토스 헤더 아래의 웹뷰 높이를 전부 채우면 내용이 화면 위에 몰려 보인다.
+     알림 권유는 짧은 질문이므로 필요한 높이만 차지해 아래에서 올라오게 한다. */
+  align-self: flex-end;
+  height: auto;
   border-radius: 24px 24px 0 0;
   padding: 30px 24px calc(24px + env(safe-area-inset-bottom));
   text-align: center;
@@ -1419,6 +1423,16 @@ body {
   align-items: center;
   gap: 9px;
   margin-bottom: 16px;
+}
+
+/* 기록 상세는 화면 한 장이 아니라 아래에서 잠깐 펼쳐 보는 시트다.
+ * 공통 모달의 stretch를 그대로 받으면 내용이 위에 몰리고 아래 절반이
+ * 빈 화면으로 남는다. 필요한 높이만 쓰되 작은 화면에서는 안쪽만 스크롤한다. */
+.detail {
+  align-self: flex-end;
+  height: auto;
+  max-height: 100dvh;
+  overflow-y: auto;
 }
 
 .detail-ico {
