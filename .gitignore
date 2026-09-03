@@ -5,6 +5,9 @@ test/screenshot.png
 www/
 build-info.js
 
+# App in Toss 배포 아티팩트 (ait build 로 언제든 다시 생성)
+*.ait
+
 # 네이티브 빌드 산출물 — 프로젝트 폴더 자체는 저장소에 둔다
 android/app/build/
 android/build/

@@ -12,7 +12,9 @@
     "ios": "npm run sync && cap open ios",
     "android": "npm run sync && cap open android",
     "test": "node test/smoke.js && node test/pwa.js && node test/contrast.js",
-    "live": "node scripts/live-config.js"
+    "live": "node scripts/live-config.js",
+    "toss:build": "npm run build && ait build",
+    "toss:deploy": "ait deploy"
   },
   "dependencies": {
     "@capacitor-firebase/analytics": "^8.3.0",
@@ -27,6 +29,7 @@
     "firebase": "^12.17.1"
   },
   "devDependencies": {
+    "@apps-in-toss/web-framework": "^3.2.0",
     "@capacitor/android": "^8.5.0",
     "@capacitor/cli": "^8.5.0",
     "@capacitor/ios": "^8.5.0",
