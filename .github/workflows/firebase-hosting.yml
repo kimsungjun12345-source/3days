@@ -33,7 +33,10 @@ on:
       - "icons/**"
       - "fonts/**"
       - "scripts/build.js"
+      - "package.json"
+      - "package-lock.json"
       - "firebase.json"
+      - ".github/workflows/firebase-hosting.yml"
 
 # 배포는 한 번에 하나만
 concurrency:
