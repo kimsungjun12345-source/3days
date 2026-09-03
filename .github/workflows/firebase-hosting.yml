@@ -53,9 +53,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
 
-      # scripts/build.js는 Node 내장 모듈만 쓰므로 npm ci가 필요 없다 —
-      # www/ 를 만드는 데 의존성 설치를 기다릴 이유가 없다.
+      # Apps in Toss SDK를 브라우저 파일로 묶을 때 esbuild를 사용한다.
+      - name: 빌드 의존성 설치
+        run: npm ci
+
       - name: 웹 자산 모으기 (privacy.html 포함)
         run: node scripts/build.js
 

@@ -47,6 +47,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+
+      - name: 빌드 의존성 설치
+        run: npm ci
 
       - name: 웹 자산 모으기
         run: node scripts/build.js
