@@ -58,6 +58,8 @@ function analyticsPlugin() {
 }
 
 function tossAnalytics() {
+  // 토스 SDK 번들은 공통 자산에 함께 있어도, 실제 전송은 토스 빌드에서만 한다.
+  if (document.documentElement.dataset.platform !== "toss") return null;
   const toss = window.TossAnalytics;
   return toss && typeof toss.logEvent === "function" ? toss : null;
 }

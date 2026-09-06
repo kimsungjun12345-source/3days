@@ -38,7 +38,14 @@ function requestAgreement() {
   });
 }
 
-window.TossNotification = { isSupported, requestAgreement };
+/* build.js가 토스 번들에만 data-platform="toss"를 넣는다. SDK 번들은 공통
+ * 웹 자산으로 같이 복사되지만, Android·웹에서는 토스 알림/분석 객체를 아예
+ * 열지 않아 잘못된 브리지를 호출할 여지를 없앤다. */
+const IS_TOSS_PLATFORM = document.documentElement.dataset.platform === "toss";
+
+if (IS_TOSS_PLATFORM) {
+  window.TossNotification = { isSupported, requestAgreement };
+}
 
 function logEvent(name, params) {
   try {
@@ -54,4 +61,6 @@ function logEvent(name, params) {
   }
 }
 
-window.TossAnalytics = { logEvent };
+if (IS_TOSS_PLATFORM) {
+  window.TossAnalytics = { logEvent };
+}

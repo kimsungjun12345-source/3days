@@ -1387,13 +1387,17 @@ function monthDay(n) {
   assert(leak.asNumber === '{"day_number":2}', "while the day number still goes through");
 
   const tossEvent = await page.evaluate(() => {
+    const originalPlatform = document.documentElement.dataset.platform;
     const original = window.TossAnalytics;
     let received = null;
+    document.documentElement.dataset.platform = "toss";
     window.TossAnalytics = {
       logEvent(name, params) { received = { name, params }; },
     };
     track("day_checked", { day_number: 2, title: "밖으로 나가면 안 됨" });
     window.TossAnalytics = original;
+    if (originalPlatform) document.documentElement.dataset.platform = originalPlatform;
+    else delete document.documentElement.dataset.platform;
     return received;
   });
   assert(
