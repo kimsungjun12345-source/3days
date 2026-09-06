@@ -13,10 +13,24 @@
  */
 import { defineConfig } from "@apps-in-toss/web-framework/config";
 
+/* SDK 3.x의 공개 타입은 primaryColor만 적고 있지만, 번들 검수에서는
+ * 내비게이션 바 브랜드명이 콘솔의 앱 정보와 같은지 bundle metadata로도
+ * 확인한다. 별도 변수로 두면 3.x 타입과 구조적으로 호환되면서, 빌드 결과에는
+ * 콘솔에 승인된 표시 이름과 아이콘이 그대로 포함된다. */
+const brand = {
+  displayName: "셋돌하나",
+  primaryColor: "#ce4a3a",
+  icon: "https://static.toss.im/appsintoss/80911/d6914d91-d0ab-4af7-b580-d3ab2de584d6.png",
+};
+
 export default defineConfig({
   appName: "setdolhana",
-  brand: {
-    primaryColor: "#ce4a3a",
+  brand,
+  navigationBar: {
+    withBackButton: true,
+    withHomeButton: false,
+    withTitle: true,
+    transparentBackground: false,
   },
   webView: {},
   permissions: [],

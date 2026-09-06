@@ -1889,6 +1889,9 @@ let currentView = "home";
 
 function switchView(name) {
   currentView = name;
+  /* 토스 정원은 vh/dvh가 아니라 실제 WebView 경계에 맞춰야 한다.
+   * CSS가 현재 화면에만 고정 레이아웃을 적용할 수 있도록 화면 이름을 남긴다. */
+  document.documentElement.dataset.view = name;
   for (const v of ["home", "garden", "record", "settings"]) {
     $(`view-${v}`).hidden = v !== name;
   }

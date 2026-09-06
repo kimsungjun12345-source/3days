@@ -74,6 +74,28 @@ function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   // file://로 열었을 때는 등록이 불가능하니 조용히 넘어간다
   if (location.protocol !== "http:" && location.protocol !== "https:") return;
+
+  /* AIT는 앱 파일을 번들 자체가 제공한다. 같은 origin에서 여러 테스트
+   * deployment를 여는 동안 PWA 서비스워커가 이전 CSS·JS를 먼저 반환하면
+   * 새 버전의 UI가 한 번 늦게 보인다. 토스에서는 등록하지 않고, 과거에
+   * 남긴 우리 서비스워커와 캐시도 정리한다. 빌드가 붙인 ?v= 지문 덕분에
+   * 이 정리 전 첫 화면도 반드시 현재 번들의 파일을 읽는다. */
+  if (document.documentElement.dataset.platform === "toss") {
+    window.addEventListener("load", async () => {
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((registration) => registration.unregister()));
+        if ("caches" in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.filter((key) => key.startsWith("jaksim3-")).map((key) => caches.delete(key)));
+        }
+      } catch {
+        /* 캐시 정리에 실패해도 버전별 URL이 현재 파일을 보장한다. */
+      }
+    });
+    return;
+  }
+
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").catch(() => {
       /* 등록에 실패해도 앱은 그대로 동작한다 */

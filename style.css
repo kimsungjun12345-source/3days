@@ -185,6 +185,78 @@ body {
   padding: 6px 2px 20px;
 }
 
+/* Apps in Toss는 이 웹뷰 바깥에 로고·앱 이름이 든 공통 내비게이션 바를
+ * 자동으로 그린다. 그 아래에서 Android 독립 앱용 앱바와 상태바 safe area를
+ * 또 더하면 같은 제목이 두 번 나오고 상단에 빈 띠가 생긴다.
+ * AIT 빌드에만 붙는 data-platform으로 껍데기 차이만 걷어 낸다. */
+html[data-platform="toss"] {
+  --appbar-h: 0px;
+}
+
+html[data-platform="toss"] .app {
+  /* 토스 공통 내비게이션은 독립 앱의 앱바보다 낮다. 공통 콘텐츠가 Android
+   * 화면보다 위로 떠 보이지 않도록 두 화면의 실제 차이만큼 내려 맞춘다. */
+  padding-top: 40px;
+  padding-bottom: 78px;
+}
+
+html[data-platform="toss"] .appbar {
+  display: none;
+}
+
+html[data-platform="toss"][data-view="garden"],
+html[data-platform="toss"][data-view="garden"] body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html[data-platform="toss"][data-view="garden"] .app {
+  /* Toss WebView에서 100vh/100dvh는 공통 내비게이션 영역까지 포함해 실제로
+   * 보이는 높이보다 커질 수 있다. 숫자로 빼지 않고 fixed의 실제 경계에 붙인다. */
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: auto;
+  overflow: hidden;
+}
+
+html[data-platform="toss"][data-view="garden"] #view-garden {
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html[data-platform="toss"][data-view="garden"] #view-garden .garden-page {
+  touch-action: none;
+}
+
+html[data-platform="toss"][data-view="garden"] #view-garden .record-stats {
+  /* 통계 카드의 좌우 벽 간격과 같은 만큼 탭바에서도 띄운다. */
+  margin-bottom: 20px;
+}
+
+html[data-platform="toss"] .tabbar {
+  /* 일부 Toss WebView는 시스템 내비게이션 영역만큼 컨테이너를 늘린다.
+   * 안드로이드 독립 앱과 같은 전체 높이를 강제해 아이콘 아래 빈 띠를 없앤다. */
+  height: 78px;
+  min-height: 78px;
+  max-height: 78px;
+  padding: 6px 12px;
+  align-items: center;
+  overflow: hidden;
+}
+
+html[data-platform="toss"] .sheet-bar {
+  margin-top: 0;
+}
+
+html[data-platform="toss"] .onboard {
+  padding-top: 20px;
+}
+
 /* 워드마크는 단색이다. 예전에는 '하나'만 코랄로 칠했는데, 기본 웹폰트에
    한 단어만 강조색을 얹은 모양이 'AI가 만든 로고'처럼 읽혔고 BRAND.md도
    첫 버전은 단색으로 가기로 적어 두었다. 대신 이름의 '돌'을 색이 아니라

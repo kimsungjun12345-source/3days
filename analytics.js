@@ -22,11 +22,10 @@
  * 3번이 핵심이다. 사용자가 쓴 것은 전부 문자열이므로, 문자열을 통째로
  * 막아 두면 실수로 제목을 실어 보내는 일 자체가 성립하지 않는다.
  *
- * ── 지금은 어디로 가는가 ──────────────────────────
- * 아직 아무 데도 가지 않는다. Firebase 프로젝트와 google-services.json이
- * 준비되면 @capacitor-firebase/analytics가 window.Capacitor.Plugins에
- * 실리고, 그때부터 이 파일이 그쪽으로 넘긴다. 그전까지는 조용히 버린다.
- * 붙는 시점에 호출 지점을 새로 찾아 심는 일이 없도록 미리 깔아 둔다.
+ * ── 어디로 가는가 ───────────────────────────────
+ * Android 앱에서는 Firebase Analytics로, 토스 미니앱에서는 Apps in Toss
+ * Analytics로 보낸다. 같은 허용목록을 먼저 거치므로 어느 플랫폼에서도
+ * 사용자가 입력한 작심 제목은 나가지 않는다.
  */
 
 /* 이벤트와, 그 이벤트에만 허용되는 파라미터 키.
@@ -58,6 +57,11 @@ function analyticsPlugin() {
   return fb && typeof fb.logEvent === "function" ? fb : null;
 }
 
+function tossAnalytics() {
+  const toss = window.TossAnalytics;
+  return toss && typeof toss.logEvent === "function" ? toss : null;
+}
+
 /* 허용목록을 통과한 것만 남긴다. 막힌 것은 조용히 버리지 않고 콘솔에
  * 알린다 — 개발 중에 오타 난 이벤트가 영원히 안 잡히면 곤란하다. */
 function analyticsParams(name, params) {
@@ -84,12 +88,23 @@ function track(name, params) {
   }
   const safe = analyticsParams(name, params);
   const fb = analyticsPlugin();
-  if (!fb) return; // 아직 붙지 않았다. 앱은 그대로 돈다.
-  try {
-    fb.logEvent({ name, params: safe });
-  } catch (e) {
-    /* 측정이 앱을 멈추게 두지 않는다. 이 앱은 네트워크가 없어도 완전히
-       동작하는 것이 약속이고, 분석이 실패하는 것은 그보다 훨씬 가벼운 일이다. */
+  if (fb) {
+    try {
+      const sent = fb.logEvent({ name, params: safe });
+      if (sent && typeof sent.catch === "function") sent.catch(() => {});
+    } catch (e) {
+      /* 측정이 앱을 멈추게 두지 않는다. 이 앱은 네트워크가 없어도 완전히
+         동작하는 것이 약속이고, 분석이 실패하는 것은 그보다 훨씬 가벼운 일이다. */
+    }
+  }
+
+  const toss = tossAnalytics();
+  if (toss) {
+    try {
+      toss.logEvent(name, safe);
+    } catch (e) {
+      // 토스 분석 브리지가 실패해도 사용자의 기록은 정상적으로 저장한다.
+    }
   }
 }
 

@@ -69,6 +69,10 @@ function buildInfo() {
   }
   return {
     channel: process.env.BUILD_CHANNEL || "dev",
+    /* AIT와 Capacitor는 같은 웹 소스를 쓰지만, 바깥 앱 껍데기가 다르다.
+     * 토스는 자체 내비게이션 바를 이미 그리므로 생성된 HTML에만 플랫폼을
+     * 표시해 중복 앱바·안전영역을 CSS에서 걷어 낸다. */
+    platform: process.env.BUILD_PLATFORM || "web",
     commit: commit.slice(0, 7),
     date: new Date().toISOString().slice(0, 10),
   };
@@ -100,6 +104,10 @@ function addToHash(hash, src, label) {
 
 function cacheVersion() {
   const hash = crypto.createHash("sha256");
+  /* 소스가 같아도 Android/Web과 AIT의 index.html은 다르다. 플랫폼까지
+   * 캐시 지문에 넣어 서로 다른 껍데기가 같은 서비스워커 버전을 쓰지 않는다. */
+  hash.update(info.platform);
+  hash.update("\0");
   for (const file of FILES) {
     if (file === "build-info.js" || BUNDLES.some(([, to]) => to === file)) continue;
     addToHash(hash, path.join(ROOT, file), file);
@@ -155,6 +163,22 @@ for (const file of FILES) {
       path.join(OUT, file),
       sw.replace(/const VERSION = "[^"]*";/, `const VERSION = "${cacheTag}";`)
     );
+  } else if (file === "index.html" && info.platform === "toss") {
+    let html = fs
+      .readFileSync(src, "utf8")
+      .replace('<html lang="ko">', '<html lang="ko" data-platform="toss">');
+
+    /* 같은 앱의 AIT 테스트 번들은 같은 origin을 쓴다. 이전 서비스워커가
+     * style.css/app.js를 cache-first로 돌려주면 새 번들을 처음 열었는데도
+     * 직전 UI가 보인다. AIT에서 실제로 참조하는 로컬 CSS·JS에 소스 지문을
+     * 붙여, 기존 캐시에 같은 URL이 존재할 수 없게 한다. */
+    for (const asset of FILES.filter((name) => name.endsWith(".js") || name.endsWith(".css"))) {
+      html = html
+        .replaceAll(`src="${asset}"`, `src="${asset}?v=${cacheTag}"`)
+        .replaceAll(`href="${asset}"`, `href="${asset}?v=${cacheTag}"`);
+    }
+
+    fs.writeFileSync(path.join(OUT, file), html);
   } else {
     fs.copyFileSync(src, path.join(OUT, file));
   }

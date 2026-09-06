@@ -1386,6 +1386,21 @@ function monthDay(n) {
   assert(leak.asNewKey === "{}", "and an unlisted parameter never leaves");
   assert(leak.asNumber === '{"day_number":2}', "while the day number still goes through");
 
+  const tossEvent = await page.evaluate(() => {
+    const original = window.TossAnalytics;
+    let received = null;
+    window.TossAnalytics = {
+      logEvent(name, params) { received = { name, params }; },
+    };
+    track("day_checked", { day_number: 2, title: "밖으로 나가면 안 됨" });
+    window.TossAnalytics = original;
+    return received;
+  });
+  assert(
+    JSON.stringify(tossEvent) === '{"name":"day_checked","params":{"day_number":2}}',
+    "Apps in Toss receives the same privacy-safe event"
+  );
+
   const unknown = await page.evaluate(() => {
     const before = console.warn;
     let warned = false;
@@ -1579,6 +1594,47 @@ function monthDay(n) {
     fills.drawnH >= fills.boxH * 0.85,
     `and the towers fill the height they were given (${fills.drawnH}/${fills.boxH})`
   );
+
+  /* 토스는 웹뷰 바깥에 공통 내비게이션 바를 이미 그린다. AIT 빌드에서
+   * 내부 앱바와 상태바 safe area까지 남으면 제목이 두 번 나오고 그 사이가
+   * 빈 띠처럼 보인다. Android/Web 기본값은 건드리지 않고 토스 표시가 있을
+   * 때만 껍데기 여백이 빠지는지 확인한다. */
+  const tossShell = await page.evaluate(() => {
+    document.documentElement.dataset.platform = "toss";
+    const result = {
+      appbar: getComputedStyle(document.querySelector(".appbar")).display,
+      appTop: getComputedStyle(document.querySelector(".app")).paddingTop,
+      appBottom: getComputedStyle(document.querySelector(".app")).paddingBottom,
+      tabbarBottom: getComputedStyle(document.querySelector(".tabbar")).paddingBottom,
+      tabbarHeight: getComputedStyle(document.querySelector(".tabbar")).height,
+      appPosition: getComputedStyle(document.querySelector(".app")).position,
+      shellTop: Math.round(document.querySelector(".app").getBoundingClientRect().top),
+      shellBottom: Math.round(innerHeight - document.querySelector(".app").getBoundingClientRect().bottom),
+      gardenBottom: Math.round(document.querySelector("#view-garden").getBoundingClientRect().bottom),
+      tabbarTop: Math.round(document.querySelector(".tabbar").getBoundingClientRect().top),
+      statsGap: Math.round(
+        document.querySelector(".tabbar").getBoundingClientRect().top -
+        document.querySelector("#view-garden .record-stats").getBoundingClientRect().bottom
+      ),
+      scrolls: document.documentElement.scrollHeight > innerHeight + 1,
+      sheetTop: getComputedStyle(document.querySelector(".sheet-bar")).marginTop,
+      onboardTop: getComputedStyle(document.querySelector(".onboard")).paddingTop,
+    };
+    delete document.documentElement.dataset.platform;
+    return result;
+  });
+  assert(tossShell.appbar === "none", "Toss uses the host navigation bar only");
+  assert(tossShell.appTop === "40px", `Toss content aligns vertically with Android (${tossShell.appTop})`);
+  assert(tossShell.appBottom === "78px", `Toss content reserves only its compact tab bar (${tossShell.appBottom})`);
+  assert(tossShell.tabbarBottom === "6px", `Toss does not duplicate the Android bottom safe area (${tossShell.tabbarBottom})`);
+  assert(tossShell.tabbarHeight === "78px", `Toss tab bar matches the Android height (${tossShell.tabbarHeight})`);
+  assert(tossShell.appPosition === "fixed", "Toss garden uses the real WebView bounds instead of viewport units");
+  assert(tossShell.shellTop === 0 && tossShell.shellBottom === 0, `Toss garden shell is pinned to both edges (${tossShell.shellTop}/${tossShell.shellBottom})`);
+  assert(tossShell.gardenBottom <= tossShell.tabbarTop, `Toss garden ends above the tab bar (${tossShell.gardenBottom}/${tossShell.tabbarTop})`);
+  assert(tossShell.statsGap === 20, `Toss garden stats keep the same 20px wall gap above the tab bar (${tossShell.statsGap}px)`);
+  assert(!tossShell.scrolls, "Toss garden stays within one screen");
+  assert(tossShell.sheetTop === "0px", `Toss sheets have no duplicate top inset (${tossShell.sheetTop})`);
+  assert(tossShell.onboardTop === "20px", `Toss onboarding starts below the host bar (${tossShell.onboardTop})`);
 
   /* 44. 작심 여섯의 달력이 화면 밖으로 나가지 않는다.
    *

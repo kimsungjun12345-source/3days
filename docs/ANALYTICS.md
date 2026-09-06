@@ -3,13 +3,14 @@
 ## 지금 어디까지 되어 있나
 
 **1단계 — 계측 계층 (완료).** `analytics.js`가 이벤트 허용목록과 파라미터
-타입 제한을 들고 있고, `app.js`·`native.js`에서 부르고 있다. Firebase
-플러그인이 없으면 조용히 버린다.
+타입 제한을 들고 있고, `app.js`·`native.js`에서 부르고 있다.
 
-**2단계 — 실제 전송 (완료, Android).** `@capacitor-firebase/analytics`를
-붙였고 `android/app/google-services.json`이 들어와 있다. 개인정보 처리방침도
-같은 커밋에서 함께 바꿨다. iOS는 `GoogleService-Info.plist`가 준비되면
-같은 방식으로 켜진다(아래 참고).
+**2단계 — 실제 전송 (완료).** Android 앱은
+`@capacitor-firebase/analytics`를 통해 Firebase Analytics로, 토스 미니앱은
+Apps in Toss의 `Analytics.log`를 통해 앱인토스 분석으로 전송한다. 두 플랫폼
+모두 같은 허용목록을 거치므로 사용자가 입력한 작심 제목은 전송하지 않는다.
+iOS는 `GoogleService-Info.plist`가 준비되면 Firebase 전송도 같은 방식으로
+켜진다(아래 참고).
 
 ## 무엇을 알고 싶은가
 
