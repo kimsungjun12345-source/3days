@@ -63,6 +63,7 @@ jobs:
         # 스토어용 빌드는 아래에서 BUILD_CHANNEL=release 로 다시 만든다.
         env:
           BUILD_CHANNEL: dev
+          BUILD_PLATFORM: android
         run: |
           npm run build
           npx cap sync android
@@ -138,6 +139,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v') || inputs.release
         env:
           BUILD_CHANNEL: release
+          BUILD_PLATFORM: android
         run: |
           npm run build
           npx cap sync android
